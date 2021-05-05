@@ -1,0 +1,59 @@
+{
+	"build_systems":
+	[
+		{
+			"file_regex": "(.+[^:]):(\\d+):(\\d+): (?:fatal )?((?:error|warning): .+)$",
+			"name": "tpr (Linux)",
+			"shell_cmd": "make -j12",
+			"syntax": "Packages/CMakeBuilder/Syntax/Make.sublime-syntax",
+			"variants":
+			[
+				{
+					"name": "clean",
+					"shell_cmd": "make -j12 clean"
+				},
+				{
+					"name": "rebuild_cache",
+					"shell_cmd": "make -j12 rebuild_cache"
+				},
+				{
+					"name": "tpr_main",
+					"shell_cmd": "make -j12 tpr_main"
+				}
+			],
+			"working_dir": "$folder/build"
+		}
+	],
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+	"settings":
+	{
+		"cmake":
+		{
+			"build_folder": "$folder/build",
+            "command_line_overrides":
+            {
+                // "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": 1,
+                "CMAKE_CXX_COMPILER": "clang",
+            },
+		},
+        "lsp": {
+          "log_debug": false,
+
+            "clients":
+            {
+                "clangd":
+                {
+                    "command": ["cland", "--compile-commands-dir=$folder", "--log=verbose", "--suggest-missing-includes"],
+                    "log_stderr": true,
+                    "enabled": true
+                },
+            }
+        }
+	}
+}
