@@ -38,8 +38,7 @@ int PCR::solve() {
 
 int PCR::get_ans(real *x) {
     for (int i = 0; i < n; i++) {
-        printf("%lf, ", rhs[i]);
-        x[i] = rhs[i];
+        x[i] = this->rhs[i];
     }
     return 0;
 };
