@@ -148,9 +148,11 @@ void TPR::tpr_backward() {
     int i = capital_i-1;
 
     // STAGE 2 (continue)
-    x[i] = (diag[i+u]*rhs[i] - c[i]*rhs[i+u]) / (diag[i+u]*diag[i] - c[i]*a[i+u]);
-    x[i+u] = (rhs[i+u]*diag[i] - rhs[i]*a[i+u]) / (diag[i+u]*diag[i] - c[i]*a[i+u]);
-    
+    {
+        real inv_det = 1.0 / (diag[i+u]*diag[i] - c[i]*a[i+u]);
+        x[i] = (diag[i+u]*rhs[i] - c[i]*rhs[i+u]) * inv_det;
+        x[i+u] =  (rhs[i+u]*diag[i] - rhs[i]*a[i+u]) * inv_det;
+    }    
 
     int j = 0;
     while (j < fllog2(m) - 1) {
