@@ -5,36 +5,95 @@
 #include "main.hpp"
 #include "lib.hpp"
 #include "pcr.hpp"
+#include "tpr.hpp"
+#include "dbg.h"
 
 
 
 int main() {
-    real *a, *diag, *c, *rhs;
-    int n = 8;
+    int n = 32;
+    struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
+    setup(sys, n);
+    assign(sys);
 
-    a = (real *)malloc(n * sizeof(real));
-    diag = (real *)malloc(n * sizeof(real));
-    c = (real *)malloc(n * sizeof(real));
-    rhs = (real *)malloc(n * sizeof(real));
+    PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+    p.solve();
+    p.get_ans(sys->diag);
+    print_array(sys->diag, n);
+    printf("\n");
 
-    for (int i = 0; i < n; i++) {
-        a[i] = 1.0/6.0;
-        c[i] = 1.0/6.0;
-        diag[i] = 1.0;
-        rhs[i] = 1.0 * i;
+    assign(sys);
+    // should be same as PCR
+    TPR t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, sys->n);
+    t.solve();
+    t.get_ans(sys->diag);
+    print_array(sys->diag, n);
+    printf("\n");
+
+
+    for (int s = 4; s < n; s *= 2) {
+        dbg(s);
+        assign(sys);
+        t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+        t.solve();
+        t.get_ans(sys->diag);
+        print_array(sys->diag, n);
+        printf("\n");
     }
-    a[0] = 0.0;
-    c[n-1] = 0.0;
 
-    auto pcr = PCR(a, diag, c, rhs, n);
-    pcr.solve();
-    pcr.get_ans(diag);
+    clean(sys);
+    free(sys);
 
-    print_array(diag, n);
+}
 
-    for (auto p: { a, diag, c, rhs }) {
-        if (p != NULL) {
+
+int setup(struct TRIDIAG_SYSTEM *sys, int n) {
+    sys->a = (real *)malloc(n * sizeof(real));
+    sys->diag = (real *)malloc(n * sizeof(real));
+    sys->c = (real *)malloc(n * sizeof(real));
+    sys->rhs = (real *)malloc(n * sizeof(real));
+    sys->n = n;
+
+    return sys_null_check(sys);
+}
+
+int assign(struct TRIDIAG_SYSTEM *sys) {
+    int n = sys->n;
+    for (int i = 0; i < n; i++) {
+        sys->a[i] = 1.0/6.0;
+        sys->c[i] = 1.0/6.0;
+        sys->diag[i] = 1.0;
+        sys->rhs[i] = 1.0 * i;
+    }
+    sys->a[0] = 0.0;
+    sys->c[n-1] = 0.0;
+
+    return 0;
+}
+
+
+
+int clean(struct TRIDIAG_SYSTEM *sys) {
+    for (auto p: { sys->a, sys->diag, sys->c, sys->rhs }) {
+        if (p != nullptr) {
             free(p);
         }
     }
+
+    sys->a = nullptr;
+    sys->diag = nullptr;
+    sys->c = nullptr;
+    sys->rhs = nullptr;
+
+    return 0;
+}
+
+
+bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
+    for (auto p: { sys->a, sys->diag, sys->c, sys->rhs }) {
+        if (p == nullptr) {
+            return false;
+        }
+    }
+    return true;
 }

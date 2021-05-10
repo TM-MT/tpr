@@ -1,3 +1,6 @@
 [submodule "dbg-macro"]
 	path = dbg-macro
 	url = https://github.com/sharkdp/dbg-macro
+[submodule "backward-cpp"]
+	path = src/backward-cpp
+	url = https://github.com/bombela/backward-cpp.git
