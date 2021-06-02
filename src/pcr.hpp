@@ -1,4 +1,5 @@
 #pragma once
+#include <lib.hpp>
 
 class PCR: Solver
 {
@@ -12,6 +13,9 @@ public:
         this->c = c;
         this->rhs = rhs;
         this->n = n;
+
+        // TO-DO
+        // make sure diag = {1., 1., ..., 1.};
     };
 
  
