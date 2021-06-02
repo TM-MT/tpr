@@ -11,7 +11,7 @@
 
 
 int main() {
-    int n = 32;
+    int n = 1024;
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
     assign(sys);
@@ -22,19 +22,11 @@ int main() {
     print_array(sys->diag, n);
     printf("\n");
 
-    assign(sys);
-    // should be same as PCR
-    TPR t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, sys->n);
-    t.solve();
-    t.get_ans(sys->diag);
-    print_array(sys->diag, n);
-    printf("\n");
 
-
-    for (int s = 4; s < n; s *= 2) {
+    for (int s = 4; s <= n; s *= 2) {
         dbg(s);
         assign(sys);
-        t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+        TPR t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
         t.solve();
         t.get_ans(sys->diag);
         print_array(sys->diag, n);
@@ -60,10 +52,10 @@ int setup(struct TRIDIAG_SYSTEM *sys, int n) {
 int assign(struct TRIDIAG_SYSTEM *sys) {
     int n = sys->n;
     for (int i = 0; i < n; i++) {
-        sys->a[i] = 1.0/6.0;
-        sys->c[i] = 1.0/6.0;
+        sys->a[i] = -1.0/6.0;
+        sys->c[i] = -1.0/6.0;
         sys->diag[i] = 1.0;
-        sys->rhs[i] = 1.0 * i;
+        sys->rhs[i] = 1.0 * (i+1);
     }
     sys->a[0] = 0.0;
     sys->c[n-1] = 0.0;
