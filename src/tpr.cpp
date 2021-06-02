@@ -1,6 +1,9 @@
 #include <assert.h>
 
+#ifdef __DEBUG__
 #include "backward.hpp"
+#endif
+
 #include "lib.hpp"
 #include "tpr.hpp"
 
