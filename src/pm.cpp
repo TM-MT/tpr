@@ -57,7 +57,7 @@ int main() {
         }
     }
 
-    PM.print(stdout, std::string(), std::string());
+    PM.print(stdout, std::string(""), std::string(), 1);
     PM.printDetail(stdout, 0, 1);
 
     clean(sys);
