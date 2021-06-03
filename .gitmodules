@@ -4,3 +4,9 @@
 [submodule "backward-cpp"]
 	path = src/backward-cpp
 	url = https://github.com/bombela/backward-cpp.git
+[submodule "PMlib"]
+	path = PMlib
+	url = https://github.com/avr-aics-riken/PMlib
+[submodule "random"]
+	path = random
+	url = https://github.com/effolkronium/random.git
