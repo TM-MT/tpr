@@ -1,7 +1,7 @@
 
-message("${LIBBFD_LIBRARY}")
-
-add_subdirectory(backward-cpp)
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_subdirectory(backward-cpp)
+endif()
 
 # For OpenMP
 find_package(OpenMP REQUIRED)
@@ -10,22 +10,40 @@ if(OpenMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-add_executable(tpr_main 
-    main.cpp pcr.cpp lib.cpp tpr.cpp 
-    ${BACKWARD_ENABLE})
-set_target_properties(tpr_main PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -lbfd -ldl ")
-# target_link_libraries(tpr_main "${LIBBFD_LIBRARY}")
-# target_include_directories(tpr_main PUBLIC "${LIBBFD_INCLUDE_DIR}")
+# PCR
+add_library(libpcr
+    pcr.cpp lib.cpp)
 
-target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src)
-target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/dbg-macro)
+target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/dbg-macro)
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+# TPR
+add_library(libtpr
+    tpr.cpp lib.cpp)
+
+target_include_directories(libtpr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(libtpr PUBLIC ${PROJECT_SOURCE_DIR}/dbg-macro)
+
+
+# tpr_main
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_executable(tpr_main
+        main.cpp
+    )
+elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_executable(tpr_main
+        main.cpp
+        ${BACKWARD_ENABLE}
+    )
+    set_target_properties(tpr_main PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
     target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src/backward-cpp)
     add_backward(tpr_main)
 endif()
+target_link_libraries(tpr_main PUBLIC libpcr)
+target_link_libraries(tpr_main PUBLIC libtpr)
+target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/dbg-macro)
 
 
 # PMlib
@@ -72,8 +90,10 @@ endif()
 
 # FOR BENCHMARK PROGRAM
 add_executable(tpr_pm
-    pm.cpp pcr.cpp lib.cpp tpr.cpp 
+    pm.cpp
 )
+target_link_libraries(tpr_pm libpcr)
+target_link_libraries(tpr_pm libtpr)
 target_link_libraries(tpr_pm pmlib)
 if (${OPT_PAPI})
     target_link_libraries(tpr_pm papi_ext)
@@ -85,5 +105,5 @@ target_include_directories(tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/dbg-macro)
 target_include_directories(tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/PMlib/include)
 set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" )
-target_link_libraries(tpr_pm effolkronium_random) 
+target_link_libraries(tpr_pm effolkronium_random)
 
