@@ -9,7 +9,6 @@
 
 
 int TPR::solve() {
-    // tpr_forward();
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage1(st, st + s - 1);
@@ -17,7 +16,6 @@ int TPR::solve() {
 
     tpr_stage2();
 
-    // tpr_backward();
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
