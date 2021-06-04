@@ -20,7 +20,7 @@ using Random = effolkronium::random_static;
 
 int main() {
     int n = 2048;
-    int iter_times = 100;
+    int iter_times = 1000;
 
     // Initialize PerfMonitor and set labels
     PM.initialize(100);
