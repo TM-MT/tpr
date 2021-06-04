@@ -12,24 +12,29 @@ int PCR::solve() {
         int s = 1 << p;
         real a1[n], c1[n], rhs1[n];
 
-        for (int k = 0; k < n; k++) {
-            int kl = max(k-s, 0);
-            int kr = min(k+s, n-1);
+        #pragma omp parallel shared(a1, c1, rhs1, s)
+        {
+            #pragma omp for
+            for (int k = 0; k < n; k++) {
+                int kl = max(k-s, 0);
+                int kr = min(k+s, n-1);
 
-            real ap = a[k];
-            real cp = c[k];
+                real ap = a[k];
+                real cp = c[k];
 
-            real e = 1.0 / ( 1.0 - ap * c[kl] - cp * a[kr] );
+                real e = 1.0 / ( 1.0 - ap * c[kl] - cp * a[kr] );
 
-            a1[k] = -e * ap * a[kl];
-            c1[k] = -e * cp * c[kr];
-            rhs1[k] = e * ( rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
-        }
+                a1[k] = -e * ap * a[kl];
+                c1[k] = -e * cp * c[kr];
+                rhs1[k] = e * ( rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
+            }
 
-        for (int k = 0; k < n; k++) {
-            a[k] = a1[k];
-            c[k] = c1[k];
-            rhs[k] = rhs1[k];
+            #pragma omp for
+            for (int k = 0; k < n; k++) {
+                a[k] = a1[k];
+                c[k] = c1[k];
+                rhs[k] = rhs1[k];
+            }
         }
     }
 
@@ -37,6 +42,7 @@ int PCR::solve() {
 };
 
 int PCR::get_ans(real *x) {
+    #pragma omp simd
     for (int i = 0; i < n; i++) {
         x[i] = this->rhs[i];
     }
