@@ -1,7 +1,20 @@
 #pragma once
 #include <iostream>
 
+
+// precision
+// same def as cz
+#ifdef _REAL_IS_DOUBLE_
 using real = double;
+#else
+/** 実数型の指定
+ * - デフォルトでは、REAL_TYPE=float
+ * - コンパイル時オプション-D_REAL_IS_DOUBLE_を付与することで
+ *   REAL_TYPE=doubleになる
+*/
+using real = float;
+#endif
+
 
 class Solver
 {
