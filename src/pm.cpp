@@ -17,7 +17,6 @@ pm_lib::PerfMonitor PM;
 
 // std::mt19937 base pseudo-random
 using Random = effolkronium::random_static;
-template <typename T> std::string type_name();
 
 
 int main() {
