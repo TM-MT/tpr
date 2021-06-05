@@ -5,6 +5,10 @@
 #include "pcr.hpp"
 
 
+/**
+ * @brief solve
+ * @return num of float operation
+ */
 int PCR::solve() {
     int pn = (int)floor(log2((double)this->n));
 
@@ -38,9 +42,13 @@ int PCR::solve() {
         }
     }
 
-    return 0;
+    return 14 * n * pn;
 };
 
+/**
+ * @brief get the answer
+ * @return num of float operation
+ */
 int PCR::get_ans(real *x) {
     #pragma omp simd
     for (int i = 0; i < n; i++) {

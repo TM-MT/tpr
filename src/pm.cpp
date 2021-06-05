@@ -39,9 +39,9 @@ int main() {
     for (int i = 0; i < iter_times; i++) {
         PM.start(std::string("PCR", 3));
         PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-        p.solve();
-        p.get_ans(sys->diag);
-        PM.stop(std::string("PCR", 3));        
+        int flop_count = p.solve();
+        flop_count += p.get_ans(sys->diag);
+        PM.stop(std::string("PCR", 3), (double)flop_count, 1);
     }
 
     // Measureing TPR
