@@ -10,15 +10,23 @@
 #include "pcr.hpp"
 #include "tpr.hpp"
 #include "effolkronium/random.hpp"
+#include "dbg.h"
 
 
 pm_lib::PerfMonitor PM;
 
 // std::mt19937 base pseudo-random
 using Random = effolkronium::random_static;
+template <typename T> std::string type_name();
 
 
 int main() {
+    {
+        // print type infomation
+        const real v = 0.0;
+        std::cerr << "type info: " ;
+        dbg(v);
+    }
     int n = 2048;
     int iter_times = 1000;
 

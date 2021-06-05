@@ -107,3 +107,8 @@ target_include_directories(tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/PMlib/include)
 set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" )
 target_link_libraries(tpr_pm effolkronium_random)
 
+
+if (REAL_TYPE STREQUAL "double")
+    set_property(DIRECTORY ${PROJECT_SOURCE_DIR}/src
+                APPEND PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
+endif()
