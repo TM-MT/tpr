@@ -7,7 +7,10 @@
 #include "lib.hpp"
 #include "tpr.hpp"
 
-
+/**
+ * @brief solve
+ * @return num of float operation
+ */
 int TPR::solve() {
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
@@ -20,7 +23,9 @@ int TPR::solve() {
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
-    return 0;
+
+    int m = n / s;
+    return 24 * m * (s - 2) + 60 * m - 36 + 5 * n;
 }
 
 
@@ -364,7 +369,10 @@ void TPR::replace_with_st1(int i) {
     this->rhs[i] = this->st1_rhs[bkup_idx];
 }
 
-
+/**
+ * @brief get the answer
+ * @return num of float operation
+ */
 int TPR::get_ans(real *x) {
     #pragma omp simd
     for (int i = 0; i < n; i++) {
