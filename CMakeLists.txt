@@ -12,5 +12,6 @@ if(with_PAPI)
     set(PAPI_DIR "${with_PAPI}")
 endif()
 
+add_subdirectory(${PROJECT_SOURCE_DIR}/structopt)
 add_subdirectory(${PROJECT_SOURCE_DIR}/random)
 add_subdirectory(src)

@@ -95,6 +95,7 @@ add_executable(tpr_pm
 target_link_libraries(tpr_pm libpcr)
 target_link_libraries(tpr_pm libtpr)
 target_link_libraries(tpr_pm pmlib)
+target_link_libraries(tpr_pm structopt)
 if (${OPT_PAPI})
     target_link_libraries(tpr_pm papi_ext)
     target_include_directories(tpr_pm PUBLIC ${PAPI_DIR}/include)
