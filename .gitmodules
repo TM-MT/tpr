@@ -10,3 +10,6 @@
 [submodule "random"]
 	path = random
 	url = https://github.com/effolkronium/random.git
+[submodule "structopt"]
+	path = structopt
+	url = https://github.com/p-ranav/structopt.git

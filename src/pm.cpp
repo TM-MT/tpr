@@ -11,6 +11,7 @@
 #include "tpr.hpp"
 #include "effolkronium/random.hpp"
 #include "dbg.h"
+#include <structopt/app.hpp>
 
 
 pm_lib::PerfMonitor PM;
@@ -19,15 +20,36 @@ pm_lib::PerfMonitor PM;
 using Random = effolkronium::random_static;
 
 
-int main() {
+/**
+ * @brief Command Line Args
+ * @details Define Command Line Arguments
+ */
+struct Options {
+    // size of system
+    std::optional<int> n = 2048;
+};
+STRUCTOPT(Options, n);
+
+int main(int argc, char *argv[]) {
+    int n;
+    // Parse Command Line Args
+    try {
+        auto options = structopt::app("tpr_pm", "v1.0.0").parse<Options>(argc, argv);
+        n = options.n.value();
+    } catch (structopt::exception& e) {
+        std::cout << e.what() << "\n";
+        std::cout << e.help();
+        exit(EXIT_FAILURE);
+    }
+
+    int iter_times = 1000;
+
+    // print type infomation
     {
-        // print type infomation
         const real v = 0.0;
         std::cerr << "type info: " ;
         dbg(v);
     }
-    int n = 2048;
-    int iter_times = 1000;
 
     // Initialize PerfMonitor and set labels
     PM.initialize(100);
