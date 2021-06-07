@@ -1,7 +1,7 @@
 # Tree Partitioning Reduction
 
 ## Requirements
- - cmake >= 3.0.0
+ - cmake >= 3.8.0
  - g++ >= 9.0.0
  - PAPI == papi-5-7-0-t, if using HWPC 
 
