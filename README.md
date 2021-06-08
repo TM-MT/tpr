@@ -8,7 +8,7 @@
 ## Clone & Build & Run
 
 ```sh
-$ git clone --recurse-submodules https://github.com/TM-MT/tpr
+$ git clone --recurse-submodules https://github.com/TM-MT/tpr.git
 $ cd tpr
 $ mkdir build && cd build
 $ cmake -D CMAKE_BUILD_TYPE=Release ..
