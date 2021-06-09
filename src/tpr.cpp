@@ -188,6 +188,8 @@ void TPR::tpr_stage3(int st, int ed) {
 /**
  * @brief      reduction calculation at section
  *
+ * Update E_i by using E_{i-u} and E_{i+u}. Do boundary check to make sure operation held in the section.
+ *
  * @param[in]  i     index of equation 
  * @param[in]  u     index of equation to use
  *
@@ -202,6 +204,8 @@ EquationInfo TPR::update_section(int i, int u) {
 
 /**
  * @brief      reduction calculation at STAGE 2
+ *
+ * Update E_i by using E_{i-u} and E_{i+u}. Do boundary check to avoid segmentation fault.
  *
  * @param[in]  i     index of equation 
  * @param[in]  u     index of equation to use
