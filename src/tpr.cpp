@@ -75,7 +75,6 @@ void TPR::tpr_stage2() {
     {
         EquationInfo eqbuff[n / s];
         int j = 0;
-        // for (int i = s; i <= n - s; i += s) {
         for (int i = s-1; i < n - s; i += s) {
             eqbuff[j] = update_uppper_no_check(i, i + 1);
             j += 1;
@@ -90,9 +89,6 @@ void TPR::tpr_stage2() {
 
     // STAGE 2 FR (CR FORWARD REDUCTION)
     {
-
-        // int j = 0;
-        // while ( j < (int)log2((double)n / s) - 1) {
         for (int j = 0, k = log2(s); j < (int)log2((double)n / s) - 1; j++, k++) {
             int u = pow2(k-1);
 
@@ -102,8 +98,6 @@ void TPR::tpr_stage2() {
                 eqbuff[idx] = update_global(i, u);
                 idx += 1;
             }
-            // j += 1;
-            // k += 1;
 
             for (int i = 0; i < idx; i++) {
                 patch_equation_info(eqbuff[i]);
@@ -120,10 +114,10 @@ void TPR::tpr_stage2() {
 
     // CR BACKWARD SUBSTITUTION STEP 1
     {
-        real inv_det = 1.0 / (diag[i+u]*diag[i] - c[i]*a[i+u]);
+        real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
 
-        x[i] = (diag[i+u]*rhs[i] - c[i]*rhs[i+u]) * inv_det;
-        x[i+u] =  (rhs[i+u]*diag[i] - rhs[i]*a[i+u]) * inv_det;
+        x[i] = (rhs[i] - c[i]*rhs[i+u]) * inv_det;
+        x[i+u] =  (rhs[i+u] - rhs[i]*a[i+u]) * inv_det;
     }
 
     // CR BACKWARD SUBSTITUTION
@@ -137,7 +131,7 @@ void TPR::tpr_stage2() {
             real new_x[n / (2*u)];
             int idx = 0;
             for (i = capital_i - 1; i < n; i += 2*u) {
-                new_x[idx] = (rhs[i] - a[i]*x[i-u] - c[i]*x[i+u]) / diag[i];
+                new_x[idx] = rhs[i] - a[i]*x[i-u] - c[i]*x[i+u];
                 idx += 1;
             }
 
@@ -171,7 +165,6 @@ void TPR::tpr_stage3(int st, int ed) {
     int capital_i = s;
     int u = s;
     for (int j = 0; j < fllog2(s); j += 1) {
-    // while (u >= 2) {
         capital_i = capital_i / 2;
         u = u / 2;
 
@@ -181,7 +174,7 @@ void TPR::tpr_stage3(int st, int ed) {
         int idx = 0;
         for (int i = st + capital_i - 1; i <= ed; i += 2*u) {
             // update x[i]
-            new_x[idx] = (rhs[i] - a[i] * x[i-u] - c[i]*x[i+u]) / diag[i];
+            new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
             idx += 1;
         }
 
@@ -249,56 +242,69 @@ EquationInfo TPR::update_bd_check(int i, int u, int lb, int ub) {
     return eqi;
 }
 
-/// Update E_i by E_{kl}, E_{kr}
+/// Update E_k by E_{kl}, E_{kr}
 EquationInfo TPR::update_no_check(int kl, int k, int kr) {
     assert(0 <= kl && kl < k && k < kr && kr < n);
-    real ai = a[k];
-    real diagi = diag[k];
-    real ci = c[k];
-    real rhsi = rhs[k];
+    real akl = a[kl];
+    real ak = a[k];
+    real akr = a[kr];
+    real ckl = c[kl];
+    real ck = c[k];
+    real ckr = c[kr];
+    real rhskl = rhs[kl];
+    real rhsk = rhs[k];
+    real rhskr = rhs[kr];
 
-    real s1 = ai / diag[kl];
-    real s2 = ci / diag[kr];
+    real inv_diag_k = 1.0 / (1.0 - ckl * ak - akr * ck);
 
     EquationInfo eqi;
     eqi.idx = k;
-    eqi.a = - a[kl] * s1;
-    eqi.diag = diagi - c[kl] * s1 - a[kr] * s2;
-    eqi.c = - c[kr] * s2;
-    eqi.rhs = rhsi - rhs[kl] * s1 - rhs[kr] * s2;
+    eqi.a = - inv_diag_k * akl * ak;
+    eqi.c = - inv_diag_k * ckr * ck;
+    eqi.rhs = inv_diag_k * (rhsk - rhskl * ak - rhskr * ck);
 
     return eqi;
 }
 
 
-/// Update E_i by E_{kr}
-EquationInfo TPR::update_uppper_no_check(int i, int kr) {
-    assert(0 <= i && i < kr && kr < n);
+/// Update E_k by E_{kr}
+EquationInfo TPR::update_uppper_no_check(int k, int kr) {
+    assert(0 <= k && k < kr && kr < n);
+    real ak = a[k];
+    real akr = a[kr];
+    real ck = c[k];
+    real ckr = c[kr];
+    real rhsk = rhs[k];
+    real rhskr = rhs[kr];
 
-    real s2 = c[i] / diag[kr];
+    real inv_diag_k = 1.0 / (1.0 - akr * ck);
 
     EquationInfo eqi;
-    eqi.idx = i;
-    eqi.a = a[i];  // no update for a[i]
-    eqi.diag = diag[i] - a[kr] * s2;
-    eqi.c = -c[kr] * s2;
-    eqi.rhs = rhs[i] - rhs[kr] * s2;
+    eqi.idx = k;
+    eqi.a = inv_diag_k * ak;
+    eqi.c = -inv_diag_k * ckr * ck;
+    eqi.rhs = inv_diag_k * (rhsk - rhskr * ck);
 
     return eqi;
 }
 
-/// Update E_i by E_{kl}
-EquationInfo TPR::update_lower_no_check(int kl, int i) {
-    assert(0 <= kl && kl < i && i < n);
+/// Update E_k by E_{kl}
+EquationInfo TPR::update_lower_no_check(int kl, int k) {
+    assert(0 <= kl && kl < k && k < n);
+    real akl = a[kl];
+    real ak = a[k];
+    real ckl = c[kl];
+    real ck = c[k];
+    real rhskl = rhs[kl];
+    real rhsk = rhs[k];
 
-    real s1 = a[i] / diag[kl];
+    real inv_diag_k = 1.0 / (1.0 - c[kl] * ak);
 
     EquationInfo eqi;
-    eqi.idx = i;
-    eqi.a = - a[kl] * s1;
-    eqi.diag = diag[i] - c[kl] * s1;
-    eqi.c = c[i];  // no update for c[i]
-    eqi.rhs = rhs[i] - rhs[kl] * s1;
+    eqi.idx = k;
+    eqi.a = -inv_diag_k * a[kl] * ak;
+    eqi.c = inv_diag_k * ck;
+    eqi.rhs = inv_diag_k * (rhsk - rhskl * ak);
 
     return eqi;
 }
@@ -313,7 +319,6 @@ EquationInfo TPR::update_lower_no_check(int kl, int i) {
 void TPR::mk_bkup_init(int st, int ed) {
     int stidx = st;
     bkup_cp(this->a, this->init_a, stidx, ed);
-    bkup_cp(this->diag, this->init_diag, stidx, ed);
     bkup_cp(this->c, this->init_c, stidx, ed);
     bkup_cp(this->rhs, this->init_rhs, stidx, ed);
 }
@@ -327,7 +332,6 @@ void TPR::mk_bkup_init(int st, int ed) {
 void TPR::mk_bkup_st1(int st, int ed) {
     int stidx = st + 1;
     bkup_cp(this->a, this->st1_a, stidx, ed);
-    bkup_cp(this->diag, this->st1_diag, stidx, ed);
     bkup_cp(this->c, this->st1_c, stidx, ed);
     bkup_cp(this->rhs, this->st1_rhs, stidx, ed);
 }
@@ -349,7 +353,6 @@ void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
 void TPR::replace_with_init(int i) {
     int bkup_idx = i / 2;
     this->a[i] = this->init_a[bkup_idx];
-    this->diag[i] = this->init_diag[bkup_idx];
     this->c[i] = this->init_c[bkup_idx];
     this->rhs[i] = this->init_rhs[bkup_idx];
 }
@@ -364,7 +367,6 @@ void TPR::replace_with_init(int i) {
 void TPR::replace_with_st1(int i) {
     int bkup_idx = i / 2;
     this->a[i] = this->st1_a[bkup_idx];
-    this->diag[i] = this->st1_diag[bkup_idx];
     this->c[i] = this->st1_c[bkup_idx];
     this->rhs[i] = this->st1_rhs[bkup_idx];
 }
@@ -389,7 +391,6 @@ int TPR::get_ans(real *x) {
 void TPR::patch_equation_info(EquationInfo eqi) {
     int idx = eqi.idx;
     this->a[idx] = eqi.a;
-    this->diag[idx] = eqi.diag;
     this->c[idx] = eqi.c;
     this->rhs[idx] = eqi.rhs;
 }

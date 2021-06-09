@@ -21,22 +21,21 @@
 struct EquationInfo {
     int idx;
     real a;
-    real diag;
     real c;
     real rhs;
 };
 
 class TPR: Solver
 {
-    real *a, *diag, *c, *rhs, *x;
-    real *init_a, *init_diag, *init_c, *init_rhs;
-    real *st1_a, *st1_diag, *st1_c, *st1_rhs;
+    real *a, *c, *rhs, *x;
+    real *init_a, *init_c, *init_rhs;
+    real *st1_a, *st1_c, *st1_rhs;
     int n, s;
 
 public:
     TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
         this->a = a;
-        this->diag = diag;
+        // assert diag == { 1.0, 1.0, ... 1.0 }
         this->c = c;
         this->rhs = rhs;
         this->n = n;
@@ -47,19 +46,15 @@ public:
 
         // allocation for backup
         RMALLOC(this->init_a, (n + 1) / 2);
-        RMALLOC(this->init_diag, (n + 1) / 2);
         RMALLOC(this->init_c, (n + 1) / 2);
         RMALLOC(this->init_rhs, (n + 1) / 2);
         RMALLOC(this->st1_a, (n + 1) / 2);
-        RMALLOC(this->st1_diag, (n + 1) / 2);
         RMALLOC(this->st1_c, (n + 1) / 2);
         RMALLOC(this->st1_rhs, (n + 1) / 2);
 
         // NULL CHECK
-        real **ps[] = { &this->init_a, &this->init_diag, 
-                        &this->init_c, &this->init_rhs, 
-                        &this->st1_a, &this->st1_diag, 
-                        &this->st1_c, &this->st1_rhs,
+        real **ps[] = { &this->init_a, &this->init_c, &this->init_rhs,
+                        &this->st1_a, &this->st1_c, &this->st1_rhs,
         };
         for (int i = 0; i < sizeof(ps) / sizeof(ps[0]); i++) {
             if (ps[i] == NULL) {
@@ -92,8 +87,8 @@ private:
     void bkup_cp(real *src, real *dst, int st,int ed);
 
     EquationInfo update_no_check(int kl, int k, int kr);
-    EquationInfo update_uppper_no_check(int i, int kr);
-    EquationInfo update_lower_no_check(int kl, int i);
+    EquationInfo update_uppper_no_check(int k, int kr);
+    EquationInfo update_lower_no_check(int kl, int k);
 
     void replace_with_init(int i);
     void replace_with_st1(int i);
