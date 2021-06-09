@@ -1,5 +1,5 @@
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
 endif()
 
