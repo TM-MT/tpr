@@ -26,7 +26,7 @@ int main() {
     for (int s = 4; s <= n; s *= 2) {
         dbg(s);
         assign(sys);
-        TPR t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+        TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
         t.solve();
         t.get_ans(sys->diag);
         print_array(sys->diag, n);

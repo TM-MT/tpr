@@ -13,7 +13,13 @@
  * @param      n     length of array
  *
  */
-#define RMALLOC(x, n) x = (real *)malloc(sizeof(real) * n)
+#define RMALLOC(x, n) x = new real[n]
+
+/**
+ * @brief Safely delete pointer `p`
+ */
+#define SAFE_DELETE( p ) delete p; p = nullptr
+
 
 /**
  * @brief      Infomation of equation and its index
@@ -55,6 +61,7 @@ public:
         // NULL CHECK
         real **ps[] = { &this->init_a, &this->init_c, &this->init_rhs,
                         &this->st1_a, &this->st1_c, &this->st1_rhs,
+                        &this->x,
         };
         for (int i = 0; i < sizeof(ps) / sizeof(ps[0]); i++) {
             if (ps[i] == NULL) {
@@ -72,12 +79,26 @@ public:
         assert(floor((double)n / s) == ceil((double)n / s));
         assert(4 <= s && s <= n);
     };
+
+    ~TPR() {
+        // free local variables
+        SAFE_DELETE(this->init_a);
+        SAFE_DELETE(this->init_c);
+        SAFE_DELETE(this->init_rhs);
+        SAFE_DELETE(this->st1_a);
+        SAFE_DELETE(this->st1_c);
+        SAFE_DELETE(this->st1_rhs);
+        SAFE_DELETE(this->x);
+    }
  
     int solve();
 
     int get_ans(real *x);
 
 private:
+    TPR(const TPR &tpr);
+    TPR &operator=(const TPR &tpr);
+
     EquationInfo update_section(int i, int u);
     EquationInfo update_global(int i, int u);
     EquationInfo update_bd_check(int i, int u, int lb, int ub);
