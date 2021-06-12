@@ -63,7 +63,7 @@ public:
                         &this->st1_a, &this->st1_c, &this->st1_rhs,
                         &this->x,
         };
-        for (int i = 0; i < sizeof(ps) / sizeof(ps[0]); i++) {
+        for (int i = 0; static_cast<long unsigned int>(i) < sizeof(ps) / sizeof(ps[0]); i++) {
             if (ps[i] == NULL) {
                 printf("[%s] FAILED TO ALLOCATE %d th array.\n",
                     __func__, i
