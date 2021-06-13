@@ -39,52 +39,26 @@ class TPR: Solver
 
 public:
     TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
-        this->a = a;
-        // assert diag == { 1.0, 1.0, ... 1.0 }
-        this->c = c;
-        this->rhs = rhs;
-        this->n = n;
-        this->s = s;
+        init(n, s);
+        set_tridiagonal_system(a, c, rhs);
+    };
 
-        // allocation for answer
-        RMALLOC(this->x, n);
-
-        // allocation for backup
-        RMALLOC(this->bkup_a, n);
-        RMALLOC(this->bkup_c, n);
-        RMALLOC(this->bkup_rhs, n);
-
-        // NULL CHECK
-        real **ps[] = { &this->bkup_a, &this->bkup_c, &this->bkup_rhs,
-                        &this->x,
-        };
-        for (int i = 0; static_cast<long unsigned int>(i) < sizeof(ps) / sizeof(ps[0]); i++) {
-            if (ps[i] == NULL) {
-                printf("[%s] FAILED TO ALLOCATE %d th array.\n",
-                    __func__, i
-                    );
-                abort();
-            }
-        }
-
-        // Initialize the answer array
-        for (int i = 0; i < n; i++) {
-            this->x[i] = 0.0;
-        }
-        assert(floor((double)n / s) == ceil((double)n / s));
-        assert(4 <= s && s <= n);
+    TPR(int n, int  s) {
+        init(n, s);
     };
 
     ~TPR() {
         // free local variables
-        SAFE_DELETE(this->a);
-        SAFE_DELETE(this->c);
-        SAFE_DELETE(this->rhs);
-        // bkup_* has input array pointer
-        // Do NOT free them
+        SAFE_DELETE(this->bkup_a);
+        SAFE_DELETE(this->bkup_c);
+        SAFE_DELETE(this->bkup_rhs);
         SAFE_DELETE(this->x);
     }
  
+    void set_tridiagonal_system(real *a, real *c, real *rhs);
+
+    void clear();
+
     int solve();
 
     int get_ans(real *x);
@@ -92,6 +66,8 @@ public:
 private:
     TPR(const TPR &tpr);
     TPR &operator=(const TPR &tpr);
+
+    void init(int n, int s);
 
     EquationInfo update_section(int i, int u);
     EquationInfo update_global(int i, int u);

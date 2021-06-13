@@ -60,6 +60,14 @@ int main(int argc, char *argv[]) {
         label.append(std::to_string(s));
         PM.setProperties(label, PM.CALC);
     }
+    {
+        // assert n is power of 2
+        std::string label = std::string("TPR");
+        label.append(std::to_string(n / 2));
+        label.append(std::string("_Reusable"));
+        PM.setProperties(label, PM.CALC);
+    }
+
 
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
@@ -81,6 +89,24 @@ int main(int argc, char *argv[]) {
             auto label = std::string("TPR", 3).append(std::to_string(s));
             PM.start(label);
             TPR t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+            int flop_count = t.solve();
+            flop_count += t.get_ans(sys->diag);
+            PM.stop(label, (double)flop_count, 1);
+        }
+    }
+
+
+    // Measureing TPR reusable implementation
+    {
+        int s = n / 2;
+        TPR t = TPR(sys->n, s);
+        for (int i = 0; i < iter_times; i++) {
+            assign(sys);
+            t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
+            auto label = std::string("TPR", 3)
+                            .append(std::to_string(s))
+                            .append(std::string("_Reusable"));
+            PM.start(label);
             int flop_count = t.solve();
             flop_count += t.get_ans(sys->diag);
             PM.stop(label, (double)flop_count, 1);
