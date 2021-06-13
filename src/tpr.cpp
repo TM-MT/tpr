@@ -7,6 +7,63 @@
 #include "lib.hpp"
 #include "tpr.hpp"
 
+
+/**
+ * @brief set Tridiagonal System for TPR
+ *
+ * USAGE
+ * ```
+ * TPR t(n, s);
+ * t.set_tridiagonal_system(a, c, rhs);
+ * t.solve();
+ * t.get_ans(x);
+ * ```
+ *
+ * @param a
+ * @param c
+ * @param rhs
+ */
+void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
+    this->a = a;
+    this->c = c;
+    this->rhs = rhs;
+}
+
+/**
+ * @brief Initializer for TPR()
+ * @details Call this function first to set up for TPR
+ *
+ * @note This function should call once.
+ *
+ * @param n size of given system
+ * @param s size of a slice. `s` should be power of 2
+ */
+void TPR::init(int n, int s) {
+    this->n = n;
+    this->s = s;
+    // allocation for answer
+    RMALLOC(this->x, n);
+
+    // allocation for backup
+    RMALLOC(this->bkup_a, n);
+    RMALLOC(this->bkup_c, n);
+    RMALLOC(this->bkup_rhs, n);
+
+    // NULL CHECK
+    real **ps[] = { &this->bkup_a, &this->bkup_c, &this->bkup_rhs,
+                    &this->x,
+    };
+    for (int i = 0; static_cast<long unsigned int>(i) < sizeof(ps) / sizeof(ps[0]); i++) {
+        if (ps[i] == NULL) {
+            printf("[%s] FAILED TO ALLOCATE %d th array.\n",
+                __func__, i
+                );
+            abort();
+        }
+    }
+}
+
+
 /**
  * @brief solve
  * @return num of float operation
@@ -25,6 +82,9 @@ int TPR::solve() {
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
+
+    // call this again to re-replace
+    st3_replace();
 
     int m = n / s;
     return 24 * m * (s - 2) + 60 * m - 36 + 5 * n;
