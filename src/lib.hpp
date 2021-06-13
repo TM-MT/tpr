@@ -53,6 +53,7 @@ T min(T a, T b) {
 
 void print_array(real *array, int n);
 int fllog2(int a) pure_function;
+inline uint32_t ilog2(const uint32_t x) pure_function;
 int pow2(int k) pure_function;
 
 #undef pure_function
