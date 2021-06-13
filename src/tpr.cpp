@@ -91,7 +91,7 @@ void TPR::tpr_stage2() {
 
     // STAGE 2 FR (CR FORWARD REDUCTION)
     {
-        for (int j = 0, k = log2(s); j < (int)log2((double)n / s) - 1; j++, k++) {
+        for (int j = 0, k = fllog2(s); j < fllog2(n / s) - 1; j++, k++) {
             int u = pow2(k-1);
 
             EquationInfo eqbuff[n / s];
