@@ -34,8 +34,7 @@ struct EquationInfo {
 class TPR: Solver
 {
     real *a, *c, *rhs, *x;
-    real *init_a, *init_c, *init_rhs;
-    real *st1_a, *st1_c, *st1_rhs;
+    real *bkup_a, *bkup_c, *bkup_rhs;
     int n, s;
 
 public:
@@ -51,19 +50,15 @@ public:
         RMALLOC(this->x, n);
 
         // allocation for backup
-        RMALLOC(this->init_a, (n + 1) / 2);
-        RMALLOC(this->init_c, (n + 1) / 2);
-        RMALLOC(this->init_rhs, (n + 1) / 2);
-        RMALLOC(this->st1_a, (n + 1) / 2);
-        RMALLOC(this->st1_c, (n + 1) / 2);
-        RMALLOC(this->st1_rhs, (n + 1) / 2);
+        RMALLOC(this->bkup_a, n);
+        RMALLOC(this->bkup_c, n);
+        RMALLOC(this->bkup_rhs, n);
 
         // NULL CHECK
-        real **ps[] = { &this->init_a, &this->init_c, &this->init_rhs,
-                        &this->st1_a, &this->st1_c, &this->st1_rhs,
+        real **ps[] = { &this->bkup_a, &this->bkup_c, &this->bkup_rhs,
                         &this->x,
         };
-        for (int i = 0; i < sizeof(ps) / sizeof(ps[0]); i++) {
+        for (int i = 0; static_cast<long unsigned int>(i) < sizeof(ps) / sizeof(ps[0]); i++) {
             if (ps[i] == NULL) {
                 printf("[%s] FAILED TO ALLOCATE %d th array.\n",
                     __func__, i
@@ -82,12 +77,11 @@ public:
 
     ~TPR() {
         // free local variables
-        SAFE_DELETE(this->init_a);
-        SAFE_DELETE(this->init_c);
-        SAFE_DELETE(this->init_rhs);
-        SAFE_DELETE(this->st1_a);
-        SAFE_DELETE(this->st1_c);
-        SAFE_DELETE(this->st1_rhs);
+        SAFE_DELETE(this->a);
+        SAFE_DELETE(this->c);
+        SAFE_DELETE(this->rhs);
+        // bkup_* has input array pointer
+        // Do NOT free them
         SAFE_DELETE(this->x);
     }
  
@@ -111,8 +105,7 @@ private:
     EquationInfo update_uppper_no_check(int k, int kr);
     EquationInfo update_lower_no_check(int kl, int k);
 
-    void replace_with_init(int i);
-    void replace_with_st1(int i);
+    void st3_replace();
 
     void tpr_stage1(int st, int ed);
     void tpr_stage2();

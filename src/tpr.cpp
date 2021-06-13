@@ -19,6 +19,8 @@ int TPR::solve() {
 
     tpr_stage2();
 
+    st3_replace();
+
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
@@ -153,14 +155,7 @@ void TPR::tpr_stage2() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage3(int st, int ed) {
-    // REPLACING
-    for (int i = st; i <= ed; i += 1) {
-        if (i % 2 == 0) {
-            replace_with_init(i);
-        } else {
-            replace_with_st1(i);
-        }
-    }
+    // REPLACE should have done.
 
     int capital_i = s;
     int u = s;
@@ -322,9 +317,9 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
  */
 void TPR::mk_bkup_init(int st, int ed) {
     int stidx = st;
-    bkup_cp(this->a, this->init_a, stidx, ed);
-    bkup_cp(this->c, this->init_c, stidx, ed);
-    bkup_cp(this->rhs, this->init_rhs, stidx, ed);
+    bkup_cp(this->a, this->bkup_a, stidx, ed);
+    bkup_cp(this->c, this->bkup_c, stidx, ed);
+    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
 }
 
 /**
@@ -335,44 +330,26 @@ void TPR::mk_bkup_init(int st, int ed) {
  */
 void TPR::mk_bkup_st1(int st, int ed) {
     int stidx = st + 1;
-    bkup_cp(this->a, this->st1_a, stidx, ed);
-    bkup_cp(this->c, this->st1_c, stidx, ed);
-    bkup_cp(this->rhs, this->st1_rhs, stidx, ed);
+    bkup_cp(this->a, this->bkup_a, stidx, ed);
+    bkup_cp(this->c, this->bkup_c, stidx, ed);
+    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
 }
 
 void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
-    for (int i = st; i < ed; i += 2) {
-        dst[i / 2] = src[i];
+    for (int i = st; i <= ed; i += 2) {
+        dst[i] = src[i];
     }
 }
 
-
 /**
- * @brief      replace the E_i by INITIAL STATE
- * 
- * call `TPR::mk_bkup_init` before use to make sure `this->init_*` has correct information.
+ * @brief   subroutine for STAGE 3 REPLACE
  *
- * @param[in]  i     index to replace
+ * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
  */
-void TPR::replace_with_init(int i) {
-    int bkup_idx = i / 2;
-    this->a[i] = this->init_a[bkup_idx];
-    this->c[i] = this->init_c[bkup_idx];
-    this->rhs[i] = this->init_rhs[bkup_idx];
-}
-
-/**
- * @brief      replace the E_i by STAGE 1 STATE
- * 
- * call `TPR::mk_bkup_st1` before use to make sure `this->st1_*` has correct information.
- *
- * @param[in]  i     index to replace
- */
-void TPR::replace_with_st1(int i) {
-    int bkup_idx = i / 2;
-    this->a[i] = this->st1_a[bkup_idx];
-    this->c[i] = this->st1_c[bkup_idx];
-    this->rhs[i] = this->st1_rhs[bkup_idx];
+void TPR::st3_replace() {
+    std::swap(this->a, this->bkup_a);
+    std::swap(this->c, this->bkup_c);
+    std::swap(this->rhs, this->bkup_rhs);
 }
 
 /**
