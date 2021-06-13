@@ -40,10 +40,11 @@ if (TPR_PROJECT)
             main.cpp
         )
     endif()
-    target_link_libraries(tpr_main PUBLIC libpcr)
-    target_link_libraries(tpr_main PUBLIC libtpr)
-    target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src)
-    target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/dbg-macro)
+    target_link_libraries(tpr_main
+        PUBLIC libpcr libtpr)
+    target_include_directories(tpr_main
+        PUBLIC ${PROJECT_SOURCE_DIR}/src
+                ${PROJECT_SOURCE_DIR}/dbg-macro)
 
 
     # PMlib
@@ -60,8 +61,9 @@ if (TPR_PROJECT)
 
     add_library(pmlib STATIC ${pm_files})
     target_include_directories(pmlib PUBLIC ${pmlib_incdir})
-    set_property(TARGET pmlib PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" )
-    set_property(TARGET pmlib APPEND PROPERTY COMPILE_DEFINITIONS enable_OPENMP="ON" )
+    set_property(TARGET pmlib
+        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
+                 COMPILE_DEFINITIONS enable_OPENMP="ON")
 
     if (with_PAPI) # with_PAPI=[path/to/papi]
         message("PAPI DIR: ${PAPI_DIR}")
@@ -78,11 +80,13 @@ if (TPR_PROJECT)
 
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSTATIC_PAPI_EVENTS_TABLE -D_REENTRANT -D_GNU_SOURCE")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_COMPILER_TLS  -DPAPI_NO_MEMORY_MANAGEMENT -DUSE_PAPI")
-        target_include_directories(papi_ext PUBLIC ${PAPI_DIR}/include)
-        target_link_directories(papi_ext PUBLIC ${PAPI_DIR}/lib)
+        target_include_directories(papi_ext
+            PUBLIC ${PAPI_DIR}/include
+                    ${PAPI_DIR}/lib)
         set_target_properties(papi_ext PROPERTIES LINKER_LANGUAGE CXX)
         target_link_libraries(papi_ext ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
 
+        # link papi to PMlib
         target_link_libraries(pmlib papi_ext)
         target_include_directories(pmlib PUBLIC ${PAPI_DIR}/include)
         target_link_directories(pmlib PUBLIC ${PAPI_DIR}/lib)
@@ -92,21 +96,19 @@ if (TPR_PROJECT)
     add_executable(tpr_pm
         pm.cpp
     )
-    target_link_libraries(tpr_pm libpcr)
-    target_link_libraries(tpr_pm libtpr)
-    target_link_libraries(tpr_pm pmlib)
-    target_link_libraries(tpr_pm structopt)
+    target_link_libraries(tpr_pm
+        libpcr libtpr pmlib structopt effolkronium_random)
     if (${OPT_PAPI})
-        target_link_libraries(tpr_pm papi_ext)
+        target_link_libraries(tpr_pm
+            PUBLIC papi_ext "${PAPI_STATIC_LIB}")
         target_include_directories(tpr_pm PUBLIC ${PAPI_DIR}/include)
         target_link_directories(tpr_pm PUBLIC ${PAPI_DIR}/lib)
-        target_link_libraries(tpr_pm "${PAPI_STATIC_LIB}") 
     endif()
-    target_include_directories(tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/src)
-    target_include_directories(tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/dbg-macro)
-    target_include_directories(tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/PMlib/include)
+    target_include_directories(tpr_pm
+        PUBLIC ${PROJECT_SOURCE_DIR}/src
+                ${PROJECT_SOURCE_DIR}/dbg-macro
+                ${PROJECT_SOURCE_DIR}/PMlib/include)
     set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" )
-    target_link_libraries(tpr_pm effolkronium_random)
 endif()
 
 if (REAL_TYPE STREQUAL "double")
