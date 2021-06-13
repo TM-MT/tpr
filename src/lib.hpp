@@ -16,6 +16,14 @@ using real = float;
 #endif
 
 
+// pure function
+#ifdef __GNUC__
+#define pure_function __attribute__((const))
+#else
+#define pure_function
+#endif
+
+
 class Solver
 {
 public:
@@ -44,5 +52,7 @@ T min(T a, T b) {
 }
 
 void print_array(real *array, int n);
-int fllog2(int a);
-int pow2(int k);
+int fllog2(int a) pure_function;
+int pow2(int k) pure_function;
+
+#undef pure_function
