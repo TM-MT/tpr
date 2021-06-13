@@ -347,14 +347,9 @@ void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
  * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
  */
 void TPR::st3_replace() {
-    for (int i = 0; i < this->n; i++) {
-        this->a[i] = this->bkup_a[i];
-        this->c[i] = this->bkup_c[i];
-        this->rhs[i] = this->bkup_rhs[i];
-    }
-    // std::swap(this->a, this->bkup_a);
-    // std::swap(this->c, this->bkup_c);
-    // std::swap(this->rhs, this->bkup_rhs);
+    std::swap(this->a, this->bkup_a);
+    std::swap(this->c, this->bkup_c);
+    std::swap(this->rhs, this->bkup_rhs);
 }
 
 /**

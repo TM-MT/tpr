@@ -77,13 +77,11 @@ public:
 
     ~TPR() {
         // free local variables
-        SAFE_DELETE(this->init_a);
-        SAFE_DELETE(this->init_c);
-        SAFE_DELETE(this->init_rhs);
-        SAFE_DELETE(this->st1_a);
-        SAFE_DELETE(this->bkup_a);
-        SAFE_DELETE(this->bkup_c);
-        SAFE_DELETE(this->bkup_rhs);
+        SAFE_DELETE(this->a);
+        SAFE_DELETE(this->c);
+        SAFE_DELETE(this->rhs);
+        // bkup_* has input array pointer
+        // Do NOT free them
         SAFE_DELETE(this->x);
     }
  
