@@ -97,7 +97,7 @@ if (TPR_PROJECT)
         pm.cpp
     )
     target_link_libraries(tpr_pm
-        libpcr libtpr pmlib structopt effolkronium_random)
+        PUBLIC libpcr libtpr pmlib structopt effolkronium_random)
     if (${OPT_PAPI})
         target_link_libraries(tpr_pm
             PUBLIC papi_ext "${PAPI_STATIC_LIB}")
