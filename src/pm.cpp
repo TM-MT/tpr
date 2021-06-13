@@ -27,22 +27,23 @@ using Random = effolkronium::random_static;
 struct Options {
     // size of system
     std::optional<int> n = 2048;
+    // Iteration Times
+    std::optional<int> iter = 1000;
 };
-STRUCTOPT(Options, n);
+STRUCTOPT(Options, n, iter);
 
 int main(int argc, char *argv[]) {
-    int n;
+    int n, iter_times;
     // Parse Command Line Args
     try {
         auto options = structopt::app("tpr_pm", "v1.0.0").parse<Options>(argc, argv);
         n = options.n.value();
+        iter_times = options.iter.value();
     } catch (structopt::exception& e) {
         std::cout << e.what() << "\n";
         std::cout << e.help();
         exit(EXIT_FAILURE);
     }
-
-    int iter_times = 1000;
 
     // print type infomation
     {
