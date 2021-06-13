@@ -290,9 +290,7 @@ EquationInfo TPR::update_uppper_no_check(int k, int kr) {
 /// Update E_k by E_{kl}
 EquationInfo TPR::update_lower_no_check(int kl, int k) {
     assert(0 <= kl && kl < k && k < n);
-    real akl = a[kl];
     real ak = a[k];
-    real ckl = c[kl];
     real ck = c[k];
     real rhskl = rhs[kl];
     real rhsk = rhs[k];
