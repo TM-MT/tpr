@@ -351,15 +351,17 @@ EquationInfo TPR::update_uppper_no_check(int k, int kr) {
 EquationInfo TPR::update_lower_no_check(int kl, int k) {
     assert(0 <= kl && kl < k && k < n);
     real ak = a[k];
+    real akl = a[kl];
     real ck = c[k];
+    real ckl = c[kl];
     real rhskl = rhs[kl];
     real rhsk = rhs[k];
 
-    real inv_diag_k = 1.0 / (1.0 - c[kl] * ak);
+    real inv_diag_k = 1.0 / (1.0 - ckl * ak);
 
     EquationInfo eqi;
     eqi.idx = k;
-    eqi.a = -inv_diag_k * a[kl] * ak;
+    eqi.a = -inv_diag_k * akl * ak;
     eqi.c = inv_diag_k * ck;
     eqi.rhs = inv_diag_k * (rhsk - rhskl * ak);
 
