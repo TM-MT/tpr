@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <array>
 
 #ifdef __DEBUG__
 #include "backward.hpp"
@@ -6,6 +7,9 @@
 
 #include "lib.hpp"
 #include "tpr.hpp"
+#include "pm.hpp"
+#include "PerfMonitor.h"
+
 
 
 /**
@@ -61,6 +65,12 @@ void TPR::init(int n, int s) {
             abort();
         }
     }
+
+    // Initialize PerfMonitor and set labels
+    this->pm.initialize(100);
+    for (unsigned long int i = 0; i < this->labels.size(); i++) {
+        this->pm.setProperties(this->labels[i], pm.CALC);
+    }
 }
 
 
@@ -69,19 +79,25 @@ void TPR::init(int n, int s) {
  * @return num of float operation
  */
 int TPR::solve() {
+    this->pm.start(labels[0]);
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage1(st, st + s - 1);
     }
+    this->pm.stop(labels[0], 0.0);
 
+    this->pm.start(labels[1]);
     tpr_stage2();
+    this->pm.stop(labels[1], 0.0);
 
     st3_replace();
 
+    this->pm.start(labels[2]);
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
+    this->pm.stop(labels[2], 0.0);
 
     // call this again to re-replace
     st3_replace();

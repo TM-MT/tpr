@@ -3,8 +3,11 @@
 #include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
+#include <array>
 
+#include "PerfMonitor.h"
 #include "lib.hpp"
+#include "pm.hpp"
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
@@ -36,6 +39,8 @@ class TPR: Solver
     real *a, *c, *rhs, *x;
     real *bkup_a, *bkup_c, *bkup_rhs;
     int n, s;
+    pm_lib::PerfMonitor pm;
+    std::array<std::string, 3> labels = { "st1", "st2", "st3" };
 
 public:
     TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
@@ -53,6 +58,9 @@ public:
         SAFE_DELETE(this->bkup_c);
         SAFE_DELETE(this->bkup_rhs);
         SAFE_DELETE(this->x);
+
+        this->pm.print(stdout, std::string(""), std::string(), 1);
+        this->pm.printDetail(stdout, 0, 1);
     }
  
     void set_tridiagonal_system(real *a, real *c, real *rhs);
