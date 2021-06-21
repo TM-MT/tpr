@@ -40,7 +40,8 @@ class TPR: Solver
     real *bkup_a, *bkup_c, *bkup_rhs;
     int n, s;
     pm_lib::PerfMonitor pm;
-    std::array<std::string, 3> labels = { "st1", "st2", "st3" };
+    std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
+    std::array<std::string, 3> labels;
 
 public:
     TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
