@@ -22,7 +22,14 @@ target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
 add_library(libtpr
     tpr.cpp lib.cpp)
 
-target_include_directories(libtpr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(libtpr
+    PUBLIC ${PROJECT_SOURCE_DIR}/src
+            ${PROJECT_SOURCE_DIR}/PMlib/include)
+target_link_libraries(libtpr PUBLIC pmlib)
+set_property(TARGET libtpr
+    PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
+             COMPILE_DEFINITIONS enable_OPENMP="ON")
+
 
 # build sample main and benchmark program
 if (TPR_PROJECT)
@@ -45,6 +52,10 @@ if (TPR_PROJECT)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
                 ${PROJECT_SOURCE_DIR}/dbg-macro)
+    set_property(TARGET tpr_main
+        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
+                 COMPILE_DEFINITIONS enable_OPENMP="ON")
+
 
 
     # PMlib
@@ -97,7 +108,7 @@ if (TPR_PROJECT)
         pm.cpp
     )
     target_link_libraries(tpr_pm
-        PUBLIC libpcr libtpr pmlib structopt effolkronium_random)
+        PUBLIC libtpr pmlib structopt effolkronium_random)
     if (${OPT_PAPI})
         target_link_libraries(tpr_pm
             PUBLIC papi_ext "${PAPI_STATIC_LIB}")

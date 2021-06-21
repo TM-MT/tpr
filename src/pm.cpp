@@ -1,20 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <initializer_list>
-#include <PerfMonitor.h>
 #include <string>
 
 #include "main.hpp"
-#include "pm.hpp"
 #include "lib.hpp"
-#include "pcr.hpp"
 #include "tpr.hpp"
 #include "effolkronium/random.hpp"
 #include "dbg.h"
 #include <structopt/app.hpp>
 
-
-pm_lib::PerfMonitor PM;
 
 // std::mt19937 base pseudo-random
 using Random = effolkronium::random_static;
@@ -52,49 +47,10 @@ int main(int argc, char *argv[]) {
         dbg(v);
     }
 
-    // Initialize PerfMonitor and set labels
-    PM.initialize(100);
-    PM.setProperties(std::string("PCR"), PM.CALC);
-    for (int s = 4; s <= n; s *= 2) {
-        auto label = std::string("TPR", 3);
-        label.append(std::to_string(s));
-        PM.setProperties(label, PM.CALC);
-    }
-    {
-        // assert n is power of 2
-        std::string label = std::string("TPR");
-        label.append(std::to_string(n / 2));
-        label.append(std::string("_Reusable"));
-        PM.setProperties(label, PM.CALC);
-    }
-
 
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
     assign(sys);
-
-    // Measuring PCR
-    for (int i = 0; i < iter_times; i++) {
-        PM.start(std::string("PCR", 3));
-        PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-        int flop_count = p.solve();
-        flop_count += p.get_ans(sys->diag);
-        PM.stop(std::string("PCR", 3), (double)flop_count, 1);
-    }
-
-    // Measureing TPR
-    for (int s = 4; s <= n; s *= 2) {
-        for (int i = 0; i < iter_times; i++) {
-            assign(sys);
-            auto label = std::string("TPR", 3).append(std::to_string(s));
-            PM.start(label);
-            TPR t = TPR(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
-            int flop_count = t.solve();
-            flop_count += t.get_ans(sys->diag);
-            PM.stop(label, (double)flop_count, 1);
-        }
-    }
-
 
     // Measureing TPR reusable implementation
     {
@@ -103,18 +59,10 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < iter_times; i++) {
             assign(sys);
             t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
-            auto label = std::string("TPR", 3)
-                            .append(std::to_string(s))
-                            .append(std::string("_Reusable"));
-            PM.start(label);
-            int flop_count = t.solve();
-            flop_count += t.get_ans(sys->diag);
-            PM.stop(label, (double)flop_count, 1);
+            t.solve();
+            t.get_ans(sys->diag);
         }
     }
-
-    PM.print(stdout, std::string(""), std::string(), 1);
-    PM.printDetail(stdout, 0, 1);
 
     clean(sys);
     free(sys);
