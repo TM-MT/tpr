@@ -70,7 +70,6 @@ void TPR::init(int n, int s) {
     this->pm.initialize(100);
     for (unsigned long int i = 0; i < this->default_labels.size(); i++) {
         auto format = std::string("TPR_n_");
-        // auto gen_label = this->default_labels[i].append(std::to_string(this->n));
         auto gen_label = format.replace(4, 1, std::to_string(this->s))
                             .append(this->default_labels[i]);
         this->labels[i] = gen_label;
