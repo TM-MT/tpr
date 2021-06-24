@@ -22,17 +22,20 @@ using Random = effolkronium::random_static;
 struct Options {
     // size of system
     std::optional<int> n = 2048;
+    // size of slice
+    std::optional<int> s = 1024;
     // Iteration Times
     std::optional<int> iter = 1000;
 };
-STRUCTOPT(Options, n, iter);
+STRUCTOPT(Options, n, s, iter);
 
 int main(int argc, char *argv[]) {
-    int n, iter_times;
+    int n, s, iter_times;
     // Parse Command Line Args
     try {
         auto options = structopt::app("tpr_pm", "v1.0.0").parse<Options>(argc, argv);
         n = options.n.value();
+        s = options.s.value();
         iter_times = options.iter.value();
     } catch (structopt::exception& e) {
         std::cout << e.what() << "\n";
@@ -54,7 +57,6 @@ int main(int argc, char *argv[]) {
 
     // Measureing TPR reusable implementation
     {
-        int s = n / 2;
         TPR t = TPR(sys->n, s);
         for (int i = 0; i < iter_times; i++) {
             assign(sys);
