@@ -42,9 +42,10 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
  * @param n size of given system
  * @param s size of a slice. `s` should be power of 2
  */
-void TPR::init(int n, int s) {
+void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     this->n = n;
     this->s = s;
+    this->pm = pm;
     // allocation for answer
     RMALLOC(this->x, n);
 
@@ -67,13 +68,12 @@ void TPR::init(int n, int s) {
     }
 
     // Initialize PerfMonitor and set labels
-    this->pm.initialize(100);
     for (unsigned long int i = 0; i < this->default_labels.size(); i++) {
         auto format = std::string("TPR_n_");
         auto gen_label = format.replace(4, 1, std::to_string(this->s))
                             .append(this->default_labels[i]);
         this->labels[i] = gen_label;
-        this->pm.setProperties(gen_label, pm.CALC);
+        this->pm->setProperties(gen_label, this->pm->CALC);
     }
 }
 
@@ -83,25 +83,25 @@ void TPR::init(int n, int s) {
  * @return num of float operation
  */
 int TPR::solve() {
-    this->pm.start(labels[0]);
+    this->pm->start(labels[0]);
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage1(st, st + s - 1);
     }
-    this->pm.stop(labels[0], 0.0);
+    this->pm->stop(labels[0], 0.0);
 
-    this->pm.start(labels[1]);
+    this->pm->start(labels[1]);
     tpr_stage2();
-    this->pm.stop(labels[1], 0.0);
+    this->pm->stop(labels[1], 0.0);
 
     st3_replace();
 
-    this->pm.start(labels[2]);
+    this->pm->start(labels[2]);
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
-    this->pm.stop(labels[2], 0.0);
+    this->pm->stop(labels[2], 0.0);
 
     // call this again to re-replace
     st3_replace();

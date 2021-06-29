@@ -3,6 +3,7 @@
 #include <initializer_list>
 #include <string>
 
+#include "PerfMonitor.h"
 #include "main.hpp"
 #include "lib.hpp"
 #include "tpr.hpp"
@@ -55,16 +56,26 @@ int main(int argc, char *argv[]) {
     setup(sys, n);
     assign(sys);
 
+    pm_lib::PerfMonitor pm = pm_lib::PerfMonitor();
+    pm.initialize(100);
+    auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
+    pm.setProperties(tpr_all_label, pm.CALC);
+
     // Measureing TPR reusable implementation
     {
-        TPR t = TPR(sys->n, s);
+        TPR t = TPR(sys->n, s, &pm);
         for (int i = 0; i < iter_times; i++) {
             assign(sys);
             t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
+            pm.start(tpr_all_label);
             t.solve();
             t.get_ans(sys->diag);
+            pm.stop(tpr_all_label);
         }
     }
+
+    pm.print(stdout, std::string(""), std::string(), 1);
+    pm.printDetail(stdout, 0, 1);
 
     clean(sys);
     free(sys);

@@ -39,18 +39,18 @@ class TPR: Solver
     real *a, *c, *rhs, *x;
     real *bkup_a, *bkup_c, *bkup_rhs;
     int n, s;
-    pm_lib::PerfMonitor pm;
+    pm_lib::PerfMonitor *pm;
     std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
     std::array<std::string, 3> labels;
 
 public:
-    TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
-        init(n, s);
+    TPR(real *a, real *diag, real *c, real *rhs, int n, int s, pm_lib::PerfMonitor *pm) {
+        init(n, s, pm);
         set_tridiagonal_system(a, c, rhs);
     };
 
-    TPR(int n, int  s) {
-        init(n, s);
+    TPR(int n, int  s, pm_lib::PerfMonitor *pm) {
+        init(n, s, pm);
     };
 
     ~TPR() {
@@ -59,9 +59,6 @@ public:
         SAFE_DELETE(this->bkup_c);
         SAFE_DELETE(this->bkup_rhs);
         SAFE_DELETE(this->x);
-
-        this->pm.print(stdout, std::string(""), std::string(), 1);
-        this->pm.printDetail(stdout, 0, 1);
     }
  
     void set_tridiagonal_system(real *a, real *c, real *rhs);
@@ -76,7 +73,7 @@ private:
     TPR(const TPR &tpr);
     TPR &operator=(const TPR &tpr);
 
-    void init(int n, int s);
+    void init(int n, int s, pm_lib::PerfMonitor *pm);
 
     EquationInfo update_section(int i, int u);
     EquationInfo update_global(int i, int u);
