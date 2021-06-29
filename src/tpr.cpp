@@ -183,7 +183,7 @@ void TPR::tpr_stage2() {
     }
 
     // CR BACKWARD SUBSTITUTION
-    for (int j = 0; j < fllog2(m); j ++, capital_i /= 2, u /= 2) {
+    for (int j = 0; j < fllog2(m); j++, capital_i /= 2, u /= 2) {
         assert(u > 0);
         real new_x[n / (2*u)];
         int idx = 0;
@@ -278,7 +278,7 @@ EquationInfo TPR::update_bd_check(int i, int u, int lb, int ub) {
     EquationInfo eqi;
 
     if (lb_check && ub_check) {
-        eqi = update_no_check(i - u, i, i + u);    
+        eqi = update_no_check(i - u, i, i + u);
     } else if (ub_check) {
         eqi = update_uppper_no_check(i, i + u);
     } else if (lb_check) {
