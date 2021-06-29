@@ -187,15 +187,13 @@ void TPR::tpr_stage2() {
         assert(u > 0);
         real new_x[n / (2*u)];
         int idx = 0;
-        for (i = capital_i - 1; i < n; i += 2*u) {
+        for (i = capital_i - 1; i < n; i += 2*u, idx++) {
             new_x[idx] = rhs[i] - a[i]*x[i-u] - c[i]*x[i+u];
-            idx += 1;
         }
 
         idx = 0;
-        for (i = capital_i - 1; i < n; i += 2*u) {
+        for (i = capital_i - 1; i < n; i += 2*u, idx++) {
             x[i] = new_x[idx];
-            idx += 1;
         }
     }
 }
