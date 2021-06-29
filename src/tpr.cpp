@@ -183,10 +183,7 @@ void TPR::tpr_stage2() {
     }
 
     // CR BACKWARD SUBSTITUTION
-    for (int j = 0; j < fllog2(m) - 1; j ++) {
-        capital_i /= 2;
-        u /= 2;
-
+    for (int j = 0; j < fllog2(m) - 1; j ++, capital_i /= 2, u /= 2) {
         assert(u > 0);
         real new_x[n / (2*u)];
         int idx = 0;
