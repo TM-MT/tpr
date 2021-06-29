@@ -16,7 +16,7 @@
 #define RMALLOC(x, n) x = new real[n]
 
 /**
- * @brief Safely delete pointer `p`
+ * @brief Safely delete pointer `p` and set `p = nullptr`
  */
 #define SAFE_DELETE( p ) delete p; p = nullptr
 
