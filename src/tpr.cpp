@@ -204,12 +204,12 @@ void TPR::tpr_stage3(int st, int ed) {
     // replace
     st3_replace(st, ed);
 
-    int lbi = st - 1; // use as index of x[s]
+    int lbi = st - 1; // use as index of the slice top
     real xl;
     if (lbi < 0) {
         xl = 0.0; // x[-1] does not exists
     } else {
-        xl = x[st];
+        xl = x[lbi];
     }
 
     real key;
@@ -365,7 +365,6 @@ void TPR::mk_bkup_st1(int st, int ed) {
     int eqi_st = 2 * st / s;
 
     bkup_cp(st, eqi_st);
-    // TO-DO check if this need.
     bkup_cp(ed, eqi_st + 1);
 }
 
