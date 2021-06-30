@@ -169,27 +169,17 @@ void TPR::tpr_stage2() {
     }
 
     // CR BACKWARD SUBSTITUTION
-    {
-        int j = 0;
-        while (j < fllog2(m) - 1) {
-            capital_i /= 2;
-            u /= 2;
+    for (int j = 0; j < fllog2(m); j++, capital_i /= 2, u /= 2) {
+        assert(u > 0);
+        real new_x[n / (2*u)];
+        int idx = 0;
+        for (i = capital_i - 1; i < n; i += 2*u, idx++) {
+            new_x[idx] = rhs[i] - a[i]*x[i-u] - c[i]*x[i+u];
+        }
 
-            assert(u > 0);
-            real new_x[n / (2*u)];
-            int idx = 0;
-            for (i = capital_i - 1; i < n; i += 2*u) {
-                new_x[idx] = rhs[i] - a[i]*x[i-u] - c[i]*x[i+u];
-                idx += 1;
-            }
-
-            idx = 0;
-            for (i = capital_i - 1; i < n; i += 2*u) {
-                x[i] = new_x[idx];
-                idx += 1;
-            }
-
-            j += 1;
+        idx = 0;
+        for (i = capital_i - 1; i < n; i += 2*u, idx++) {
+            x[i] = new_x[idx];
         }
     }
 }
@@ -274,7 +264,7 @@ EquationInfo TPR::update_bd_check(int i, int u, int lb, int ub) {
     EquationInfo eqi;
 
     if (lb_check && ub_check) {
-        eqi = update_no_check(i - u, i, i + u);    
+        eqi = update_no_check(i - u, i, i + u);
     } else if (ub_check) {
         eqi = update_uppper_no_check(i, i + u);
     } else if (lb_check) {
