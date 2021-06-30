@@ -44,19 +44,17 @@ void TPR::init(int n, int s) {
     // allocation for answer
     RMALLOC(this->x, n);
 
-    // allocation for backup
-    RMALLOC(this->bkup_a, n);
-    RMALLOC(this->bkup_c, n);
-    RMALLOC(this->bkup_rhs, n);
+    this->bkup_st1 = new EquationInfo[2 * n / s];
 
     // NULL CHECK
-    real **ps[] = { &this->bkup_a, &this->bkup_c, &this->bkup_rhs,
-                    &this->x,
-    };
-    for (int i = 0; static_cast<long unsigned int>(i) < sizeof(ps) / sizeof(ps[0]); i++) {
-        if (ps[i] == NULL) {
-            printf("[%s] FAILED TO ALLOCATE %d th array.\n",
-                __func__, i
+    {
+        bool none_null = true;
+        none_null = none_null && (this->x != nullptr);
+        none_null = none_null && (this->bkup_st1 != nullptr);
+
+        if (!none_null) {
+            printf("[%s] FAILED TO ALLOCATE an array.\n",
+                __func__
                 );
             abort();
         }
@@ -76,15 +74,10 @@ int TPR::solve() {
 
     tpr_stage2();
 
-    st3_replace();
-
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
-
-    // call this again to re-replace
-    st3_replace();
 
     int m = n / s;
     return 24 * m * (s - 2) + 60 * m - 36 + 5 * n;
@@ -98,34 +91,27 @@ int TPR::solve() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage1(int st, int ed) {
-    mk_bkup_init(st, ed);
-
     for (int k = 1; k <= fllog2(s); k += 1) {
         int u = pow2(k-1);
 
         EquationInfo eqbuff[s];
         int j = 0;  // j <= s
 
-        for (int i = st; i <= ed; i += pow2(k)) {
+        for (int i = st; i <= ed; i++, j++) {
             eqbuff[j] = update_section(i, u);
-            j += 1;
-        }
-        // ed >= 0, k >= 1 -> i >= 0
-        for (int i=st+pow2(k)-1; i <= ed; i += pow2(k)) {
-            eqbuff[j] = update_section(i, u);
-            j += 1;
         }
 
-        assert(j <= s);
+        assert(j == s);  // ed - st + 1 == s
         for (int i = 0; i < j; i++) {
             patch_equation_info(eqbuff[i]);
         }
     }
 
+    // make backup for STAGE 3 use
+    mk_bkup_st1(st, ed);
+
     EquationInfo eqi = update_uppper_no_check(st, ed);
     patch_equation_info(eqi);
-
-    mk_bkup_st1(st, ed);
 }
 
 /**
@@ -215,30 +201,30 @@ void TPR::tpr_stage2() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage3(int st, int ed) {
-    // REPLACE should have done.
+    // replace
+    st3_replace(st, ed);
 
-    int capital_i = s;
-    int u = s;
-    for (int j = 0; j < fllog2(s); j += 1) {
-        capital_i = capital_i / 2;
-        u = u / 2;
+    int lbi = st - 1; // use as index of x[s]
+    real xl;
+    if (lbi < 0) {
+        xl = 0.0; // x[-1] does not exists
+    } else {
+        xl = x[st];
+    }
 
-        assert(u > 0);
-        assert(capital_i > 0);
-        real new_x[n / (2*u)];
-        int idx = 0;
-        for (int i = st + capital_i - 1; i <= ed; i += 2*u) {
-            // update x[i]
-            new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
-            idx += 1;
-        }
+    real key;
+    if (c[ed] == 0.0) { // c[n] should be 0.0
+        key = 0.0;
+    } else {
+        key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
+    }
 
-        assert(idx <= n / (2*u));
-        for (int i = st + capital_i - 1, idx = 0; i <= ed; i += 2*u, idx++) {
-            x[i] = new_x[idx];
-        }
+    // x[ed] is known
+    for (int i = st; i < ed; i++) {
+        x[i] = rhs[i] - a[i] * xl - c[i] * key;
     }
 }
+
 
 /**
  * @brief      reduction calculation at section
@@ -372,44 +358,46 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
 /**
  * @brief      make backup equation for STAGE 3 use.
  *
- * @param[in]    st    start index of equation
- * @param[in]    ed    end index of equation
- */
-void TPR::mk_bkup_init(int st, int ed) {
-    int stidx = st;
-    bkup_cp(this->a, this->bkup_a, stidx, ed);
-    bkup_cp(this->c, this->bkup_c, stidx, ed);
-    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
-}
-
-/**
- * @brief      make backup equation for STAGE 3 use.
- *
- * @param[in]    st    start index of equation
- * @param[in]    ed    end index of equation
+ * @param[in]    st    E_{st}
+ * @param[in]    ed    E_{ed}
  */
 void TPR::mk_bkup_st1(int st, int ed) {
-    int stidx = st + 1;
-    bkup_cp(this->a, this->bkup_a, stidx, ed);
-    bkup_cp(this->c, this->bkup_c, stidx, ed);
-    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
+    int eqi_st = 2 * st / s;
+
+    bkup_cp(st, eqi_st);
+    // TO-DO check if this need.
+    bkup_cp(ed, eqi_st + 1);
 }
 
-void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
-    for (int i = st; i <= ed; i += 2) {
-        dst[i] = src[i];
-    }
+
+/**
+ * @brief      copy Equation_{src_idx} to the backup array EquationInfo[dst_index]
+ *
+ * @param[in]  src_idx    The source index
+ * @param[in]  dst_index  The destination index of EquationInfo
+ */
+void TPR::bkup_cp(int src_idx, int dst_index) {
+    assert(0 <= dst_index && dst_index < 2 * n / s);
+
+    this->bkup_st1[dst_index].idx = src_idx;
+    this->bkup_st1[dst_index].a = this->a[src_idx];
+    this->bkup_st1[dst_index].c = this->c[src_idx];
+    this->bkup_st1[dst_index].rhs = this->rhs[src_idx];
 }
 
 /**
  * @brief   subroutine for STAGE 3 REPLACE
- *
- * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
+ * 
+ * @param[in]   st    
+ * @param[in]   ed
+ * 
+ * @note    make sure `bkup_st1` was allocated and mk_bkup_st1 functions was called.
  */
-void TPR::st3_replace() {
-    std::swap(this->a, this->bkup_a);
-    std::swap(this->c, this->bkup_c);
-    std::swap(this->rhs, this->bkup_rhs);
+void TPR::st3_replace(int st, int ed) {
+    int eqi_st = st / s * 2;
+
+    patch_equation_info(this->bkup_st1[eqi_st]);
+    patch_equation_info(this->bkup_st1[eqi_st + 1]);
 }
 
 /**
