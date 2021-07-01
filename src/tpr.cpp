@@ -224,8 +224,10 @@ void TPR::tpr_stage3(int st, int ed) {
         }
 
         assert(idx <= n / (2*u));
-        for (int i = st + capital_i - 1, idx = 0; i <= ed; i += 2*u, idx++) {
-            x[i] = new_x[idx];
+        int dst = st + capital_i - 1;
+        for (int i = 0; i < idx; i++) {
+            x[dst] = new_x[i];
+            dst += 2 * u;
         }
     }
 }
