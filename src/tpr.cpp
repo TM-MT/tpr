@@ -185,24 +185,24 @@ void TPR::tpr_stage2() {
     // CR BACKWARD SUBSTITUTION
     for (int j = 0; j < fllog2(m); j++, capital_i /= 2, u /= 2) {
         assert(u > 0);
-        real new_x[n / (2*u)];
-        int idx = 0;
+        const int new_x_len = 1 << j;
+        real new_x[new_x_len];
         {
             // tell following variables are constant to vectorize
-            const int ci = capital_i;
+            const int slice_w = 2 * u;
             const int uu = u;
-            const int nn = this->n;
 
+            int i = capital_i - 1;
             #pragma omp simd
-            for (int i = ci - 1; i < nn; i += 2 * uu) {
-                new_x[idx] = rhs[i] - a[i]*x[i-u] - c[i]*x[i+u];
-                idx++;
+            for (int idx = 0; idx < new_x_len; idx++) {
+                new_x[idx] = rhs[i] - a[i]*x[i-uu] - c[i]*x[i+uu];
+                i += slice_w;
             }
         }
 
         int dst = capital_i - 1;
         #pragma omp simd
-        for (int i = 0; i < idx; i++) {
+        for (int i = 0; i < new_x_len; i++) {
             x[dst] = new_x[i];
             dst += 2 * u;
         }
