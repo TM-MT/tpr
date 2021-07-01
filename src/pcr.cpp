@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <cmath>
-
 #include "lib.hpp"
 #include "pcr.hpp"
 
