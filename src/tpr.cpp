@@ -7,6 +7,12 @@
 #include "lib.hpp"
 #include "tpr.hpp"
 
+#ifdef __GNUC__
+#define UNREACHABLE __builtin_unreachable()
+#else
+#define UNREACHABLE
+#endif
+
 
 /**
  * @brief set Tridiagonal System for TPR
@@ -299,7 +305,7 @@ EquationInfo TPR::update_bd_check(int i, int u, int lb, int ub) {
         eqi = update_lower_no_check(i - u, i);
     } else {
         // not happen
-        assert(false);
+        UNREACHABLE;
     }
 
     return eqi;
@@ -439,3 +445,5 @@ void TPR::patch_equation_info(EquationInfo eqi) {
     this->c[idx] = eqi.c;
     this->rhs[idx] = eqi.rhs;
 }
+
+#undef UNREACHABLE
