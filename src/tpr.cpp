@@ -231,19 +231,22 @@ void TPR::tpr_stage3(int st, int ed) {
 
         assert(u > 0);
         assert(capital_i > 0);
-        real new_x[n / (2*u)];
-        int idx = 0;
-        #pragma omp simd
-        for (int i = st + capital_i - 1; i <= ed; i += 2*u) {
-            // update x[i]
-            new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
-            idx += 1;
+
+        const int new_x_len = 1 << j;
+        real new_x[new_x_len];
+        {
+            int i = st + capital_i - 1;
+            #pragma omp simd
+            for (int idx = 0; idx < new_x_len; idx++) {
+                // update x[i]
+                new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
+                i += 2 * u;
+            }
         }
 
-        assert(idx <= n / (2*u));
         int dst = st + capital_i - 1;
         #pragma omp simd
-        for (int i = 0; i < idx; i++) {
+        for (int i = 0; i < new_x_len; i++) {
             x[dst] = new_x[i];
             dst += 2 * u;
         }
