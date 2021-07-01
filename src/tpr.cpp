@@ -208,15 +208,15 @@ void TPR::tpr_stage3(int st, int ed) {
     // REPLACE should have done.
 
     int capital_i = s;
-    int u = s;
     for (int j = 0; j < fllog2(s); j += 1) {
         capital_i = capital_i / 2;
-        u = u / 2;
+        const int u = capital_i;
 
         assert(u > 0);
         assert(capital_i > 0);
         real new_x[n / (2*u)];
         int idx = 0;
+        #pragma omp simd
         for (int i = st + capital_i - 1; i <= ed; i += 2*u) {
             // update x[i]
             new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
@@ -225,6 +225,7 @@ void TPR::tpr_stage3(int st, int ed) {
 
         assert(idx <= n / (2*u));
         int dst = st + capital_i - 1;
+        #pragma omp simd
         for (int i = 0; i < idx; i++) {
             x[dst] = new_x[i];
             dst += 2 * u;
