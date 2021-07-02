@@ -125,8 +125,8 @@ void TPR::tpr_stage1(int st, int ed) {
                 j += 1;
             }
 
-            if (i < ed) {
-                eqbuff[j] = update_lower_no_check(i - u, i);
+            if (i <= ed) {
+                eqbuff[j] = update_section(i, u);
                 j++;
             }
         }
