@@ -112,10 +112,25 @@ void TPR::tpr_stage1(int st, int ed) {
         EquationInfo eqbuff[s];
         int j = 0;  // j <= s
 
-        for (int i = st; i <= ed; i += pow2(k)) {
-            eqbuff[j] = update_section(i, u);
-            j += 1;
+        {
+            int i = st;
+
+            assert(i + u <= ed);
+            eqbuff[0] = update_uppper_no_check(i, i + u);
+            j++;
+
+            for (i += pow2(k); i <= ed - pow2(k); i += pow2(k)) {
+                assert(st <= i - u && i + u <= ed);
+                eqbuff[j] = update_no_check(i - u, i, i + u);
+                j += 1;
+            }
+
+            if (i < ed) {
+                eqbuff[j] = update_lower_no_check(i - u, i);
+                j++;
+            }
         }
+
         // ed >= 0, k >= 1 -> i >= 0
         for (int i=st+pow2(k)-1; i <= ed; i += pow2(k)) {
             eqbuff[j] = update_section(i, u);
