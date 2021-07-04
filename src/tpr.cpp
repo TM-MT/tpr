@@ -101,29 +101,61 @@ int TPR::solve() {
 void TPR::tpr_stage1(int st, int ed) {
     for (int k = 1; k <= fllog2(s); k += 1) {
         const int u = pow2(k-1);
+        const int s = this->s;
 
-        EquationInfo eqbuff[s];
-        int j = 0;  // j <= s
+        // Temp arrays for a, c, rhs
+        real aa[s], cc[s], rr[s];
 
-        for (int i = st; i < st + u; i++, j++) {
+        #pragma omp simd
+        for (int i = st; i < st + u; i++) {
             assert(i + u <= ed);
-            eqbuff[j] = update_uppper_no_check(i, i + u);        
+
+            // from update_uppper_no_check(i, i + u);
+            int k = i;
+            int kr = i + u;
+
+            real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
+
+            aa[i - st] = inv_diag_k * a[k];
+            cc[i - st] = -inv_diag_k * c[kr] * c[k];
+            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
         }
 
-        for (int i = st + u; i + u <= ed; i++, j++) {
+        #pragma omp simd
+        for (int i = st + u; i <= ed - u; i++) {
             assert(st <= i - u);
             assert(i + u <= ed);
-            eqbuff[j] = update_no_check(i - u , i, i + u);
+
+            // from update_no_check(i - u , i, i + u);
+            int kl = i - u;
+            int k = i;
+            int kr = i + u;
+            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+            aa[i - st] = - inv_diag_k * a[kl] * a[k];
+            cc[i - st] = - inv_diag_k * c[kr] * c[k];
+            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
         }
 
-        for (int i = ed - u + 1; i <= ed; i++, j++) {
+        #pragma omp simd
+        for (int i = ed - u + 1; i <= ed; i++) {
             assert(st <= i - u);
-            eqbuff[j] = update_lower_no_check(i - u, i);        
+            
+            // form update_lower_no_check(i - u, i);
+            int kl = i - u;
+            int k = i;
+            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+
+            aa[i - st] = -inv_diag_k * a[kl] * a[k];
+            cc[i - st] = inv_diag_k * c[k];
+            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
         }
 
-        assert(j == s);  // ed - st + 1 == s
-        for (int i = 0; i < j; i++) {
-            patch_equation_info(eqbuff[i]);
+        // patch
+        for (int i = st; i <= ed; i++) {
+            this->a[i] = aa[i - st];
+            this->c[i] = cc[i - st];
+            this->rhs[i] = rr[i - st];
         }
     }
 
