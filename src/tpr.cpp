@@ -273,6 +273,7 @@ void TPR::tpr_stage3(int st, int ed) {
     }
 
     // x[ed] is known
+    #pragma omp simd
     for (int i = st; i < ed; i++) {
         x[i] = rhs[i] - a[i] * xl - c[i] * key;
     }
