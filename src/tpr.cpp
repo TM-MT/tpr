@@ -7,6 +7,12 @@
 #include "lib.hpp"
 #include "tpr.hpp"
 
+#ifdef __GNUC__
+#define UNREACHABLE __builtin_unreachable()
+#else
+#define UNREACHABLE
+#endif
+
 
 /**
  * @brief set Tridiagonal System for TPR
@@ -160,10 +166,10 @@ void TPR::tpr_stage2() {
     int m = n / s;
 
     int u = capital_i;
-    int i = capital_i-1;
 
     // CR BACKWARD SUBSTITUTION STEP 1
     {
+        int i = capital_i-1;
         real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
 
         x[i] = (rhs[i] - c[i]*rhs[i+u]) * inv_det;
@@ -173,15 +179,26 @@ void TPR::tpr_stage2() {
     // CR BACKWARD SUBSTITUTION
     for (int j = 0; j < fllog2(m); j++, capital_i /= 2, u /= 2) {
         assert(u > 0);
-        real new_x[n / (2*u)];
-        int idx = 0;
-        for (i = capital_i - 1; i < n; i += 2*u, idx++) {
-            new_x[idx] = rhs[i] - a[i]*x[i-u] - c[i]*x[i+u];
+        const int new_x_len = 1 << j;
+        real new_x[new_x_len];
+        {
+            // tell following variables are constant to vectorize
+            const int slice_w = 2 * u;
+            const int uu = u;
+
+            int i = capital_i - 1;
+            #pragma omp simd
+            for (int idx = 0; idx < new_x_len; idx++) {
+                new_x[idx] = rhs[i] - a[i]*x[i-uu] - c[i]*x[i+uu];
+                i += slice_w;
+            }
         }
 
-        idx = 0;
-        for (i = capital_i - 1; i < n; i += 2*u, idx++) {
-            x[i] = new_x[idx];
+        int dst = capital_i - 1;
+        #pragma omp simd
+        for (int i = 0; i < new_x_len; i++) {
+            x[dst] = new_x[i];
+            dst += 2 * u;
         }
     }
 }
@@ -273,7 +290,7 @@ EquationInfo TPR::update_bd_check(int i, int u, int lb, int ub) {
         eqi = update_lower_no_check(i - u, i);
     } else {
         // not happen
-        assert(false);
+        UNREACHABLE;
     }
 
     return eqi;
@@ -414,3 +431,5 @@ void TPR::patch_equation_info(EquationInfo eqi) {
     this->c[idx] = eqi.c;
     this->rhs[idx] = eqi.rhs;
 }
+
+#undef UNREACHABLE

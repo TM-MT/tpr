@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <cmath>
-
 #include "lib.hpp"
 #include "pcr.hpp"
 
@@ -10,7 +8,7 @@
  * @return num of float operation
  */
 int PCR::solve() {
-    int pn = (int)floor(log2((double)this->n));
+    int pn = fllog2(this->n);
 
     for (int p = 0; p < pn; p++) {
         int s = 1 << p;
