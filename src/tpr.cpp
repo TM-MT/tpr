@@ -100,13 +100,25 @@ int TPR::solve() {
  */
 void TPR::tpr_stage1(int st, int ed) {
     for (int k = 1; k <= fllog2(s); k += 1) {
-        int u = pow2(k-1);
+        const int u = pow2(k-1);
 
         EquationInfo eqbuff[s];
         int j = 0;  // j <= s
 
-        for (int i = st; i <= ed; i++, j++) {
-            eqbuff[j] = update_section(i, u);
+        for (int i = st; i < st + u; i++, j++) {
+            assert(i + u <= ed);
+            eqbuff[j] = update_uppper_no_check(i, i + u);        
+        }
+
+        for (int i = st + u; i + u <= ed; i++, j++) {
+            assert(st <= i - u);
+            assert(i + u <= ed);
+            eqbuff[j] = update_no_check(i - u , i, i + u);
+        }
+
+        for (int i = ed - u + 1; i <= ed; i++, j++) {
+            assert(st <= i - u);
+            eqbuff[j] = update_lower_no_check(i - u, i);        
         }
 
         assert(j == s);  // ed - st + 1 == s
