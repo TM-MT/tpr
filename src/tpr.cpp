@@ -107,13 +107,13 @@ void TPR::tpr_stage1(int st, int ed) {
     mk_bkup_init(st, ed);
 
     for (int k = 1; k <= fllog2(s); k += 1) {
-        int u = pow2(k-1);
+        const int u = pow2(k-1);
+        const int p2k = pow2(k);
 
         EquationInfo eqbuff[s];
         int j = 0;  // j <= s
 
         {
-            const int p2k = pow2(k);
             int i = st;
 
             assert(i + u <= ed);
@@ -144,11 +144,18 @@ void TPR::tpr_stage1(int st, int ed) {
                 j++;
             }
         }
+        {
+            int i;
 
-        // ed >= 0, k >= 1 -> i >= 0
-        for (int i=st+pow2(k)-1; i <= ed; i += pow2(k)) {
-            eqbuff[j] = update_section(i, u);
-            j += 1;
+            #pragma omp simd
+            for (i = st + p2k - 1; i < ed; i += p2k) {
+                eqbuff[j] = update_no_check(i - u, i, i + u);
+                j++;
+            }
+            if (i <= ed) {
+                eqbuff[j] = update_section(i, u);
+                j++;
+            }
         }
 
         assert(j <= s);
