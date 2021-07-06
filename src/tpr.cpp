@@ -138,22 +138,20 @@ void TPR::tpr_stage1(int st, int ed) {
 
                 i += p2k;
             }
-
-            if (i <= ed) {
-                eqbuff[j] = update_section(i, u);
-                j++;
-            }
         }
         {
-            int i;
+            int i = st + p2k - 1;
 
             #pragma omp simd
-            for (i = st + p2k - 1; i < ed; i += p2k) {
+            for (j = s / p2k; j < s / p2k * 2 - 1; j++) {
+                assert(st <= i - u);
+                assert(i + u <= ed);
                 eqbuff[j] = update_no_check(i - u, i, i + u);
-                j++;
+                i += p2k;
             }
+
             if (i <= ed) {
-                eqbuff[j] = update_section(i, u);
+                eqbuff[j] = update_lower_no_check(i - u, i);
                 j++;
             }
         }
