@@ -144,9 +144,19 @@ void TPR::tpr_stage1(int st, int ed) {
 
             #pragma omp simd
             for (j = s / p2k; j < s / p2k * 2 - 1; j++) {
-                assert(st <= i - u);
-                assert(i + u <= ed);
-                eqbuff[j] = update_no_check(i - u, i, i + u);
+                assert(st <= i - u && i + u <= ed);
+
+                // eqbuff[j] = update_no_check(i - u, i, i + u);
+                int kl = i - u;
+                int k = i;
+                int kr = i + u;
+                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+                eqbuff[j].idx = k;
+                eqbuff[j].a = - inv_diag_k * a[kl] * a[k];
+                eqbuff[j].c = - inv_diag_k * c[kr] * c[k];
+                eqbuff[j].rhs = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+
                 i += p2k;
             }
 
