@@ -150,10 +150,8 @@ void TPR::tpr_stage1(int st, int ed) {
                 i += p2k;
             }
 
-            if (i <= ed) {
-                eqbuff[j] = update_lower_no_check(i - u, i);
-                j++;
-            }
+            eqbuff[j] = update_lower_no_check(i - u, i);
+            j++;
         }
 
         assert(j <= s);
