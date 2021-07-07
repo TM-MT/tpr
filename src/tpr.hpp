@@ -19,7 +19,7 @@
 #define RMALLOC(x, n) x = new real[n]
 
 /**
- * @brief Safely delete pointer `p`
+ * @brief Safely delete pointer `p` and set `p = nullptr`
  */
 #define SAFE_DELETE( p ) delete p; p = nullptr
 
@@ -37,7 +37,7 @@ struct EquationInfo {
 class TPR: Solver
 {
     real *a, *c, *rhs, *x;
-    real *bkup_a, *bkup_c, *bkup_rhs;
+    EquationInfo *bkup_st1;
     int n, s;
     pm_lib::PerfMonitor *pm;
     std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
@@ -55,9 +55,7 @@ public:
 
     ~TPR() {
         // free local variables
-        SAFE_DELETE(this->bkup_a);
-        SAFE_DELETE(this->bkup_c);
-        SAFE_DELETE(this->bkup_rhs);
+        SAFE_DELETE(this->bkup_st1);
         SAFE_DELETE(this->x);
     }
  
@@ -79,15 +77,14 @@ private:
     EquationInfo update_global(int i, int u);
     EquationInfo update_bd_check(int i, int u, int lb, int ub);
 
-    void mk_bkup_init(int st, int ed);
     void mk_bkup_st1(int st, int ed);
-    void bkup_cp(real *src, real *dst, int st,int ed);
+    void bkup_cp(int src_idx, int dst_index);
 
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);
     EquationInfo update_lower_no_check(int kl, int k);
 
-    void st3_replace();
+    void st3_replace(int st, int ed);
 
     void tpr_stage1(int st, int ed);
     void tpr_stage2();
