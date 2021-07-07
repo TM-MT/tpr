@@ -87,27 +87,31 @@ void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
  * @return num of float operation
  */
 int TPR::solve() {
+    // FLOP COUNT
+    int m = n / s;
+    int fp_st1 = m * ((14 * s - 10) * fllog2(s) + 14);
+    int fp_st2 = 28 * m - 33;
+    int fp_st3 = m * (4 * s + 1);
+
     this->pm->start(labels[0]);
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage1(st, st + s - 1);
     }
-    this->pm->stop(labels[0], 0.0);
+    this->pm->stop(labels[0], static_cast<double>(fp_st1));
 
     this->pm->start(labels[1]);
     tpr_stage2();
-    this->pm->stop(labels[1], 0.0);
+    this->pm->stop(labels[1], static_cast<double>(fp_st2));
 
+    this->pm->start(labels[2]);
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
-    this->pm->stop(labels[2], 0.0);
+    this->pm->stop(labels[2], static_cast<double>(fp_st3));
 
-    int m = n / s;
-    return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
-            + 28 * m - 33 // stage 2
-            + m * (4 * s + 1); // stage 33
+    return fp_st1 + fp_st2 + fp_st3;
 }
 
 
