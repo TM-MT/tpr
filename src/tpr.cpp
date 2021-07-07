@@ -11,6 +11,12 @@
 #include "PerfMonitor.h"
 
 
+#ifdef __GNUC__
+#define UNREACHABLE __builtin_unreachable()
+#else
+#define UNREACHABLE
+#endif
+
 
 /**
  * @brief set Tridiagonal System for TPR
@@ -121,19 +127,61 @@ void TPR::tpr_stage1(int st, int ed) {
     mk_bkup_init(st, ed);
 
     for (int k = 1; k <= fllog2(s); k += 1) {
-        int u = pow2(k-1);
+        const int u = pow2(k-1);
+        const int p2k = pow2(k);
 
         EquationInfo eqbuff[s];
         int j = 0;  // j <= s
 
-        for (int i = st; i <= ed; i += pow2(k)) {
-            eqbuff[j] = update_section(i, u);
-            j += 1;
+        {
+            int i = st;
+
+            assert(i + u <= ed);
+            eqbuff[0] = update_uppper_no_check(i, i + u);
+            j++;
+
+            i += p2k;
+            #pragma omp simd
+            for (j = 1; j < s / p2k; j++) {
+                assert(st <= i - u && i + u <= ed);
+
+                // eqbuff[j] = update_no_check(i - u, i, i + u);
+                int kl = i - u;
+                int k = i;
+                int kr = i + u;
+                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+                eqbuff[j].idx = k;
+                eqbuff[j].a = - inv_diag_k * a[kl] * a[k];
+                eqbuff[j].c = - inv_diag_k * c[kr] * c[k];
+                eqbuff[j].rhs = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+
+                i += p2k;
+            }
         }
-        // ed >= 0, k >= 1 -> i >= 0
-        for (int i=st+pow2(k)-1; i <= ed; i += pow2(k)) {
-            eqbuff[j] = update_section(i, u);
-            j += 1;
+        {
+            int i = st + p2k - 1;
+
+            #pragma omp simd
+            for (j = s / p2k; j < s / p2k * 2 - 1; j++) {
+                assert(st <= i - u && i + u <= ed);
+
+                // eqbuff[j] = update_no_check(i - u, i, i + u);
+                int kl = i - u;
+                int k = i;
+                int kr = i + u;
+                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+                eqbuff[j].idx = k;
+                eqbuff[j].a = - inv_diag_k * a[kl] * a[k];
+                eqbuff[j].c = - inv_diag_k * c[kr] * c[k];
+                eqbuff[j].rhs = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+
+                i += p2k;
+            }
+
+            eqbuff[j] = update_lower_no_check(i - u, i);
+            j++;
         }
 
         assert(j <= s);
@@ -192,10 +240,10 @@ void TPR::tpr_stage2() {
     int m = n / s;
 
     int u = capital_i;
-    int i = capital_i-1;
 
     // CR BACKWARD SUBSTITUTION STEP 1
     {
+        int i = capital_i-1;
         real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
 
         x[i] = (rhs[i] - c[i]*rhs[i+u]) * inv_det;
@@ -203,27 +251,28 @@ void TPR::tpr_stage2() {
     }
 
     // CR BACKWARD SUBSTITUTION
-    {
-        int j = 0;
-        while (j < fllog2(m) - 1) {
-            capital_i /= 2;
-            u /= 2;
+    for (int j = 0; j < fllog2(m); j++, capital_i /= 2, u /= 2) {
+        assert(u > 0);
+        const int new_x_len = 1 << j;
+        real new_x[new_x_len];
+        {
+            // tell following variables are constant to vectorize
+            const int slice_w = 2 * u;
+            const int uu = u;
 
-            assert(u > 0);
-            real new_x[n / (2*u)];
-            int idx = 0;
-            for (i = capital_i - 1; i < n; i += 2*u) {
-                new_x[idx] = rhs[i] - a[i]*x[i-u] - c[i]*x[i+u];
-                idx += 1;
+            int i = capital_i - 1;
+            #pragma omp simd
+            for (int idx = 0; idx < new_x_len; idx++) {
+                new_x[idx] = rhs[i] - a[i]*x[i-uu] - c[i]*x[i+uu];
+                i += slice_w;
             }
+        }
 
-            idx = 0;
-            for (i = capital_i - 1; i < n; i += 2*u) {
-                x[i] = new_x[idx];
-                idx += 1;
-            }
-
-            j += 1;
+        int dst = capital_i - 1;
+        #pragma omp simd
+        for (int i = 0; i < new_x_len; i++) {
+            x[dst] = new_x[i];
+            dst += 2 * u;
         }
     }
 }
@@ -238,24 +287,30 @@ void TPR::tpr_stage3(int st, int ed) {
     // REPLACE should have done.
 
     int capital_i = s;
-    int u = s;
     for (int j = 0; j < fllog2(s); j += 1) {
         capital_i = capital_i / 2;
-        u = u / 2;
+        const int u = capital_i;
 
         assert(u > 0);
         assert(capital_i > 0);
-        real new_x[n / (2*u)];
-        int idx = 0;
-        for (int i = st + capital_i - 1; i <= ed; i += 2*u) {
-            // update x[i]
-            new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
-            idx += 1;
+
+        const int new_x_len = 1 << j;
+        real new_x[new_x_len];
+        {
+            int i = st + capital_i - 1;
+            #pragma omp simd
+            for (int idx = 0; idx < new_x_len; idx++) {
+                // update x[i]
+                new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
+                i += 2 * u;
+            }
         }
 
-        assert(idx <= n / (2*u));
-        for (int i = st + capital_i - 1, idx = 0; i <= ed; i += 2*u, idx++) {
-            x[i] = new_x[idx];
+        int dst = st + capital_i - 1;
+        #pragma omp simd
+        for (int i = 0; i < new_x_len; i++) {
+            x[dst] = new_x[i];
+            dst += 2 * u;
         }
     }
 }
@@ -308,14 +363,14 @@ EquationInfo TPR::update_bd_check(int i, int u, int lb, int ub) {
     EquationInfo eqi;
 
     if (lb_check && ub_check) {
-        eqi = update_no_check(i - u, i, i + u);    
+        eqi = update_no_check(i - u, i, i + u);
     } else if (ub_check) {
         eqi = update_uppper_no_check(i, i + u);
     } else if (lb_check) {
         eqi = update_lower_no_check(i - u, i);
     } else {
         // not happen
-        assert(false);
+        UNREACHABLE;
     }
 
     return eqi;
@@ -455,3 +510,5 @@ void TPR::patch_equation_info(EquationInfo eqi) {
     this->c[idx] = eqi.c;
     this->rhs[idx] = eqi.rhs;
 }
+
+#undef UNREACHABLE

@@ -13,14 +13,14 @@ endif()
 
 # PCR
 add_library(libpcr
-    pcr.cpp lib.cpp)
+    pcr.cpp)
 
 target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
 
 
 # TPR
 add_library(libtpr
-    tpr.cpp lib.cpp)
+    tpr.cpp)
 
 target_include_directories(libtpr
     PUBLIC ${PROJECT_SOURCE_DIR}/src

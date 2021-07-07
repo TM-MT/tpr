@@ -67,9 +67,7 @@ int assign(struct TRIDIAG_SYSTEM *sys) {
 
 int clean(struct TRIDIAG_SYSTEM *sys) {
     for (auto p: { sys->a, sys->diag, sys->c, sys->rhs }) {
-        if (p != nullptr) {
-            free(p);
-        }
+        free(p);
     }
 
     sys->a = nullptr;

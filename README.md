@@ -11,6 +11,8 @@
 $ git clone --recurse-submodules https://github.com/TM-MT/tpr.git
 $ cd tpr
 $ mkdir build && cd build
+# SPECIFY COMPILER
+$ export CC=gcc CXX=g++
 $ cmake -D CMAKE_BUILD_TYPE=Release ..
 $ make
 # run sample code
