@@ -8,9 +8,11 @@ if (with_ACC)
     # For OpenACC
     # Currently, only NVHPC, PGI, GNU and Cray compilers are supported. (cmake 3.20)
     find_package(OpenACC REQUIRED)
-    if (OpenACC_FOUND)
+    if (OpenACC_C_FOUND AND OpenACC_CXX_FOUND)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenACC_C_FLAGS}")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenACC_CXX_FLAGS}")
+    else()
+        message(FATAL_ERROR "FAILED TO FIND OPENACC")
     endif()
 else()
     # For OpenMP
