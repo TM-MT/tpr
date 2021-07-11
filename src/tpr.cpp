@@ -73,14 +73,18 @@ void TPR::init(int n, int s) {
  * @return num of float operation
  */
 int TPR::solve() {
+    #ifdef _OPENMP
     #pragma omp parallel for
+    #endif
     for (int st = 0; st < this->n; st += s) {
         tpr_stage1(st, st + s - 1);
     }
 
     tpr_stage2();
 
+    #ifdef _OPENMP
     #pragma omp parallel for
+    #endif
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
@@ -106,7 +110,9 @@ void TPR::tpr_stage1(int st, int ed) {
         // Temp arrays for a, c, rhs
         real aa[s], cc[s], rr[s];
 
+        #ifdef _OPENMP
         #pragma omp simd
+        #endif
         for (int i = st; i < st + u; i++) {
             assert(i + u <= ed);
 
@@ -121,7 +127,9 @@ void TPR::tpr_stage1(int st, int ed) {
             rr[i - st] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
         }
 
+        #ifdef _OPENMP
         #pragma omp simd
+        #endif
         for (int i = st + u; i <= ed - u; i++) {
             assert(st <= i - u);
             assert(i + u <= ed);
@@ -137,7 +145,9 @@ void TPR::tpr_stage1(int st, int ed) {
             rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
         }
 
+        #ifdef _OPENMP
         #pragma omp simd
+        #endif
         for (int i = ed - u + 1; i <= ed; i++) {
             assert(st <= i - u);
             
@@ -231,7 +241,10 @@ void TPR::tpr_stage2() {
             const int uu = u;
 
             int i = capital_i - 1;
+
+            #ifdef _OPENMP
             #pragma omp simd
+            #endif
             for (int idx = 0; idx < new_x_len; idx++) {
                 new_x[idx] = rhs[i] - a[i]*x[i-uu] - c[i]*x[i+uu];
                 i += slice_w;
@@ -239,7 +252,10 @@ void TPR::tpr_stage2() {
         }
 
         int dst = capital_i - 1;
+
+        #ifdef _OPENMP
         #pragma omp simd
+        #endif
         for (int i = 0; i < new_x_len; i++) {
             x[dst] = new_x[i];
             dst += 2 * u;
@@ -273,7 +289,9 @@ void TPR::tpr_stage3(int st, int ed) {
     }
 
     // x[ed] is known
+    #ifdef _OPENMP
     #pragma omp simd
+    #endif
     for (int i = st; i < ed; i++) {
         x[i] = rhs[i] - a[i] * xl - c[i] * key;
     }
@@ -458,7 +476,9 @@ void TPR::st3_replace(int st, int ed) {
  * @return num of float operation
  */
 int TPR::get_ans(real *x) {
+    #ifdef _OPENMP
     #pragma omp simd
+    #endif
     for (int i = 0; i < n; i++) {
         x[i] = this->x[i];
     }
