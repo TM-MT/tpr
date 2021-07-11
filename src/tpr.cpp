@@ -69,39 +69,14 @@ void TPR::init(int n, int s) {
 
 
 /**
- * @brief solve
- * @return num of float operation
- */
-int TPR::solve() {
-    #ifdef _OPENMP
-    #pragma omp parallel for
-    #endif
-    for (int st = 0; st < this->n; st += s) {
-        tpr_stage1(st, st + s - 1);
-    }
-
-    tpr_stage2();
-
-    #ifdef _OPENMP
-    #pragma omp parallel for
-    #endif
-    for (int st = 0; st < this->n; st += s) {
-        tpr_stage3(st, st + s - 1);
-    }
-
-    int m = n / s;
-    return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
-            + 28 * m - 33 // stage 2
-            + m * (4 * s + 1); // stage 33
-}
-
-
-/**
  * @brief      TPR STAGE 1
  *
  * @param[in]  st     start index of equation that this function calculate
  * @param[in]  ed     end index of equation that this function calculate
  */
+#ifdef _OPENACC
+#pragma acc routine worker
+#endif
 void TPR::tpr_stage1(int st, int ed) {
     for (int k = 1; k <= fllog2(s); k += 1) {
         const int u = pow2(k-1);
@@ -110,6 +85,9 @@ void TPR::tpr_stage1(int st, int ed) {
         // Temp arrays for a, c, rhs
         real aa[s], cc[s], rr[s];
 
+        #ifdef _OPENACC
+        #pragma acc loop vector
+        #endif
         #ifdef _OPENMP
         #pragma omp simd
         #endif
@@ -127,6 +105,9 @@ void TPR::tpr_stage1(int st, int ed) {
             rr[i - st] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
         }
 
+        #ifdef _OPENACC
+        #pragma acc loop vector
+        #endif
         #ifdef _OPENMP
         #pragma omp simd
         #endif
@@ -145,6 +126,9 @@ void TPR::tpr_stage1(int st, int ed) {
             rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
         }
 
+        #ifdef _OPENACC
+        #pragma acc loop vector
+        #endif
         #ifdef _OPENMP
         #pragma omp simd
         #endif
@@ -175,6 +159,38 @@ void TPR::tpr_stage1(int st, int ed) {
     EquationInfo eqi = update_uppper_no_check(st, ed);
     patch_equation_info(eqi);
 }
+
+
+/**
+ * @brief solve
+ * @return num of float operation
+ */
+int TPR::solve() {
+    #ifdef _OPENACC
+    #pragma acc parallel loop gang
+    #endif
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+    for (int st = 0; st < this->n; st += s) {
+        tpr_stage1(st, st + s - 1);
+    }
+
+    tpr_stage2();
+
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+    for (int st = 0; st < this->n; st += s) {
+        tpr_stage3(st, st + s - 1);
+    }
+
+    int m = n / s;
+    return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
+            + 28 * m - 33 // stage 2
+            + m * (4 * s + 1); // stage 33
+}
+
 
 /**
  * @brief TPR STAGE 2
