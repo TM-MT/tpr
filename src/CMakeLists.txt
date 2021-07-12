@@ -5,6 +5,7 @@ endif()
 
 
 if (with_ACC)
+    message(STATUS "Using OpenACC")
     # For OpenACC
     # Currently, only NVHPC, PGI, GNU and Cray compilers are supported. (cmake 3.20)
     find_package(OpenACC REQUIRED)
@@ -15,6 +16,7 @@ if (with_ACC)
         message(FATAL_ERROR "FAILED TO FIND OPENACC")
     endif()
 else()
+    message(STATUS "Using OpenMP")
     # For OpenMP
     find_package(OpenMP REQUIRED)
     if(OpenMP_FOUND)
