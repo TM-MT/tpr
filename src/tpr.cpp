@@ -109,127 +109,111 @@ void TPR::mk_bkup_st1(int st, int ed) {
  * @param[in]  st     start index of equation that this function calculate
  * @param[in]  ed     end index of equation that this function calculate
  */
-#ifdef _OPENACC
-#pragma acc routine worker
-#endif
 void TPR::tpr_stage1(int st, int ed) {
-    for (int k = 1; k <= fllog2(s); k += 1) {
-        const int u = pow2(k-1);
-        const int s = this->s;
-
-        // Temp arrays for a, c, rhs
-        real aa[s], cc[s], rr[s];
-
-        #ifdef _OPENACC
-        #pragma acc loop vector
-        #endif
-        #ifdef _OPENMP
-        #pragma omp simd
-        #endif
-        for (int i = st; i < st + u; i++) {
-            assert(i + u <= ed);
-
-            // from update_uppper_no_check(i, i + u);
-            int k = i;
-            int kr = i + u;
-
-            real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
-
-            aa[i - st] = inv_diag_k * a[k];
-            cc[i - st] = -inv_diag_k * c[kr] * c[k];
-            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
-        }
-
-        #ifdef _OPENACC
-        #pragma acc loop vector
-        #endif
-        #ifdef _OPENMP
-        #pragma omp simd
-        #endif
-        for (int i = st + u; i <= ed - u; i++) {
-            assert(st <= i - u);
-            assert(i + u <= ed);
-
-            // from update_no_check(i - u , i, i + u);
-            int kl = i - u;
-            int k = i;
-            int kr = i + u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
-
-            aa[i - st] = - inv_diag_k * a[kl] * a[k];
-            cc[i - st] = - inv_diag_k * c[kr] * c[k];
-            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
-        }
-
-        #ifdef _OPENACC
-        #pragma acc loop vector
-        #endif
-        #ifdef _OPENMP
-        #pragma omp simd
-        #endif
-        for (int i = ed - u + 1; i <= ed; i++) {
-            assert(st <= i - u);
-
-            // form update_lower_no_check(i - u, i);
-            int kl = i - u;
-            int k = i;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
-
-            aa[i - st] = -inv_diag_k * a[kl] * a[k];
-            cc[i - st] = inv_diag_k * c[k];
-            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
-        }
-
-        // patch
-        #ifdef _OPENACC
-        #pragma acc loop vector
-        #endif
-        for (int i = st; i <= ed; i++) {
-            this->a[i] = aa[i - st];
-            this->c[i] = cc[i - st];
-            this->rhs[i] = rr[i - st];
-        }
-    }
-
-    // make backup for STAGE 3 use
-    mk_bkup_st1(st, ed);
-
-    // EquationInfo eqi = update_uppper_no_check(st, ed);
-    // patch_equation_info(eqi);
-    {
-	    int k = st;
-	    int kr = ed;
-	    real ak = a[k];
-	    real akr = a[kr];
-	    real ck = c[k];
-	    real ckr = c[kr];
-	    real rhsk = rhs[k];
-	    real rhskr = rhs[kr];
-
-	    real inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-	    a[k] = inv_diag_k * ak;
-	    c[k] = -inv_diag_k * ckr * ck;
-	    rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
-    }
 }
-
 
 /**
  * @brief solve
  * @return num of float operation
  */
 int TPR::solve() {
+    // Temp arrays for a, c, rhs
+    real aa[s], cc[s], rr[s];
+#pragma acc parallel copy(aa[0:s], cc[0:s], rr[0:s])
+    {
+
     #ifdef _OPENACC
-    #pragma acc parallel loop gang
+    #pragma acc loop gang
     #endif
     #ifdef _OPENMP
     #pragma omp parallel for
     #endif
     for (int st = 0; st < this->n; st += s) {
-        tpr_stage1(st, st + s - 1);
-    }
+        // tpr_stage1(st, st + s - 1);
+       int ed = st + s - 1;
 
+#ifdef _OPENACC
+#pragma acc loop worker private(aa, cc, rr)
+#endif
+        for (int k = 1; k <= fllog2(s); k += 1) {
+            {
+                const int u = pow2(k-1);
+                const int s = this->s;
+
+
+                #ifdef _OPENMP
+                #pragma omp simd
+                #endif
+                #ifdef _OPENACC
+                #pragma acc loop vector
+                #endif
+                for (int i = st; i < st + u; i++) {
+                    assert(i + u <= ed);
+
+                    // from update_uppper_no_check(i, i + u);
+                    int k = i;
+                    int kr = i + u;
+
+                    real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
+
+                    aa[i - st] = inv_diag_k * a[k];
+                    cc[i - st] = -inv_diag_k * c[kr] * c[k];
+                    rr[i - st] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
+                }
+
+                #ifdef _OPENACC
+                #pragma acc loop vector
+                #endif
+                #ifdef _OPENMP
+                #pragma omp simd
+                #endif
+                for (int i = st + u; i <= ed - u; i++) {
+                    assert(st <= i - u);
+                    assert(i + u <= ed);
+
+                    // from update_no_check(i - u , i, i + u);
+                    int kl = i - u;
+                    int k = i;
+                    int kr = i + u;
+                    real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+                    aa[i - st] = - inv_diag_k * a[kl] * a[k];
+                    cc[i - st] = - inv_diag_k * c[kr] * c[k];
+                    rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+                }
+
+                #ifdef _OPENACC
+                #pragma acc loop vector
+                #endif
+                #ifdef _OPENMP
+                #pragma omp simd
+                #endif
+                for (int i = ed - u + 1; i <= ed; i++) {
+                    assert(st <= i - u);
+
+                    // form update_lower_no_check(i - u, i);
+                    int kl = i - u;
+                    int k = i;
+                    real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+
+                    aa[i - st] = -inv_diag_k * a[kl] * a[k];
+                    cc[i - st] = inv_diag_k * c[k];
+                    rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
+                }
+
+                // patch
+                #ifdef _OPENACC
+                #pragma acc loop vector
+                #endif
+                for (int i = st; i <= ed; i++) {
+                    this->a[i] = aa[i - st];
+                    this->c[i] = cc[i - st];
+                    this->rhs[i] = rr[i - st];
+                }
+            }
+        }
+    }
+    }
     tpr_stage2();
 
     #ifdef _OPENMP
