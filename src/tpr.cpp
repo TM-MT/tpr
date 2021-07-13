@@ -67,6 +67,41 @@ void TPR::init(int n, int s) {
     }
 }
 
+/**
+ * @brief      copy Equation_{src_idx} to the backup array EquationInfo[dst_index]
+ *
+ * @param[in]  src_idx    The source index
+ * @param[in]  dst_index  The destination index of EquationInfo
+ */
+#ifdef _OPENACC
+#pragma acc routine seq
+#endif
+void TPR::bkup_cp(int src_idx, int dst_index) {
+    assert(0 <= dst_index && dst_index < 2 * n / s);
+
+    this->bkup_st1[dst_index].idx = src_idx;
+    this->bkup_st1[dst_index].a = this->a[src_idx];
+    this->bkup_st1[dst_index].c = this->c[src_idx];
+    this->bkup_st1[dst_index].rhs = this->rhs[src_idx];
+}
+
+
+/**
+ * @brief      make backup equation for STAGE 3 use.
+ *
+ * @param[in]    st    E_{st}
+ * @param[in]    ed    E_{ed}
+ */
+#ifdef _OPENACC
+#pragma acc routine seq
+#endif
+void TPR::mk_bkup_st1(int st, int ed) {
+    int eqi_st = 2 * st / s;
+
+    bkup_cp(st, eqi_st);
+    bkup_cp(ed, eqi_st + 1);
+}
+
 
 /**
  * @brief      TPR STAGE 1
@@ -134,7 +169,7 @@ void TPR::tpr_stage1(int st, int ed) {
         #endif
         for (int i = ed - u + 1; i <= ed; i++) {
             assert(st <= i - u);
-            
+
             // form update_lower_no_check(i - u, i);
             int kl = i - u;
             int k = i;
@@ -146,6 +181,9 @@ void TPR::tpr_stage1(int st, int ed) {
         }
 
         // patch
+        #ifdef _OPENACC
+        #pragma acc loop vector
+        #endif
         for (int i = st; i <= ed; i++) {
             this->a[i] = aa[i - st];
             this->c[i] = cc[i - st];
@@ -156,8 +194,24 @@ void TPR::tpr_stage1(int st, int ed) {
     // make backup for STAGE 3 use
     mk_bkup_st1(st, ed);
 
-    EquationInfo eqi = update_uppper_no_check(st, ed);
-    patch_equation_info(eqi);
+    // EquationInfo eqi = update_uppper_no_check(st, ed);
+    // patch_equation_info(eqi);
+    {
+	    int k = st;
+	    int kr = ed;
+	    real ak = a[k];
+	    real akr = a[kr];
+	    real ck = c[k];
+	    real ckr = c[kr];
+	    real rhsk = rhs[k];
+	    real rhskr = rhs[kr];
+
+	    real inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+	    a[k] = inv_diag_k * ak;
+	    c[k] = -inv_diag_k * ckr * ck;
+	    rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+    }
 }
 
 
@@ -442,35 +496,6 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
     return eqi;
 }
 
-
-/**
- * @brief      make backup equation for STAGE 3 use.
- *
- * @param[in]    st    E_{st}
- * @param[in]    ed    E_{ed}
- */
-void TPR::mk_bkup_st1(int st, int ed) {
-    int eqi_st = 2 * st / s;
-
-    bkup_cp(st, eqi_st);
-    bkup_cp(ed, eqi_st + 1);
-}
-
-
-/**
- * @brief      copy Equation_{src_idx} to the backup array EquationInfo[dst_index]
- *
- * @param[in]  src_idx    The source index
- * @param[in]  dst_index  The destination index of EquationInfo
- */
-void TPR::bkup_cp(int src_idx, int dst_index) {
-    assert(0 <= dst_index && dst_index < 2 * n / s);
-
-    this->bkup_st1[dst_index].idx = src_idx;
-    this->bkup_st1[dst_index].a = this->a[src_idx];
-    this->bkup_st1[dst_index].c = this->c[src_idx];
-    this->bkup_st1[dst_index].rhs = this->rhs[src_idx];
-}
 
 /**
  * @brief   subroutine for STAGE 3 REPLACE
