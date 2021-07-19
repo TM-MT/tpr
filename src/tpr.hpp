@@ -71,7 +71,14 @@ private:
     EquationInfo update_global(int i, int u);
     EquationInfo update_bd_check(int i, int u, int lb, int ub);
 
+#ifdef _OPENACC
+#pragma acc routine seq
+#endif
     void mk_bkup_st1(int st, int ed);
+
+#ifdef _OPENACC
+#pragma acc routine seq
+#endif
     void bkup_cp(int src_idx, int dst_index);
 
     EquationInfo update_no_check(int kl, int k, int kr);

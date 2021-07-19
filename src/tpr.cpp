@@ -67,41 +67,6 @@ void TPR::init(int n, int s) {
     }
 }
 
-/**
- * @brief      copy Equation_{src_idx} to the backup array EquationInfo[dst_index]
- *
- * @param[in]  src_idx    The source index
- * @param[in]  dst_index  The destination index of EquationInfo
- */
-#ifdef _OPENACC
-#pragma acc routine seq
-#endif
-void TPR::bkup_cp(int src_idx, int dst_index) {
-    assert(0 <= dst_index && dst_index < 2 * n / s);
-
-    this->bkup_st1[dst_index].idx = src_idx;
-    this->bkup_st1[dst_index].a = this->a[src_idx];
-    this->bkup_st1[dst_index].c = this->c[src_idx];
-    this->bkup_st1[dst_index].rhs = this->rhs[src_idx];
-}
-
-
-/**
- * @brief      make backup equation for STAGE 3 use.
- *
- * @param[in]    st    E_{st}
- * @param[in]    ed    E_{ed}
- */
-#ifdef _OPENACC
-#pragma acc routine seq
-#endif
-void TPR::mk_bkup_st1(int st, int ed) {
-    int eqi_st = 2 * st / s;
-
-    bkup_cp(st, eqi_st);
-    bkup_cp(ed, eqi_st + 1);
-}
-
 
 /**
  * @brief      TPR STAGE 1
@@ -125,7 +90,7 @@ int TPR::solve() {
     #endif
     for (int st = 0; st < this->n; st += s) {
         // tpr_stage1(st, st + s - 1);
-       int ed = st + s - 1;
+        int ed = st + s - 1;
 
 #ifdef _OPENACC
 #pragma acc loop worker private(TPR::a[st:ed+1], TPR::c[st:ed+1], TPR::rhs[st:ed+1])
@@ -480,6 +445,36 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
     eqi.rhs = inv_diag_k * (rhsk - rhskl * ak);
 
     return eqi;
+}
+
+
+/**
+ * @brief      copy Equation_{src_idx} to the backup array EquationInfo[dst_index]
+ *
+ * @param[in]  src_idx    The source index
+ * @param[in]  dst_index  The destination index of EquationInfo
+ */
+void TPR::bkup_cp(int src_idx, int dst_index) {
+    assert(0 <= dst_index && dst_index < 2 * n / s);
+
+    this->bkup_st1[dst_index].idx = src_idx;
+    this->bkup_st1[dst_index].a = this->a[src_idx];
+    this->bkup_st1[dst_index].c = this->c[src_idx];
+    this->bkup_st1[dst_index].rhs = this->rhs[src_idx];
+}
+
+
+/**
+ * @brief      make backup equation for STAGE 3 use.
+ *
+ * @param[in]    st    E_{st}
+ * @param[in]    ed    E_{ed}
+ */
+void TPR::mk_bkup_st1(int st, int ed) {
+    int eqi_st = 2 * st / s;
+
+    bkup_cp(st, eqi_st);
+    bkup_cp(ed, eqi_st + 1);
 }
 
 
