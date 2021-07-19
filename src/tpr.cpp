@@ -183,11 +183,39 @@ int TPR::solve() {
 
     tpr_stage2();
 
+#pragma acc loop worker
     #ifdef _OPENMP
     #pragma omp parallel for
     #endif
     for (int st = 0; st < this->n; st += s) {
-        tpr_stage3(st, st + s - 1);
+        // from tpr_stage3(st, st + s - 1);
+        int ed = st + s - 1;
+        // replace
+        st3_replace(st, ed);
+
+        int lbi = st - 1; // use as index of the slice top
+        real xl;
+        if (lbi < 0) {
+            xl = 0.0; // x[-1] does not exists
+        } else {
+            xl = x[lbi];
+        }
+
+        real key;
+        if (c[ed] == 0.0) { // c[n] should be 0.0
+            key = 0.0;
+        } else {
+            key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
+        }
+
+        // x[ed] is known
+#pragma acc loop vector
+        #ifdef _OPENMP
+        #pragma omp simd
+        #endif
+        for (int i = st; i < ed; i++) {
+            x[i] = rhs[i] - a[i] * xl - c[i] * key;
+        }
     }
 
     int m = n / s;
@@ -291,31 +319,6 @@ void TPR::tpr_stage2() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage3(int st, int ed) {
-    // replace
-    st3_replace(st, ed);
-
-    int lbi = st - 1; // use as index of the slice top
-    real xl;
-    if (lbi < 0) {
-        xl = 0.0; // x[-1] does not exists
-    } else {
-        xl = x[lbi];
-    }
-
-    real key;
-    if (c[ed] == 0.0) { // c[n] should be 0.0
-        key = 0.0;
-    } else {
-        key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
-    }
-
-    // x[ed] is known
-    #ifdef _OPENMP
-    #pragma omp simd
-    #endif
-    for (int i = st; i < ed; i++) {
-        x[i] = rhs[i] - a[i] * xl - c[i] * key;
-    }
 }
 
 

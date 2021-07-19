@@ -85,6 +85,9 @@ private:
     EquationInfo update_uppper_no_check(int k, int kr);
     EquationInfo update_lower_no_check(int kl, int k);
 
+#ifdef _OPENACC
+#pragma acc routine seq
+#endif
     void st3_replace(int st, int ed);
 
     void tpr_stage1(int st, int ed);
