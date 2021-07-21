@@ -141,7 +141,7 @@ void TPR::tpr_stage1(int st, int ed) {
         for (int i = ed - u + 1; i <= ed; i++) {
             assert(st <= i - u);
             
-            // form update_lower_no_check(i - u, i);
+            // from update_lower_no_check(i - u, i);
             int kl = i - u;
             int k = i;
             real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
