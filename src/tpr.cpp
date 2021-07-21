@@ -73,16 +73,22 @@ void TPR::init(int n, int s) {
  * @return num of float operation
  */
 int TPR::solve() {
-    #pragma omp parallel for
-    for (int st = 0; st < this->n; st += s) {
-        tpr_stage1(st, st + s - 1);
-    }
+    #pragma omp parallel
+    {
+        #pragma omp for
+        for (int st = 0; st < this->n; st += s) {
+            tpr_stage1(st, st + s - 1);
+        }
 
-    tpr_stage2();
+        #pragma omp single
+        {
+            tpr_stage2();
+        }
 
-    #pragma omp parallel for
-    for (int st = 0; st < this->n; st += s) {
-        tpr_stage3(st, st + s - 1);
+        #pragma omp for
+        for (int st = 0; st < this->n; st += s) {
+            tpr_stage3(st, st + s - 1);
+        }
     }
 
     int m = n / s;
