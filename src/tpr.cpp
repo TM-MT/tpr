@@ -92,9 +92,9 @@ int TPR::solve() {
         // tpr_stage1(st, st + s - 1);
         int ed = st + s - 1;
 
-#ifdef _OPENACC
-#pragma acc loop worker private(TPR::a[st:ed+1], TPR::c[st:ed+1], TPR::rhs[st:ed+1])
-#endif
+        #ifdef _OPENACC
+        #pragma acc loop worker private(TPR::a[st:ed+1], TPR::c[st:ed+1], TPR::rhs[st:ed+1])
+        #endif
         for (int k = 1; k <= fllog2(s); k += 1) {
             const int u = pow2(k-1);
             const int s = this->s;
@@ -183,7 +183,9 @@ int TPR::solve() {
 
     tpr_stage2();
 
-#pragma acc loop worker
+    #ifdef _OPENACC
+    #pragma acc loop worker
+    #endif
     #ifdef _OPENMP
     #pragma omp parallel for
     #endif
@@ -209,7 +211,9 @@ int TPR::solve() {
         }
 
         // x[ed] is known
-#pragma acc loop vector
+        #ifdef _OPENACC
+        #pragma acc loop vector
+        #endif
         #ifdef _OPENMP
         #pragma omp simd
         #endif
