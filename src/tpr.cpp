@@ -75,7 +75,7 @@ void TPR::init(int n, int s) {
 int TPR::solve() {
     #pragma omp parallel
     {
-        #pragma omp for
+        #pragma omp for schedule(static)
         for (int st = 0; st < this->n; st += s) {
             tpr_stage1(st, st + s - 1);
         }
@@ -85,7 +85,7 @@ int TPR::solve() {
             tpr_stage2();
         }
 
-        #pragma omp for
+        #pragma omp for schedule(static)
         for (int st = 0; st < this->n; st += s) {
             tpr_stage3(st, st + s - 1);
         }
@@ -264,14 +264,14 @@ void TPR::tpr_stage3(int st, int ed) {
     st3_replace(st, ed);
 
     int lbi = st - 1; // use as index of the slice top
-    real xl;
+    real xl = 0.0;
     if (lbi < 0) {
         xl = 0.0; // x[-1] does not exists
     } else {
         xl = x[lbi];
     }
 
-    real key;
+    real key = 0.0;
     if (c[ed] == 0.0) { // c[n] should be 0.0
         key = 0.0;
     } else {
