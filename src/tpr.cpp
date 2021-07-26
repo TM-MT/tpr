@@ -290,7 +290,7 @@ void TPR::tpr_stage3(int st, int ed) {
     }
 
     real key = 0.0;
-    if (c[ed] == 0.0) { // c[n] should be 0.0
+    if (ed == this->n - 1) { // c[n - 1] should be 0.0
         key = 0.0;
     } else {
         key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
