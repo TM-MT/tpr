@@ -94,7 +94,7 @@ int TPR::solve() {
     int fp_st3 = m * (4 * s + 1);
 
     this->pm->start(labels[0]);
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (int st = 0; st < this->n; st += s) {
         tpr_stage1(st, st + s - 1);
     }
@@ -105,11 +105,11 @@ int TPR::solve() {
     this->pm->stop(labels[1], static_cast<double>(fp_st2));
 
     this->pm->start(labels[2]);
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
-    this->pm->stop(labels[2], static_cast<double>(fp_st3));
+   this->pm->stop(labels[2], static_cast<double>(fp_st3));
 
     return fp_st1 + fp_st2 + fp_st3;
 }
@@ -122,6 +122,16 @@ int TPR::solve() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage1(int st, int ed) {
+    // local copies of a, c, rhs
+    real loc_a[s], loc_c[s], loc_rhs[s];
+
+    // make local copies
+    for (int i = st; i <= ed; i++) {
+        loc_a[i - st] = this->a[i];
+        loc_c[i - st] = this->c[i];
+        loc_rhs[i - st] = this->rhs[i];
+    }
+
     for (int k = 1; k <= fllog2(s); k += 1) {
         const int u = pow2(k-1);
         const int s = this->s;
@@ -130,57 +140,65 @@ void TPR::tpr_stage1(int st, int ed) {
         real aa[s], cc[s], rr[s];
 
         #pragma omp simd
-        for (int i = st; i < st + u; i++) {
-            assert(i + u <= ed);
+        for (int i = 0; i < u; i++) {
+            assert(i + u < s);
 
             // from update_uppper_no_check(i, i + u);
             int k = i;
             int kr = i + u;
 
-            real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
+            real inv_diag_k = 1.0 / (1.0 - loc_a[kr] * loc_c[k]);
 
-            aa[i - st] = inv_diag_k * a[k];
-            cc[i - st] = -inv_diag_k * c[kr] * c[k];
-            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
+            aa[i] = inv_diag_k * loc_a[k];
+            cc[i] = -inv_diag_k * loc_c[kr] * loc_c[k];
+            rr[i] = inv_diag_k * (loc_rhs[k] - loc_rhs[kr] * loc_c[k]);
         }
 
         #pragma omp simd
-        for (int i = st + u; i <= ed - u; i++) {
-            assert(st <= i - u);
-            assert(i + u <= ed);
+        for (int i = u; i < s - u; i++) {
+            assert(0 <= i - u);
+            assert(i + u < s);
 
             // from update_no_check(i - u , i, i + u);
             int kl = i - u;
             int k = i;
             int kr = i + u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+            real inv_diag_k = 1.0 / (1.0 - loc_c[kl] * loc_a[k] - loc_a[kr] * loc_c[k]);
 
-            aa[i - st] = - inv_diag_k * a[kl] * a[k];
-            cc[i - st] = - inv_diag_k * c[kr] * c[k];
-            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+            aa[i] = - inv_diag_k * loc_a[kl] * loc_a[k];
+            cc[i] = - inv_diag_k * loc_c[kr] * loc_c[k];
+            rr[i] = inv_diag_k * (loc_rhs[k] - loc_rhs[kl] * loc_a[k] - loc_rhs[kr] * loc_c[k]);
         }
 
         #pragma omp simd
-        for (int i = ed - u + 1; i <= ed; i++) {
-            assert(st <= i - u);
+        for (int i = s - u; i < s; i++) {
+            assert(0 <= i - u);
             
-            // form update_lower_no_check(i - u, i);
+            // from update_lower_no_check(i - u, i);
             int kl = i - u;
             int k = i;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+            real inv_diag_k = 1.0 / (1.0 - loc_c[kl] * loc_a[k]);
 
-            aa[i - st] = -inv_diag_k * a[kl] * a[k];
-            cc[i - st] = inv_diag_k * c[k];
-            rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
+            aa[i] = -inv_diag_k * loc_a[kl] * loc_a[k];
+            cc[i] = inv_diag_k * loc_c[k];
+            rr[i] = inv_diag_k * (loc_rhs[k] - loc_rhs[kl] * loc_a[k]);
         }
 
         // patch
-        for (int i = st; i <= ed; i++) {
-            this->a[i] = aa[i - st];
-            this->c[i] = cc[i - st];
-            this->rhs[i] = rr[i - st];
+        for (int i = 0; i < s; i++) {
+            loc_a[i] = aa[i];
+            loc_c[i] = cc[i];
+            loc_rhs[i] = rr[i];
         }
     }
+
+    // copy back
+    for (int i = st; i <= ed; i++) {
+        this->a[i] = loc_a[i - st];
+        this->c[i] = loc_c[i - st];
+        this->rhs[i] = loc_rhs[i - st];
+    }
+
 
     // make backup for STAGE 3 use
     mk_bkup_st1(st, ed);
@@ -281,15 +299,15 @@ void TPR::tpr_stage3(int st, int ed) {
     st3_replace(st, ed);
 
     int lbi = st - 1; // use as index of the slice top
-    real xl;
+    real xl = 0.0;
     if (lbi < 0) {
         xl = 0.0; // x[-1] does not exists
     } else {
         xl = x[lbi];
     }
 
-    real key;
-    if (c[ed] == 0.0) { // c[n] should be 0.0
+    real key = 0.0;
+    if (ed == this->n - 1) { // c[n - 1] should be 0.0
         key = 0.0;
     } else {
         key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
