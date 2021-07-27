@@ -5,6 +5,7 @@
 #endif
 
 #include "lib.hpp"
+#include "pcr.hpp"
 #include "tpr.hpp"
 
 #ifdef __GNUC__
@@ -49,6 +50,10 @@ void TPR::init(int n, int s) {
     this->s = s;
     // allocation for answer
     RMALLOC(this->x, n);
+    // allocation for stage 2 use
+    RMALLOC(this->st2_a, n / s);
+    RMALLOC(this->st2_c, n / s);
+    RMALLOC(this->st2_rhs, n / s);
 
     this->bkup_st1 = new EquationInfo[2 * n / s];
 
@@ -197,77 +202,41 @@ void TPR::tpr_stage1(int st, int ed) {
 void TPR::tpr_stage2() {
     // INTERMIDIATE STAGE
     {
-        EquationInfo eqbuff[n / s];
         int j = 0;
         for (int i = s-1; i < n - s; i += s) {
-            eqbuff[j] = update_uppper_no_check(i, i + 1);
-            j += 1;
-        }
+            int k = i;
+            int kr = i + 1;
+            real ak = a[k];
+            real akr = a[kr];
+            real ck = c[k];
+            real ckr = c[kr];
+            real rhsk = rhs[k];
+            real rhskr = rhs[kr];
 
-        assert(j <= n / s);
-        for (int i = 0; i < j; i++) {
-            patch_equation_info(eqbuff[i]);
+            real inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+            this->st2_a[j] = inv_diag_k * ak;
+            this->st2_c[j] = -inv_diag_k * ckr * ck;
+            this->st2_rhs[j] = inv_diag_k * (rhsk - rhskr * ck);
+            j++;
         }
+        this->st2_a[j] = this->a[n-1];
+        this->st2_c[j] = this->c[n-1];
+        this->st2_rhs[j] = this->rhs[n-1];
     }
 
 
-    // STAGE 2 FR (CR FORWARD REDUCTION)
+    PCR p = PCR(this->st2_a, nullptr, this->st2_c, this->st2_rhs, n / s);
+    p.solve();
+    // assert this->st2_rhs has the answer
+    // copy back to TPR::x
     {
-        for (int j = 0, k = fllog2(s); j < fllog2(n / s) - 1; j++, k++) {
-            int u = pow2(k-1);
-
-            EquationInfo eqbuff[n / s];
-            int idx = 0;
-            for (int i = pow2(k)-1; i < n; i += pow2(k)) {
-                eqbuff[idx] = update_global(i, u);
-                idx += 1;
-            }
-
-            for (int i = 0; i < idx; i++) {
-                patch_equation_info(eqbuff[i]);
-            }
+        int j = 0;
+        for (int i = s - 1; i < n - s; i += s) {
+           this->x[i] = this->st2_rhs[j];
+           j++;
         }
-    }
-
-
-    int capital_i = n / 2;
-    int m = n / s;
-
-    int u = capital_i;
-
-    // CR BACKWARD SUBSTITUTION STEP 1
-    {
-        int i = capital_i-1;
-        real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
-
-        x[i] = (rhs[i] - c[i]*rhs[i+u]) * inv_det;
-        x[i+u] =  (rhs[i+u] - rhs[i]*a[i+u]) * inv_det;
-    }
-
-    // CR BACKWARD SUBSTITUTION
-    for (int j = 0; j < fllog2(m); j++, capital_i /= 2, u /= 2) {
-        assert(u > 0);
-        const int new_x_len = 1 << j;
-        real new_x[new_x_len];
-        {
-            // tell following variables are constant to vectorize
-            const int slice_w = 2 * u;
-            const int uu = u;
-
-            int i = capital_i - 1;
-            #pragma omp simd
-            for (int idx = 0; idx < new_x_len; idx++) {
-                new_x[idx] = rhs[i] - a[i]*x[i-uu] - c[i]*x[i+uu];
-                i += slice_w;
-            }
-        }
-
-        int dst = capital_i - 1;
-        #pragma omp simd
-        for (int i = 0; i < new_x_len; i++) {
-            x[dst] = new_x[i];
-            dst += 2 * u;
-        }
+        this->x[n - 1] = this->st2_rhs[j];
     }
 }
 

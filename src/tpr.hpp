@@ -18,7 +18,7 @@
 /**
  * @brief Safely delete pointer `p` and set `p = nullptr`
  */
-#define SAFE_DELETE( p ) delete p; p = nullptr
+#define SAFE_DELETE( p ) delete[] p; p = nullptr
 
 
 /**
@@ -34,6 +34,7 @@ struct EquationInfo {
 class TPR: Solver
 {
     real *a, *c, *rhs, *x;
+    real *st2_a, *st2_c, *st2_rhs;
     EquationInfo *bkup_st1;
     int n, s;
 
@@ -51,6 +52,9 @@ public:
         // free local variables
         SAFE_DELETE(this->bkup_st1);
         SAFE_DELETE(this->x);
+        SAFE_DELETE(this->st2_a);
+        SAFE_DELETE(this->st2_c);
+        SAFE_DELETE(this->st2_rhs);
     }
  
     void set_tridiagonal_system(real *a, real *c, real *rhs);
