@@ -14,16 +14,16 @@ int PCR::solve() {
         int s = 1 << p;
         real a1[n], c1[n], rhs1[n];
 
-#ifdef _OPENMP
+        #ifdef _OPENMP
         #pragma omp parallel shared(a1, c1, rhs1, s)
-#endif
+        #endif
         {
-#ifdef _OPENACC
-#pragma acc loop vector
-#endif
-#ifdef _OPENMP
+            #ifdef _OPENACC
+            #pragma acc loop vector
+            #endif
+            #ifdef _OPENMP
             #pragma omp for
-#endif
+            #endif
             for (int k = 0; k < n; k++) {
                 int kl = max(k-s, 0);
                 int kr = min(k+s, n-1);
@@ -38,12 +38,12 @@ int PCR::solve() {
                 rhs1[k] = e * ( rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
             }
 
-#ifdef _OPENACC
-#pragma acc loop vector
-#endif
-#ifdef _OPENMP
+            #ifdef _OPENACC
+            #pragma acc loop vector
+            #endif
+            #ifdef _OPENMP
             #pragma omp for
-#endif
+            #endif
             for (int k = 0; k < n; k++) {
                 a[k] = a1[k];
                 c[k] = c1[k];
@@ -60,7 +60,9 @@ int PCR::solve() {
  * @return num of float operation
  */
 int PCR::get_ans(real *x) {
+    #ifdef _OPENMP
     #pragma omp simd
+    #endif
     for (int i = 0; i < n; i++) {
         x[i] = this->rhs[i];
     }
