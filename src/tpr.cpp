@@ -61,6 +61,9 @@ void TPR::init(int n, int s) {
     {
         bool none_null = true;
         none_null = none_null && (this->x != nullptr);
+        none_null = none_null && (this->st2_a != nullptr);
+        none_null = none_null && (this->st2_c != nullptr);
+        none_null = none_null && (this->st2_rhs != nullptr);
         none_null = none_null && (this->bkup_st1 != nullptr);
 
         if (!none_null) {
