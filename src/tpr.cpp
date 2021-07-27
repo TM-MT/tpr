@@ -94,7 +94,7 @@ int TPR::solve() {
     int m = n / s;
     return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
             + 28 * m - 33 // stage 2
-            + m * (4 * s + 1); // stage 33
+            + m * (4 * s + 1); // stage 3
 }
 
 
