@@ -25,7 +25,8 @@ add_library(libtpr
 target_include_directories(libtpr
     PUBLIC ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/PMlib/include)
-target_link_libraries(libtpr PUBLIC pmlib)
+target_link_libraries(libtpr
+    PUBLIC pmlib libpcr)
 set_property(TARGET libtpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")

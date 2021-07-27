@@ -6,6 +6,7 @@
 #endif
 
 #include "lib.hpp"
+#include "pcr.hpp"
 #include "tpr.hpp"
 #include "pm.hpp"
 #include "PerfMonitor.h"
@@ -54,14 +55,21 @@ void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     this->pm = pm;
     // allocation for answer
     RMALLOC(this->x, n);
+    // allocation for stage 2 use
+    RMALLOC(this->st2_a, n / s);
+    RMALLOC(this->st2_c, n / s);
+    RMALLOC(this->st2_rhs, n / s);
 
-    this->bkup_st1 = new EquationInfo[2 * n / s];
+    this->st2_use = new EquationInfo[2 * n / s];
 
     // NULL CHECK
     {
         bool none_null = true;
         none_null = none_null && (this->x != nullptr);
-        none_null = none_null && (this->bkup_st1 != nullptr);
+        none_null = none_null && (this->st2_a != nullptr);
+        none_null = none_null && (this->st2_c != nullptr);
+        none_null = none_null && (this->st2_rhs != nullptr);
+        none_null = none_null && (this->st2_use != nullptr);
 
         if (!none_null) {
             printf("[%s] FAILED TO ALLOCATE an array.\n",
@@ -90,7 +98,7 @@ int TPR::solve() {
     // FLOP COUNT
     int m = n / s;
     int fp_st1 = m * ((14 * s - 10) * fllog2(s) + 14);
-    int fp_st2 = 28 * m - 33;
+    int fp_st2 = 14 * m * fllog2(m);
     int fp_st3 = m * (4 * s + 1);
 
     this->pm->start(labels[0]);
@@ -109,7 +117,7 @@ int TPR::solve() {
     for (int st = 0; st < this->n; st += s) {
         tpr_stage3(st, st + s - 1);
     }
-   this->pm->stop(labels[2], static_cast<double>(fp_st3));
+    this->pm->stop(labels[2], static_cast<double>(fp_st3));
 
     return fp_st1 + fp_st2 + fp_st3;
 }
@@ -199,12 +207,19 @@ void TPR::tpr_stage1(int st, int ed) {
         this->rhs[i] = loc_rhs[i - st];
     }
 
+    // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
+    {
+        EquationInfo eqi = update_uppper_no_check(st, ed);
+        int eqi_dst = 2 * st / s;
+        this->st2_use[eqi_dst] = eqi;
 
-    // make backup for STAGE 3 use
-    mk_bkup_st1(st, ed);
-
-    EquationInfo eqi = update_uppper_no_check(st, ed);
-    patch_equation_info(eqi);
+        EquationInfo eqi2;
+        eqi2.idx = ed;
+        eqi2.a = this->a[ed];
+        eqi2.c = this->c[ed];
+        eqi2.rhs = this->rhs[ed];
+        this->st2_use[eqi_dst + 1] = eqi2;
+    }
 }
 
 /**
@@ -214,77 +229,42 @@ void TPR::tpr_stage1(int st, int ed) {
 void TPR::tpr_stage2() {
     // INTERMIDIATE STAGE
     {
-        EquationInfo eqbuff[n / s];
         int j = 0;
-        for (int i = s-1; i < n - s; i += s) {
-            eqbuff[j] = update_uppper_no_check(i, i + 1);
-            j += 1;
-        }
+        int len_st2_use = 2 * n / s;
+        for (int i = 1; i < len_st2_use - 1; i += 2) {
+            int k = i;
+            int kr = i + 1;
+            real ak = this->st2_use[k].a;
+            real akr = this->st2_use[kr].a;
+            real ck = this->st2_use[k].c;
+            real ckr = this->st2_use[kr].c;
+            real rhsk = this->st2_use[k].rhs;
+            real rhskr = this->st2_use[kr].rhs;
 
-        assert(j <= n / s);
-        for (int i = 0; i < j; i++) {
-            patch_equation_info(eqbuff[i]);
+            real inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+            this->st2_a[j] = inv_diag_k * ak;
+            this->st2_c[j] = -inv_diag_k * ckr * ck;
+            this->st2_rhs[j] = inv_diag_k * (rhsk - rhskr * ck);
+            j++;
         }
+        this->st2_a[j] = this->st2_use[len_st2_use - 1].a;
+        this->st2_c[j] = this->st2_use[len_st2_use - 1].c;
+        this->st2_rhs[j] = this->st2_use[len_st2_use - 1].rhs;
     }
 
 
-    // STAGE 2 FR (CR FORWARD REDUCTION)
+    PCR p = PCR(this->st2_a, nullptr, this->st2_c, this->st2_rhs, n / s);
+    p.solve();
+    // assert this->st2_rhs has the answer
+    // copy back to TPR::x
     {
-        for (int j = 0, k = fllog2(s); j < fllog2(n / s) - 1; j++, k++) {
-            int u = pow2(k-1);
-
-            EquationInfo eqbuff[n / s];
-            int idx = 0;
-            for (int i = pow2(k)-1; i < n; i += pow2(k)) {
-                eqbuff[idx] = update_global(i, u);
-                idx += 1;
-            }
-
-            for (int i = 0; i < idx; i++) {
-                patch_equation_info(eqbuff[i]);
-            }
+        int j = 0;
+        for (int i = s - 1; i < n - s; i += s) {
+           this->x[i] = this->st2_rhs[j];
+           j++;
         }
-    }
-
-
-    int capital_i = n / 2;
-    int m = n / s;
-
-    int u = capital_i;
-
-    // CR BACKWARD SUBSTITUTION STEP 1
-    {
-        int i = capital_i-1;
-        real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
-
-        x[i] = (rhs[i] - c[i]*rhs[i+u]) * inv_det;
-        x[i+u] =  (rhs[i+u] - rhs[i]*a[i+u]) * inv_det;
-    }
-
-    // CR BACKWARD SUBSTITUTION
-    for (int j = 0; j < fllog2(m); j++, capital_i /= 2, u /= 2) {
-        assert(u > 0);
-        const int new_x_len = 1 << j;
-        real new_x[new_x_len];
-        {
-            // tell following variables are constant to vectorize
-            const int slice_w = 2 * u;
-            const int uu = u;
-
-            int i = capital_i - 1;
-            #pragma omp simd
-            for (int idx = 0; idx < new_x_len; idx++) {
-                new_x[idx] = rhs[i] - a[i]*x[i-uu] - c[i]*x[i+uu];
-                i += slice_w;
-            }
-        }
-
-        int dst = capital_i - 1;
-        #pragma omp simd
-        for (int i = 0; i < new_x_len; i++) {
-            x[dst] = new_x[i];
-            dst += 2 * u;
-        }
+        this->x[n - 1] = this->st2_rhs[j];
     }
 }
 
@@ -295,9 +275,6 @@ void TPR::tpr_stage2() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage3(int st, int ed) {
-    // replace
-    st3_replace(st, ed);
-
     int lbi = st - 1; // use as index of the slice top
     real xl = 0.0;
     if (lbi < 0) {
@@ -321,66 +298,6 @@ void TPR::tpr_stage3(int st, int ed) {
 }
 
 
-/**
- * @brief      reduction calculation at section
- *
- * Update E_i by using E_{i-u} and E_{i+u}. Do boundary check to make sure operation held in the section.
- *
- * @param[in]  i     index of equation 
- * @param[in]  u     index of equation to use
- *
- * @return     The equation information which was performed reduction.
- */
-EquationInfo TPR::update_section(int i, int u) {    
-    int lb = i / s * s;
-    int ub = lb + s;
-    
-    return update_bd_check(i, u, lb, ub);
-}
-
-/**
- * @brief      reduction calculation at STAGE 2
- *
- * Update E_i by using E_{i-u} and E_{i+u}. Do boundary check to avoid segmentation fault.
- *
- * @param[in]  i     index of equation 
- * @param[in]  u     index of equation to use
- *
- * @return     The equation information which was performed reduction.
- */
-EquationInfo TPR::update_global(int i, int u) {
-    return update_bd_check(i, u, 0, n);
-}
-
-
-/**
- * @brief      check boundary condition $i-u, i+u \in [lb, ub)$ and call update_*()
- *
- * @param[in]  i     index of equation 
- * @param[in]  u     index of equation to use
- * @param[in]  lb    The lower bound
- * @param[in]  ub    The uppper bound
- *
- * @return     The equation information which was performed reduction.
- */
-EquationInfo TPR::update_bd_check(int i, int u, int lb, int ub) {
-    bool lb_check = lb <= i - u;
-    bool ub_check = i + u < ub;
-    EquationInfo eqi;
-
-    if (lb_check && ub_check) {
-        eqi = update_no_check(i - u, i, i + u);
-    } else if (ub_check) {
-        eqi = update_uppper_no_check(i, i + u);
-    } else if (lb_check) {
-        eqi = update_lower_no_check(i - u, i);
-    } else {
-        // not happen
-        UNREACHABLE;
-    }
-
-    return eqi;
-}
 
 /// Update E_k by E_{kl}, E_{kr}
 EquationInfo TPR::update_no_check(int kl, int k, int kr) {
@@ -451,50 +368,6 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
 
 
 /**
- * @brief      make backup equation for STAGE 3 use.
- *
- * @param[in]    st    E_{st}
- * @param[in]    ed    E_{ed}
- */
-void TPR::mk_bkup_st1(int st, int ed) {
-    int eqi_st = 2 * st / s;
-
-    bkup_cp(st, eqi_st);
-    bkup_cp(ed, eqi_st + 1);
-}
-
-
-/**
- * @brief      copy Equation_{src_idx} to the backup array EquationInfo[dst_index]
- *
- * @param[in]  src_idx    The source index
- * @param[in]  dst_index  The destination index of EquationInfo
- */
-void TPR::bkup_cp(int src_idx, int dst_index) {
-    assert(0 <= dst_index && dst_index < 2 * n / s);
-
-    this->bkup_st1[dst_index].idx = src_idx;
-    this->bkup_st1[dst_index].a = this->a[src_idx];
-    this->bkup_st1[dst_index].c = this->c[src_idx];
-    this->bkup_st1[dst_index].rhs = this->rhs[src_idx];
-}
-
-/**
- * @brief   subroutine for STAGE 3 REPLACE
- * 
- * @param[in]   st    
- * @param[in]   ed
- * 
- * @note    make sure `bkup_st1` was allocated and mk_bkup_st1 functions was called.
- */
-void TPR::st3_replace(int st, int ed) {
-    int eqi_st = st / s * 2;
-
-    patch_equation_info(this->bkup_st1[eqi_st]);
-    patch_equation_info(this->bkup_st1[eqi_st + 1]);
-}
-
-/**
  * @brief get the answer
  * @return num of float operation
  */
@@ -506,16 +379,5 @@ int TPR::get_ans(real *x) {
     return 0;
 };
 
-/**
- * @brief      patch equation by given equation information
- *
- * @param[in]  eqi   The eqi
- */
-void TPR::patch_equation_info(EquationInfo eqi) {
-    int idx = eqi.idx;
-    this->a[idx] = eqi.a;
-    this->c[idx] = eqi.c;
-    this->rhs[idx] = eqi.rhs;
-}
 
 #undef UNREACHABLE
