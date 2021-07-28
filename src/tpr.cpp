@@ -229,6 +229,7 @@ void TPR::tpr_stage2() {
     {
         int j = 0;
         int len_st2_use = 2 * n / s;
+        #pragma omp simd
         for (int i = 1; i < len_st2_use - 1; i += 2) {
             int k = i;
             int kr = i + 1;
