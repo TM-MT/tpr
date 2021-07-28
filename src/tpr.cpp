@@ -204,7 +204,7 @@ void TPR::tpr_stage1(int st, int ed) {
         real inv_diag_k = 1.0 / (1.0 - akr * ck);
 
         EquationInfo eqi;
-        eqi.idx = k;
+        eqi.idx = st;
         eqi.a = inv_diag_k * ak;
         eqi.c = -inv_diag_k * ckr * ck;
         eqi.rhs = inv_diag_k * (rhsk - rhskr * ck);
@@ -213,9 +213,9 @@ void TPR::tpr_stage1(int st, int ed) {
 
         EquationInfo eqi2;
         eqi2.idx = ed;
-        eqi2.a = loc_a[s - 1];
-        eqi2.c = loc_c[s - 1];
-        eqi2.rhs = loc_rhs[s - 1];
+        eqi2.a = akr; // a.k.a. a[ed]
+        eqi2.c = ckr;
+        eqi2.rhs = rhskr;
         this->st2_use[eqi_dst + 1] = eqi2;
     }
 }
