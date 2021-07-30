@@ -190,16 +190,23 @@ void TPR::tpr_stage1(int st, int ed) {
         this->rhs[i] = loc_rhs[i - st];
     }
 
+}
+
+/**
+ * @brief TPR STAGE 2
+ *
+ */
+void TPR::tpr_stage2() {
     // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
-    {
+    for (int st = 0; st < this->n; st += s) {
         // EquationInfo eqi = update_uppper_no_check(st, ed);
-        int k = 0, kr = s - 1;
-        real ak = loc_a[k];
-        real akr = loc_a[kr];
-        real ck = loc_c[k];
-        real ckr = loc_c[kr];
-        real rhsk = loc_rhs[k];
-        real rhskr = loc_rhs[kr];
+        int k = st, kr = st + s - 1;
+        real ak = a[k];
+        real akr = a[kr];
+        real ck = c[k];
+        real ckr = c[kr];
+        real rhsk = rhs[k];
+        real rhskr = rhs[kr];
 
         real inv_diag_k = 1.0 / (1.0 - akr * ck);
 
@@ -212,19 +219,13 @@ void TPR::tpr_stage1(int st, int ed) {
         this->st2_use[eqi_dst] = eqi;
 
         EquationInfo eqi2;
-        eqi2.idx = ed;
+        eqi2.idx = kr;
         eqi2.a = akr; // a.k.a. a[ed]
         eqi2.c = ckr;
         eqi2.rhs = rhskr;
         this->st2_use[eqi_dst + 1] = eqi2;
     }
-}
 
-/**
- * @brief TPR STAGE 2
- *
- */
-void TPR::tpr_stage2() {
     // INTERMIDIATE STAGE
     {
         int j = 0;
