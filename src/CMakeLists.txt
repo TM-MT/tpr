@@ -38,6 +38,7 @@ add_library(libtpr
     tpr.cpp)
 
 target_include_directories(libtpr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(libtpr PUBLIC libpcr)
 
 # build sample main and benchmark program
 if (TPR_PROJECT)
