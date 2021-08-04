@@ -12,7 +12,7 @@ int PCR::solve() {
 
     for (int p = 0; p < pn; p++) {
         int s = 1 << p;
-        real a1[n], c1[n], rhs1[n];
+        real __restrict a1[n], __restrict c1[n], __restrict rhs1[n];
 
         #pragma omp parallel shared(a1, c1, rhs1, s)
         {

@@ -10,6 +10,12 @@ if(OpenMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -finline-functions -mavx2 -mfma -fopt-info-missed=missed.all --param vect-max-version-for-alias-checks=50")
+    endif()
+endif()
+
 
 # PCR
 add_library(libpcr

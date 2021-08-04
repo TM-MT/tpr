@@ -7,7 +7,7 @@ class PCR: Solver
     int n;
 
 public:
-    PCR(real *a, real *diag, real *c, real *rhs, int n) {
+    PCR(real __restrict *a, real __restrict *diag, __restrict real *c, real __restrict *rhs, int n) {
         this->a = a;
         this->c = c;
         this->rhs = rhs;
