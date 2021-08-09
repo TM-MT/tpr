@@ -34,6 +34,7 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->a = a;
     this->c = c;
     this->rhs = rhs;
+    #pragma acc enter data copyin(a[:n], c[:n], rhs[:n])
 }
 
 /**
@@ -48,14 +49,22 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
+    #pragma acc enter data create(this, this->n, this->s)
     // allocation for answer
     RMALLOC(this->x, n);
+    // allocation for stage 1 use
+    RMALLOC(this->aa, n);
+    RMALLOC(this->cc, n);
+    RMALLOC(this->rr, n);
     // allocation for stage 2 use
     RMALLOC(this->st2_a, n / s);
     RMALLOC(this->st2_c, n / s);
     RMALLOC(this->st2_rhs, n / s);
 
     this->st2_use = new EquationInfo[2 * n / s];
+    #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
+    #pragma acc enter data create(x[:n], st2_a[:n], st2_rhs[:n])
+    #pragma acc enter data create(st2_use[:n])
 
     // NULL CHECK
     {
@@ -90,32 +99,27 @@ void TPR::tpr_stage1(int st, int ed) {
  * @return num of float operation
  */
 int TPR::solve() {
-    #ifdef _OPENACC
-    #pragma acc parallel loop gang
-    #endif
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
-    for (int st = 0; st < this->n; st += s) {
-        // tpr_stage1(st, st + s - 1);
-        int ed = st + s - 1;
+    for (int k = 1; k <= static_cast<int>(log2(s)); k += 1) {
+        const int u = pow2(k-1);
+        const int s = this->s;
 
         #ifdef _OPENACC
-        #pragma acc loop worker private(TPR::a[st:ed+1], TPR::c[st:ed+1], TPR::rhs[st:ed+1])
+        #pragma acc kernels present(this, a[:n], c[:n], rhs[:n], aa[:s], cc[:s], rr[:s])
+        #pragma acc loop independent
         #endif
-        for (int k = 1; k <= fllog2(s); k += 1) {
-            const int u = pow2(k-1);
-            const int s = this->s;
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(static)
+        #endif
+        for (int st = 0; st < this->n; st += s) {
+            // tpr_stage1(st, st + s - 1);
+            int ed = st + s - 1;
 
-            // Temp arrays for a, c, rhs
-            // only support alloc supported compilers
-            real aa[s], cc[s], rr[s];
 
             #ifdef _OPENMP
             #pragma omp simd
             #endif
             #ifdef _OPENACC
-            #pragma acc loop vector
+            #pragma acc loop independent
             #endif
             for (int i = st; i < st + u; i++) {
                 assert(i + u <= ed);
@@ -126,13 +130,13 @@ int TPR::solve() {
 
                 real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
 
-                aa[i - st] = inv_diag_k * a[k];
-                cc[i - st] = -inv_diag_k * c[kr] * c[k];
-                rr[i - st] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
+                aa[k] = inv_diag_k * a[k];
+                cc[k] = -inv_diag_k * c[kr] * c[k];
+                rr[k] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
             }
 
             #ifdef _OPENACC
-            #pragma acc loop vector
+            #pragma acc loop independent
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -147,13 +151,13 @@ int TPR::solve() {
                 int kr = i + u;
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
 
-                aa[i - st] = - inv_diag_k * a[kl] * a[k];
-                cc[i - st] = - inv_diag_k * c[kr] * c[k];
-                rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+                aa[k] = - inv_diag_k * a[kl] * a[k];
+                cc[k] = - inv_diag_k * c[kr] * c[k];
+                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
             }
 
             #ifdef _OPENACC
-            #pragma acc loop vector
+            #pragma acc loop independent
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -166,25 +170,27 @@ int TPR::solve() {
                 int k = i;
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
 
-                aa[i - st] = -inv_diag_k * a[kl] * a[k];
-                cc[i - st] = inv_diag_k * c[k];
-                rr[i - st] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
+                aa[k] = -inv_diag_k * a[kl] * a[k];
+                cc[k] = inv_diag_k * c[k];
+                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
             }
 
             // patch
             #ifdef _OPENACC
-            #pragma acc loop vector
+            #pragma acc loop
             #endif
             for (int i = st; i <= ed; i++) {
-                this->a[i] = aa[i - st];
-                this->c[i] = cc[i - st];
-                this->rhs[i] = rr[i - st];
+                this->a[i] = aa[i];
+                this->c[i] = cc[i];
+                this->rhs[i] = rr[i];
             }
         }
 
     }
 
-#pragma omp simd
+    #ifdef _OPENMP
+    #pragma omp simd
+    #endif
     tpr_stage2();
 
     #ifdef _OPENACC
@@ -411,6 +417,8 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
  * @return num of float operation
  */
 int TPR::get_ans(real *x) {
+    #pragma acc update host(this->x[:n])
+
     #ifdef _OPENMP
     #pragma omp simd
     #endif

@@ -34,6 +34,7 @@ struct EquationInfo {
 class TPR: Solver
 {
     real *a, *c, *rhs, *x;
+    real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     EquationInfo *st2_use;
     int n, s;
@@ -52,9 +53,16 @@ public:
         // free local variables
         SAFE_DELETE(this->st2_use);
         SAFE_DELETE(this->x);
+        SAFE_DELETE(this->aa);
+        SAFE_DELETE(this->cc);
+        SAFE_DELETE(this->rr);
         SAFE_DELETE(this->st2_a);
         SAFE_DELETE(this->st2_c);
         SAFE_DELETE(this->st2_rhs);
+        #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
+        #pragma acc exit data delete(this->x[:n], this->st2_a[:n], this->st2_c[:n], this->st2_rhs[:n])
+        #pragma acc exit data delete(this->st2_use[:n])
+        #pragma acc exit data delete(this->n, this->s, this)
     }
 
     void set_tridiagonal_system(real *a, real *c, real *rhs);
