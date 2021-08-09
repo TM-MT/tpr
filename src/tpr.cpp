@@ -61,11 +61,13 @@ void TPR::init(int n, int s) {
     RMALLOC(this->st2_c, n / s);
     RMALLOC(this->st2_rhs, n / s);
 
-    this->st2_use = new EquationInfo[2 * n / s];
+    RMALLOC(this->inter_a, 2 * n / s);
+    RMALLOC(this->inter_c, 2 * n / s);
+    RMALLOC(this->inter_rhs, 2 * n / s);
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
     #pragma acc enter data create(x[:n])
-    #pragma acc enter data create(st2_a[:n / s], st2_c[:n/s], st2_rhs[:n/s])
-    #pragma acc enter data create(st2_use[:2*n/s])
+    #pragma acc enter data create(st2_a[:n/s], st2_c[:n/s], st2_rhs[:n/s])
+    #pragma acc enter data create(inter_a[:2*n/s], inter_c[:2*n/s], inter_rhs[:2*n/s])
 
     // NULL CHECK
     {
@@ -74,7 +76,9 @@ void TPR::init(int n, int s) {
         none_null = none_null && (this->st2_a != nullptr);
         none_null = none_null && (this->st2_c != nullptr);
         none_null = none_null && (this->st2_rhs != nullptr);
-        none_null = none_null && (this->st2_use != nullptr);
+        none_null = none_null && (this->inter_a != nullptr);
+        none_null = none_null && (this->inter_c != nullptr);
+        none_null = none_null && (this->inter_rhs != nullptr);
 
         if (!none_null) {
             printf("[%s] FAILED TO ALLOCATE an array.\n",
@@ -247,6 +251,7 @@ void TPR::tpr_stage2() {
     for (int st = 0; st < this->n; st += s) {
         // EquationInfo eqi = update_uppper_no_check(st, ed);
         int k = st, kr = st + s - 1;
+        int eqi_dst = 2 * st / s;
         real ak = a[k];
         real akr = a[kr];
         real ck = c[k];
@@ -256,47 +261,42 @@ void TPR::tpr_stage2() {
 
         real inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-        EquationInfo eqi;
-        eqi.idx = st;
-        eqi.a = inv_diag_k * ak;
-        eqi.c = -inv_diag_k * ckr * ck;
-        eqi.rhs = inv_diag_k * (rhsk - rhskr * ck);
-        int eqi_dst = 2 * st / s;
-        this->st2_use[eqi_dst] = eqi;
+        this->inter_a[eqi_dst] = inv_diag_k * ak;
+        this->inter_c[eqi_dst] = -inv_diag_k * ckr * ck;
+        this->inter_rhs[eqi_dst] = inv_diag_k * (rhsk - rhskr * ck);
 
-        EquationInfo eqi2;
-        eqi2.idx = kr;
-        eqi2.a = akr; // a.k.a. a[ed]
-        eqi2.c = ckr;
-        eqi2.rhs = rhskr;
-        this->st2_use[eqi_dst + 1] = eqi2;
+        this->inter_a[eqi_dst + 1] = akr; // a.k.a. a[ed]
+        this->inter_c[eqi_dst + 1] = ckr;
+        this->inter_rhs[eqi_dst + 1] = rhskr;
     }
 
     // INTERMIDIATE STAGE
     {
-        int j = 0;
+        int len_inter = 2 * n / s;
         int len_st2_use = 2 * n / s;
+        #ifdef _OPENMP
         #pragma omp simd
-        for (int i = 1; i < len_st2_use - 1; i += 2) {
+        #endif
+        for (int i = 1; i < len_inter - 1; i += 2) {
             int k = i;
             int kr = i + 1;
-            real ak = this->st2_use[k].a;
-            real akr = this->st2_use[kr].a;
-            real ck = this->st2_use[k].c;
-            real ckr = this->st2_use[kr].c;
-            real rhsk = this->st2_use[k].rhs;
-            real rhskr = this->st2_use[kr].rhs;
+            real ak = this->inter_a[k];
+            real akr = this->inter_a[kr];
+            real ck = this->inter_c[k];
+            real ckr = this->inter_c[kr];
+            real rhsk = this->inter_rhs[k];
+            real rhskr = this->inter_rhs[kr];
 
             real inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-            this->st2_a[j] = inv_diag_k * ak;
-            this->st2_c[j] = -inv_diag_k * ckr * ck;
-            this->st2_rhs[j] = inv_diag_k * (rhsk - rhskr * ck);
-            j++;
+            int dst = i / 2;
+            this->st2_a[dst] = inv_diag_k * ak;
+            this->st2_c[dst] = -inv_diag_k * ckr * ck;
+            this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
         }
-        this->st2_a[j] = this->st2_use[len_st2_use - 1].a;
-        this->st2_c[j] = this->st2_use[len_st2_use - 1].c;
-        this->st2_rhs[j] = this->st2_use[len_st2_use - 1].rhs;
+        this->st2_a[n / s - 1] = this->inter_a[len_inter - 1];
+        this->st2_c[n / s - 1] = this->inter_c[len_inter - 1];
+        this->st2_rhs[n / s - 1] = this->inter_rhs[len_inter - 1];
     }
 
 
