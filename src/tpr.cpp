@@ -273,7 +273,6 @@ void TPR::tpr_stage2() {
     // INTERMIDIATE STAGE
     {
         int len_inter = 2 * n / s;
-        int len_st2_use = 2 * n / s;
         #ifdef _OPENMP
         #pragma omp simd
         #endif
