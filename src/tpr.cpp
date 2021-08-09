@@ -63,8 +63,9 @@ void TPR::init(int n, int s) {
 
     this->st2_use = new EquationInfo[2 * n / s];
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
-    #pragma acc enter data create(x[:n], st2_a[:n], st2_rhs[:n])
-    #pragma acc enter data create(st2_use[:n])
+    #pragma acc enter data create(x[:n])
+    #pragma acc enter data create(st2_a[:n / s], st2_c[:n/s], st2_rhs[:n/s])
+    #pragma acc enter data create(st2_use[:2*n/s])
 
     // NULL CHECK
     {

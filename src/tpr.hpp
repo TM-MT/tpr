@@ -60,8 +60,9 @@ public:
         SAFE_DELETE(this->st2_c);
         SAFE_DELETE(this->st2_rhs);
         #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
-        #pragma acc exit data delete(this->x[:n], this->st2_a[:n], this->st2_c[:n], this->st2_rhs[:n])
-        #pragma acc exit data delete(this->st2_use[:n])
+        #pragma acc exit data delete(this->x[:n])
+        #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
+        #pragma acc exit data delete(this->st2_use[:2*n/s])
         #pragma acc exit data delete(this->n, this->s, this)
     }
 
