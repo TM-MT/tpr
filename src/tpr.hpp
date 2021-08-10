@@ -3,8 +3,11 @@
 #include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
+#include <array>
 
+#include "PerfMonitor.h"
 #include "lib.hpp"
+#include "pm.hpp"
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
@@ -38,15 +41,18 @@ class TPR: Solver
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
     int n, s;
+    pm_lib::PerfMonitor *pm;
+    std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
+    std::array<std::string, 3> labels;
 
 public:
-    TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
-        init(n, s);
+    TPR(real *a, real *diag, real *c, real *rhs, int n, int s, pm_lib::PerfMonitor *pm) {
+        init(n, s, pm);
         set_tridiagonal_system(a, c, rhs);
     };
 
-    TPR(int n, int  s) {
-        init(n, s);
+    TPR(int n, int  s, pm_lib::PerfMonitor *pm) {
+        init(n, s, pm);
     };
 
     ~TPR() {
@@ -82,7 +88,7 @@ private:
     TPR(const TPR &tpr);
     TPR &operator=(const TPR &tpr);
 
-    void init(int n, int s);
+    void init(int n, int s, pm_lib::PerfMonitor *pm);
 
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);

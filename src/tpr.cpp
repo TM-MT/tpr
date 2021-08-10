@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <array>
 
 #ifdef __DEBUG__
 #include "backward.hpp"
@@ -7,6 +8,9 @@
 #include "lib.hpp"
 #include "pcr.hpp"
 #include "tpr.hpp"
+#include "pm.hpp"
+#include "PerfMonitor.h"
+
 
 #ifdef __GNUC__
 #define UNREACHABLE __builtin_unreachable()
@@ -48,12 +52,15 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
  * @param n size of given system
  * @param s size of a slice. `s` should be power of 2
  */
-void TPR::init(int n, int s) {
+void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     this->n = n;
     this->s = s;
     #ifdef _OPENACC
     #pragma acc enter data copyin(this, this->n, this->s)
     #endif
+
+    this->pm = pm;
+
     // allocation for answer
     RMALLOC(this->x, n);
     // allocation for stage 1 use
@@ -93,6 +100,15 @@ void TPR::init(int n, int s) {
             abort();
         }
     }
+
+    // Initialize PerfMonitor and set labels
+    for (unsigned long int i = 0; i < this->default_labels.size(); i++) {
+        auto format = std::string("TPR_n_");
+        auto gen_label = format.replace(4, 1, std::to_string(this->s))
+                            .append(this->default_labels[i]);
+        this->labels[i] = gen_label;
+        this->pm->setProperties(gen_label, this->pm->CALC);
+    }
 }
 
 
@@ -110,6 +126,13 @@ void TPR::tpr_stage1(int st, int ed) {
  * @return num of float operation
  */
 int TPR::solve() {
+    int m = fllog2(s);
+    int fp_st1 = 28 * n - 14;
+    int fp_st2 = 14 * m - 19 + 4 * m;
+    int fp_st3 = m * 4 * (s - 1);
+
+    // STAGE 1
+    this->pm->start(labels[0]);
     for (int k = 1; k <= static_cast<int>(log2(s)); k += 1) {
         const int u = pow2(k-1);
         const int s = this->s;
@@ -198,12 +221,15 @@ int TPR::solve() {
         }
 
     }
+    this->pm->stop(labels[0], static_cast<double>(fp_st1));
 
-    #ifdef _OPENMP
-    #pragma omp simd
-    #endif
+    // STAGE 2
+    this->pm->start(labels[1]);
     tpr_stage2();
+    this->pm->stop(labels[1], static_cast<double>(fp_st2));
 
+    // STAGE 3
+    this->pm->start(labels[2]);
     #ifdef _OPENACC
     #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
     #pragma acc loop gang
@@ -241,11 +267,9 @@ int TPR::solve() {
             x[i] = rhs[i] - a[i] * xl - c[i] * key;
         }
     }
+    this->pm->stop(labels[2], static_cast<double>(fp_st3));
 
-    int m = n / s;
-    return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
-            + 14 * m * fllog2(m) // stage 2
-            + m * (4 * s + 1); // stage 3
+    return fp_st1 + fp_st2 + fp_st3;
 }
 
 
