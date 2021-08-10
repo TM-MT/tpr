@@ -34,7 +34,9 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->a = a;
     this->c = c;
     this->rhs = rhs;
+    #ifdef _OPENACC
     #pragma acc enter data copyin(a[:n], c[:n], rhs[:n])
+    #endif
 }
 
 /**
@@ -49,7 +51,9 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
+    #ifdef _OPENACC
     #pragma acc enter data copyin(this, this->n, this->s)
+    #endif
     // allocation for answer
     RMALLOC(this->x, n);
     // allocation for stage 1 use
@@ -64,10 +68,12 @@ void TPR::init(int n, int s) {
     RMALLOC(this->inter_a, 2 * n / s);
     RMALLOC(this->inter_c, 2 * n / s);
     RMALLOC(this->inter_rhs, 2 * n / s);
+    #ifdef _OPENACC
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
     #pragma acc enter data create(x[:n])
     #pragma acc enter data create(st2_a[:n/s], st2_c[:n/s], st2_rhs[:n/s])
     #pragma acc enter data create(inter_a[:2*n/s], inter_c[:2*n/s], inter_rhs[:2*n/s])
+    #endif
 
     // NULL CHECK
     {
@@ -120,11 +126,11 @@ int TPR::solve() {
             int ed = st + s - 1;
 
 
-            #ifdef _OPENMP
-            #pragma omp simd
-            #endif
             #ifdef _OPENACC
             #pragma acc loop independent
+            #endif
+            #ifdef _OPENMP
+            #pragma omp simd
             #endif
             for (int i = st; i < st + u; i++) {
                 assert(i + u <= ed);
@@ -248,10 +254,14 @@ int TPR::solve() {
  *
  */
 void TPR::tpr_stage2() {
+    #ifdef _OPENACC
     #pragma acc kernels present(this)
+    #endif
     {
         // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
+        #ifdef _OPENACC
         #pragma acc loop independent
+        #endif
         for (int st = 0; st < this->n; st += s) {
             // EquationInfo eqi = update_uppper_no_check(st, ed);
             int k = st, kr = st + s - 1;
@@ -279,7 +289,9 @@ void TPR::tpr_stage2() {
         {
             int len_inter = 2 * n / s;
 
+            #ifdef _OPENACC
             #pragma acc loop independent
+            #endif
             #ifdef _OPENMP
             #pragma omp simd
             #endif
@@ -312,9 +324,13 @@ void TPR::tpr_stage2() {
     p.solve();
     // assert this->st2_rhs has the answer
     // copy back to TPR::x
+    #ifdef _OPENACC
     #pragma acc kernels present(this)
+    #endif
     {
+        #ifdef _OPENACC
         #pragma acc loop independent
+        #endif
         for (int i = s - 1; i < n - s; i += s) {
            this->x[i] = this->st2_rhs[i / s];
         }
@@ -329,26 +345,6 @@ void TPR::tpr_stage2() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage3(int st, int ed) {
-    int lbi = st - 1; // use as index of the slice top
-    real xl = 0.0;
-    if (lbi < 0) {
-        xl = 0.0; // x[-1] does not exists
-    } else {
-        xl = x[lbi];
-    }
-
-    real key = 0.0;
-    if (ed == this->n - 1) { // c[n - 1] should be 0.0
-        key = 0.0;
-    } else {
-        key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
-    }
-
-    // x[ed] is known
-    #pragma omp simd
-    for (int i = st; i < ed; i++) {
-        x[i] = rhs[i] - a[i] * xl - c[i] * key;
-    }
 }
 
 
@@ -426,7 +422,9 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
  * @return num of float operation
  */
 int TPR::get_ans(real *x) {
+    #ifdef _OPENACC
     #pragma acc update host(this->x[:n])
+    #endif
 
     #ifdef _OPENMP
     #pragma omp simd
