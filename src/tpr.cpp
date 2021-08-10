@@ -49,7 +49,7 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
-    #pragma acc enter data create(this, this->n, this->s)
+    #pragma acc enter data copyin(this, this->n, this->s)
     // allocation for answer
     RMALLOC(this->x, n);
     // allocation for stage 1 use
@@ -199,7 +199,8 @@ int TPR::solve() {
     tpr_stage2();
 
     #ifdef _OPENACC
-    #pragma acc loop worker
+    #pragma acc parallel present(this)
+    #pragma acc loop gang
     #endif
     #ifdef _OPENMP
     #pragma omp parallel for schedule(static)
@@ -248,6 +249,7 @@ int TPR::solve() {
  */
 void TPR::tpr_stage2() {
     // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
+    #pragma acc parallel loop gang vector present(this)
     for (int st = 0; st < this->n; st += s) {
         // EquationInfo eqi = update_uppper_no_check(st, ed);
         int k = st, kr = st + s - 1;
@@ -265,14 +267,18 @@ void TPR::tpr_stage2() {
         this->inter_c[eqi_dst] = -inv_diag_k * ckr * ck;
         this->inter_rhs[eqi_dst] = inv_diag_k * (rhsk - rhskr * ck);
 
+        // Copy E_{ed}
         this->inter_a[eqi_dst + 1] = akr; // a.k.a. a[ed]
         this->inter_c[eqi_dst + 1] = ckr;
         this->inter_rhs[eqi_dst + 1] = rhskr;
     }
 
     // INTERMIDIATE STAGE
+    #pragma acc kernels present(this)
     {
         int len_inter = 2 * n / s;
+
+        #pragma acc loop independent
         #ifdef _OPENMP
         #pragma omp simd
         #endif
@@ -293,6 +299,7 @@ void TPR::tpr_stage2() {
             this->st2_c[dst] = -inv_diag_k * ckr * ck;
             this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
         }
+
         this->st2_a[n / s - 1] = this->inter_a[len_inter - 1];
         this->st2_c[n / s - 1] = this->inter_c[len_inter - 1];
         this->st2_rhs[n / s - 1] = this->inter_rhs[len_inter - 1];
@@ -303,13 +310,13 @@ void TPR::tpr_stage2() {
     p.solve();
     // assert this->st2_rhs has the answer
     // copy back to TPR::x
+    #pragma acc kernels present(this)
     {
-        int j = 0;
+        #pragma acc loop independent
         for (int i = s - 1; i < n - s; i += s) {
-           this->x[i] = this->st2_rhs[j];
-           j++;
+           this->x[i] = this->st2_rhs[i / s];
         }
-        this->x[n - 1] = this->st2_rhs[j];
+        this->x[n - 1] = this->st2_rhs[n / s - 1];
     }
 }
 
