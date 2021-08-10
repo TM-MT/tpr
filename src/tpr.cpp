@@ -199,7 +199,7 @@ int TPR::solve() {
     tpr_stage2();
 
     #ifdef _OPENACC
-    #pragma acc parallel present(this)
+    #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
     #pragma acc loop gang
     #endif
     #ifdef _OPENMP
@@ -248,61 +248,63 @@ int TPR::solve() {
  *
  */
 void TPR::tpr_stage2() {
-    // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
-    #pragma acc parallel loop gang vector present(this)
-    for (int st = 0; st < this->n; st += s) {
-        // EquationInfo eqi = update_uppper_no_check(st, ed);
-        int k = st, kr = st + s - 1;
-        int eqi_dst = 2 * st / s;
-        real ak = a[k];
-        real akr = a[kr];
-        real ck = c[k];
-        real ckr = c[kr];
-        real rhsk = rhs[k];
-        real rhskr = rhs[kr];
-
-        real inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-        this->inter_a[eqi_dst] = inv_diag_k * ak;
-        this->inter_c[eqi_dst] = -inv_diag_k * ckr * ck;
-        this->inter_rhs[eqi_dst] = inv_diag_k * (rhsk - rhskr * ck);
-
-        // Copy E_{ed}
-        this->inter_a[eqi_dst + 1] = akr; // a.k.a. a[ed]
-        this->inter_c[eqi_dst + 1] = ckr;
-        this->inter_rhs[eqi_dst + 1] = rhskr;
-    }
-
-    // INTERMIDIATE STAGE
     #pragma acc kernels present(this)
     {
-        int len_inter = 2 * n / s;
-
+        // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
         #pragma acc loop independent
-        #ifdef _OPENMP
-        #pragma omp simd
-        #endif
-        for (int i = 1; i < len_inter - 1; i += 2) {
-            int k = i;
-            int kr = i + 1;
-            real ak = this->inter_a[k];
-            real akr = this->inter_a[kr];
-            real ck = this->inter_c[k];
-            real ckr = this->inter_c[kr];
-            real rhsk = this->inter_rhs[k];
-            real rhskr = this->inter_rhs[kr];
+        for (int st = 0; st < this->n; st += s) {
+            // EquationInfo eqi = update_uppper_no_check(st, ed);
+            int k = st, kr = st + s - 1;
+            int eqi_dst = 2 * st / s;
+            real ak = a[k];
+            real akr = a[kr];
+            real ck = c[k];
+            real ckr = c[kr];
+            real rhsk = rhs[k];
+            real rhskr = rhs[kr];
 
             real inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-            int dst = i / 2;
-            this->st2_a[dst] = inv_diag_k * ak;
-            this->st2_c[dst] = -inv_diag_k * ckr * ck;
-            this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
+            this->inter_a[eqi_dst] = inv_diag_k * ak;
+            this->inter_c[eqi_dst] = -inv_diag_k * ckr * ck;
+            this->inter_rhs[eqi_dst] = inv_diag_k * (rhsk - rhskr * ck);
+
+            // Copy E_{ed}
+            this->inter_a[eqi_dst + 1] = akr; // a.k.a. a[ed]
+            this->inter_c[eqi_dst + 1] = ckr;
+            this->inter_rhs[eqi_dst + 1] = rhskr;
         }
 
-        this->st2_a[n / s - 1] = this->inter_a[len_inter - 1];
-        this->st2_c[n / s - 1] = this->inter_c[len_inter - 1];
-        this->st2_rhs[n / s - 1] = this->inter_rhs[len_inter - 1];
+        // INTERMIDIATE STAGE
+        {
+            int len_inter = 2 * n / s;
+
+            #pragma acc loop independent
+            #ifdef _OPENMP
+            #pragma omp simd
+            #endif
+            for (int i = 1; i < len_inter - 1; i += 2) {
+                int k = i;
+                int kr = i + 1;
+                real ak = this->inter_a[k];
+                real akr = this->inter_a[kr];
+                real ck = this->inter_c[k];
+                real ckr = this->inter_c[kr];
+                real rhsk = this->inter_rhs[k];
+                real rhskr = this->inter_rhs[kr];
+
+                real inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+                int dst = i / 2;
+                this->st2_a[dst] = inv_diag_k * ak;
+                this->st2_c[dst] = -inv_diag_k * ckr * ck;
+                this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
+            }
+
+            this->st2_a[n / s - 1] = this->inter_a[len_inter - 1];
+            this->st2_c[n / s - 1] = this->inter_c[len_inter - 1];
+            this->st2_rhs[n / s - 1] = this->inter_rhs[len_inter - 1];
+        }
     }
 
 
