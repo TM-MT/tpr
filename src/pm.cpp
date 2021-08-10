@@ -28,17 +28,48 @@ struct Options {
     std::optional<int> s = 1024;
     // Iteration Times
     std::optional<int> iter = 1000;
+    // Solver
+    std::optional<std::string> solver = "TPR";
 };
-STRUCTOPT(Options, n, s, iter);
+STRUCTOPT(Options, n, s, iter, solver);
+
+namespace pmcpp {
+    enum class Solver {
+        TPR,
+        PCR,
+
+    };
+    void to_lower(std::string &s1);
+    Solver str2Solver(std::string &solver);
+
+
+    Solver str2Solver(std::string &solver) {
+        to_lower(solver);
+        if (solver.compare(std::string("pcr")) == 0) {
+            return Solver::PCR;
+        } else if (solver.compare(std::string("tpr")) == 0) {
+            return Solver::TPR;
+        } else{
+            std::cerr << "Solver Not Found.\n";
+            abort();
+        }
+    }
+    
+    void to_lower(std::string &s1) {
+       transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
+    }
+}
 
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
+    pmcpp::Solver solver;
     // Parse Command Line Args
     try {
         auto options = structopt::app("tpr_pm", "v1.0.0").parse<Options>(argc, argv);
         n = options.n.value();
         s = options.s.value();
         iter_times = options.iter.value();
+        solver = pmcpp::str2Solver(options.solver.value());
     } catch (structopt::exception& e) {
         std::cout << e.what() << "\n";
         std::cout << e.help();
@@ -63,22 +94,36 @@ int main(int argc, char *argv[]) {
     // 1. setup the system by calling assign()
     // 2. set the system
     // 3. measure
-    {
-        auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
-        pm.setProperties(tpr_all_label, pm.CALC);
+    switch (solver) {
+        case pmcpp::Solver::TPR: {
+            auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
+            pm.setProperties(tpr_all_label, pm.CALC);
 
-        // Measureing TPR reusable implementation
-        {
-            TPR t = TPR(sys->n, s, &pm);
+            // Measureing TPR reusable implementation
+            {
+                TPR t = TPR(sys->n, s, &pm);
+                for (int i = 0; i < iter_times; i++) {
+                    assign(sys);
+                    t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
+                    pm.start(tpr_all_label);
+                    int flop_count = t.solve();
+                    flop_count += t.get_ans(sys->diag);
+                    pm.stop(tpr_all_label, flop_count);
+                }
+            }
+        } break;
+        case pmcpp::Solver::PCR: {
+            auto pcr_label = std::string("PCR");
+            pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
-                t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
-                pm.start(tpr_all_label);
-                int flop_count = t.solve();
-                flop_count += t.get_ans(sys->diag);
-                pm.stop(tpr_all_label, flop_count);
+                PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+                pm.start(pcr_label);
+                int flop_count = p.solve();
+                flop_count += p.get_ans(sys->diag);
+                pm.stop(pcr_label, flop_count);
             }
-        }
+        } break;
     }
 
     pm.print(stdout, std::string(""), std::string(), 1);
