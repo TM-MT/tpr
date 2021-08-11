@@ -104,7 +104,7 @@ if (TPR_PROJECT)
         pm.cpp
     )
     target_link_libraries(tpr_pm
-        PUBLIC libtpr libpcr pmlib structopt effolkronium_random)
+        PUBLIC libtpr libpcr pmlib effolkronium_random)
     if (${OPT_PAPI})
         target_link_libraries(tpr_pm
             PUBLIC papi_ext "${PAPI_STATIC_LIB}")
@@ -113,7 +113,6 @@ if (TPR_PROJECT)
     endif()
     target_include_directories(tpr_pm
         PUBLIC ${PROJECT_SOURCE_DIR}/src
-                ${PROJECT_SOURCE_DIR}/dbg-macro
                 ${PROJECT_SOURCE_DIR}/PMlib/include)
     set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" )
 endif()

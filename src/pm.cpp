@@ -9,41 +9,38 @@
 #include "pcr.hpp"
 #include "tpr.hpp"
 #include "effolkronium/random.hpp"
-#include "dbg.h"
-#include <structopt/app.hpp>
 
 
 // std::mt19937 base pseudo-random
 using Random = effolkronium::random_static;
 
 
-/**
- * @brief Command Line Args
- * @details Define Command Line Arguments
- */
-struct Options {
-    // size of system
-    std::optional<int> n = 2048;
-    // size of slice
-    std::optional<int> s = 1024;
-    // Iteration Times
-    std::optional<int> iter = 1000;
-    // Solver
-    std::optional<std::string> solver = "TPR";
-};
-STRUCTOPT(Options, n, s, iter, solver);
-
 namespace pmcpp {
     enum class Solver {
         TPR,
         PCR,
-
     };
+
+    /**
+     * @brief Command Line Args
+     * @details Define Command Line Arguments
+     */
+    struct Options {
+        // size of system
+        int n;
+        // size of slice
+        int s;
+        // Iteration Times
+        int iter;
+        // Solver
+        Solver solver;
+    };
+
     void to_lower(std::string &s1);
     Solver str2Solver(std::string &solver);
 
 
-    Solver str2Solver(std::string &solver) {
+    Solver str2Solver(std::string solver) {
         to_lower(solver);
         if (solver.compare(std::string("pcr")) == 0) {
             return Solver::PCR;
@@ -58,31 +55,42 @@ namespace pmcpp {
     void to_lower(std::string &s1) {
        transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
     }
+
+    /**
+     * @brief parse command line args
+     * 
+     * @param argc [description]
+     * @param argv [description]
+     */
+    Options parse(int argc, char *argv[]) {
+        // assert args are given in Options order
+        if (argc != 5) {
+            std::cerr << "Invalid command line args.\n";
+            std::cerr << "Usage: " << argv[0] << " n s iter solver\n";
+            exit(EXIT_FAILURE); 
+        }
+
+        Options ret;
+        ret.n = atoi(argv[1]);
+        ret.s = atoi(argv[2]);
+        ret.iter = atoi(argv[3]);
+        ret.solver = pmcpp::str2Solver(std::string(argv[4]));
+
+        return ret;
+    }
 }
 
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
     pmcpp::Solver solver;
     // Parse Command Line Args
-    try {
-        auto options = structopt::app("tpr_pm", "v1.0.0").parse<Options>(argc, argv);
-        n = options.n.value();
-        s = options.s.value();
-        iter_times = options.iter.value();
-        solver = pmcpp::str2Solver(options.solver.value());
-    } catch (structopt::exception& e) {
-        std::cout << e.what() << "\n";
-        std::cout << e.help();
-        exit(EXIT_FAILURE);
-    }
-
-    // print type infomation
     {
-        const real v = 0.0;
-        std::cerr << "type info: " ;
-        dbg(v);
+        pmcpp::Options in = pmcpp::parse(argc, argv);
+        n = in.n;
+        s = in.s;
+        iter_times = in.iter;
+        solver = in.solver;
     }
-
 
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);

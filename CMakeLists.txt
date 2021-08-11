@@ -18,7 +18,6 @@ if(with_PAPI)
 endif()
 
 if (TPR_PROJECT)
-    add_subdirectory(${PROJECT_SOURCE_DIR}/structopt)
     add_subdirectory(${PROJECT_SOURCE_DIR}/random)
     set(Random_BuildTests "no")
 endif()
