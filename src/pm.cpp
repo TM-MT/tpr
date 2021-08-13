@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
 
             // Measureing TPR reusable implementation
             {
-                TPR t = TPR(sys->n, s, &pm);
+                TPR t(sys->n, s, &pm);
                 for (int i = 0; i < iter_times; i++) {
                     assign(sys);
                     t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
