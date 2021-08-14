@@ -126,9 +126,9 @@ void TPR::tpr_stage1(int st, int ed) {
  * @return num of float operation
  */
 int TPR::solve() {
-    int m = fllog2(s);
-    int fp_st1 = 28 * n - 14;
-    int fp_st2 = 14 * m - 19 + 4 * m;
+    int m = n / s;
+    int fp_st1 = m * (14 * s * fllog2(s));
+    int fp_st2 = 14 * m + (m-1) * 14 + (14 * m * fllog2(m));
     int fp_st3 = m * 4 * (s - 1);
 
     // STAGE 1
