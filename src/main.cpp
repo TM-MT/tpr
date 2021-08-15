@@ -7,7 +7,6 @@
 #include "lib.hpp"
 #include "pcr.hpp"
 #include "tpr.hpp"
-#include "dbg.h"
 
 
 
@@ -17,7 +16,7 @@ int main() {
     setup(sys, n);
     assign(sys);
 
-    PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+    PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
     p.solve();
     p.get_ans(sys->diag);
     print_array(sys->diag, n);
@@ -29,7 +28,7 @@ int main() {
     pm.setProperties(tpr_label, pm.CALC);
 
     for (int s = 4; s <= n; s *= 2) {
-        dbg(s);
+        std::cerr << "s=" << s << "\n";
         assign(sys);
         TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s, &pm);
         pm.start(tpr_label);

@@ -72,8 +72,7 @@ if (TPR_PROJECT)
         PUBLIC libpcr libtpr pmlib)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
-                ${PROJECT_SOURCE_DIR}/dbg-macro
-                ${PROJECT_SOURCE_DIR}/PMlib/include)
+        ${PROJECT_SOURCE_DIR}/PMlib/include)
     set_property(TARGET tpr_main
         PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
                  COMPILE_DEFINITIONS enable_OPENMP="ON")
