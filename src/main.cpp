@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <initializer_list>
 
+#include "PerfMonitor.h"
 #include "main.hpp"
 #include "lib.hpp"
 #include "pcr.hpp"
@@ -22,16 +23,25 @@ int main() {
     print_array(sys->diag, n);
     printf("\n");
 
+    pm_lib::PerfMonitor pm = pm_lib::PerfMonitor();
+    pm.initialize(100);
+    auto tpr_label = std::string("TPR");
+    pm.setProperties(tpr_label, pm.CALC);
 
     for (int s = 4; s <= n; s *= 2) {
         dbg(s);
         assign(sys);
-        TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
-        t.solve();
-        t.get_ans(sys->diag);
+        TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s, &pm);
+        pm.start(tpr_label);
+        int flop_count = t.solve();
+        flop_count += t.get_ans(sys->diag);
+        pm.stop(tpr_label, flop_count);
         print_array(sys->diag, n);
         printf("\n");
     }
+
+    pm.print(stderr, std::string(""), std::string(), 1);
+    pm.printDetail(stderr, 0, 1);
 
     clean(sys);
     free(sys);

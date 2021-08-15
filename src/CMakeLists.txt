@@ -54,6 +54,30 @@ endif()
 
 # build sample main and benchmark program
 if (TPR_PROJECT)
+    # tpr_main
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_executable(tpr_main
+            main.cpp
+            ${BACKWARD_ENABLE}
+        )
+        set_target_properties(tpr_main PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+        target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src/backward-cpp)
+        add_backward(tpr_main)
+    else() # Release etc.
+        add_executable(tpr_main
+            main.cpp
+        )
+    endif()
+    target_link_libraries(tpr_main
+        PUBLIC libpcr libtpr pmlib)
+    target_include_directories(tpr_main
+        PUBLIC ${PROJECT_SOURCE_DIR}/src
+                ${PROJECT_SOURCE_DIR}/dbg-macro
+                ${PROJECT_SOURCE_DIR}/PMlib/include)
+    set_property(TARGET tpr_main
+        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
+                 COMPILE_DEFINITIONS enable_OPENMP="ON")
+
     # PMlib
     set(pmlib_srcdir ${PROJECT_SOURCE_DIR}/PMlib/src)
     set(pmlib_incdir ${PROJECT_SOURCE_DIR}/PMlib/include)
