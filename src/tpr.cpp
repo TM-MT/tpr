@@ -344,7 +344,7 @@ void TPR::tpr_stage2() {
     }
 
 
-    PCR p = PCR(this->st2_a, nullptr, this->st2_c, this->st2_rhs, n / s);
+    PCR p(this->st2_a, nullptr, this->st2_c, this->st2_rhs, n / s);
     p.solve();
     // assert this->st2_rhs has the answer
     // copy back to TPR::x

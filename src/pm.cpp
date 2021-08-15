@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
             pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
-                PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+                PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
                 pm.start(pcr_label);
                 int flop_count = p.solve();
                 flop_count += p.get_ans(sys->diag);
