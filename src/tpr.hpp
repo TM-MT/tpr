@@ -40,7 +40,7 @@ class TPR: Solver
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
-    int n, s;
+    int n, m, s;
     pm_lib::PerfMonitor *pm;
     std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
     std::array<std::string, 3> labels;
@@ -72,7 +72,7 @@ public:
         #pragma acc exit data delete(this->x[:n])
         #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
         #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
-        #pragma acc exit data delete(this->n, this->s, this)
+        #pragma acc exit data delete(this->n, this->s, this->m, this)
         #endif
     }
 
@@ -89,6 +89,7 @@ private:
     TPR &operator=(const TPR &tpr);
 
     void init(int n, int s, pm_lib::PerfMonitor *pm);
+    real* extend_input_array(real *p);
 
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);

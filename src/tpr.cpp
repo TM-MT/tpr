@@ -35,9 +35,9 @@
  * @param rhs
  */
 void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
-    this->a = a;
-    this->c = c;
-    this->rhs = rhs;
+    this->a = extend_input_array(a);
+    this->c = extend_input_array(c);
+    this->rhs = extend_input_array(rhs);
     #ifdef _OPENACC
     #pragma acc enter data copyin(a[:n], c[:n], rhs[:n])
     #endif
@@ -55,8 +55,9 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     this->n = n;
     this->s = s;
+    this->m = n / s;
     #ifdef _OPENACC
-    #pragma acc enter data copyin(this, this->n, this->s)
+    #pragma acc enter data copyin(this, this->n, this->s, this->m)
     #endif
 
     this->pm = pm;
@@ -111,6 +112,25 @@ void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     }
 }
 
+/**
+ * @brief extend input array
+ * 
+ * @note use `this->n, this->s, this->m`
+ * 
+ * @param p [description]
+ * @return [description]
+ */
+real* TPR::extend_input_array(real *p) {
+    // real *data = new real[m * (2*pow2(fllog2(s)) + s)];
+    real *ret = new real[m * s];
+
+    // copy p -> st_point
+    for (int i = 0; i < n; i++) {
+        ret[i] = p[i];
+    }
+
+    return ret;
+}
 
 /**
  * @brief      TPR STAGE 1
