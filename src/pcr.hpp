@@ -24,9 +24,9 @@ public:
     ~PCR() {
         #pragma acc exit data delete(this->a[-margin:n+margin], this->c[-margin:n+margin], this->rhs[-margin:n+margin])
         #pragma acc exit data delete(this, this->n, this->margin)
-        delete &this->a[-this->margin];
-        delete &this->c[-this->margin];
-        delete &this->rhs[-this->margin];
+        delete[] &this->a[-this->margin];
+        delete[] &this->c[-this->margin];
+        delete[] &this->rhs[-this->margin];
     }
  
     int solve();
