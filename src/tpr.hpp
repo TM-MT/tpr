@@ -40,7 +40,7 @@ class TPR: Solver
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
-    int n, m, s;
+    int n, m, s, sl;
     pm_lib::PerfMonitor *pm;
     std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
     std::array<std::string, 3> labels;
@@ -67,12 +67,16 @@ public:
         SAFE_DELETE(this->inter_a);
         SAFE_DELETE(this->inter_c);
         SAFE_DELETE(this->inter_rhs);
+        SAFE_DELETE(this->a);
+        SAFE_DELETE(this->c);
+        SAFE_DELETE(this->rhs);
         #ifdef _OPENACC
+        #pragma acc exit data delete(this->a[:m*sl], this->c[:m*sl], this->rhs[:m*sl])
         #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
         #pragma acc exit data delete(this->x[:n])
         #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
         #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
-        #pragma acc exit data delete(this->n, this->s, this->m, this)
+        #pragma acc exit data delete(this->n, this->s, this->m, this->sl, this)
         #endif
     }
 
