@@ -241,9 +241,15 @@ void TPR::tpr_stage2() {
             const int uu = u;
 
             int i = capital_i - 1;
-            #pragma omp simd
             for (int idx = 0; idx < new_x_len; idx++) {
-                new_x[idx] = rhs[i] - a[i]*x[i-uu] - c[i]*x[i+uu];
+                // fix me: `i - uu` may take less then 0
+                real x_uu;
+                if (i - uu < 0) {
+                    x_uu = 0.0;
+                } else {
+                    x_uu = x[i - uu];
+                }
+                new_x[idx] = rhs[i] - a[i]*x_uu - c[i]*x[i+uu];
                 i += slice_w;
             }
         }
@@ -278,10 +284,17 @@ void TPR::tpr_stage3(int st, int ed) {
         real new_x[new_x_len];
         {
             int i = st + capital_i - 1;
-            #pragma omp simd
             for (int idx = 0; idx < new_x_len; idx++) {
                 // update x[i]
-                new_x[idx] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
+                // fix me: `i - u` may take less then 0
+                real x_u;
+                if (i - u < 0) {
+                    x_u = 0.0;
+                } else {
+                    x_u = x[i - u];
+                }
+
+                new_x[idx] = rhs[i] - a[i] * x_u - c[i]*x[i+u];
                 i += 2 * u;
             }
         }
