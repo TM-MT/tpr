@@ -34,7 +34,9 @@ struct EquationInfo {
 class TPR: Solver
 {
     real *a, *c, *rhs, *x;
-    real *bkup_a, *bkup_c, *bkup_rhs;
+    real *aa, *cc, *rr;
+    real *st2_a, *st2_c, *st2_rhs;
+    real *inter_a, *inter_c, *inter_rhs;
     int n, s;
 
 public:
@@ -49,12 +51,25 @@ public:
 
     ~TPR() {
         // free local variables
-        SAFE_DELETE(this->bkup_a);
-        SAFE_DELETE(this->bkup_c);
-        SAFE_DELETE(this->bkup_rhs);
         SAFE_DELETE(this->x);
+        SAFE_DELETE(this->aa);
+        SAFE_DELETE(this->cc);
+        SAFE_DELETE(this->rr);
+        SAFE_DELETE(this->st2_a);
+        SAFE_DELETE(this->st2_c);
+        SAFE_DELETE(this->st2_rhs);
+        SAFE_DELETE(this->inter_a);
+        SAFE_DELETE(this->inter_c);
+        SAFE_DELETE(this->inter_rhs);
+        #ifdef _OPENACC
+        #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
+        #pragma acc exit data delete(this->x[:n])
+        #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
+        #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
+        #pragma acc exit data delete(this->n, this->s, this)
+        #endif
     }
- 
+
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();
@@ -69,23 +84,11 @@ private:
 
     void init(int n, int s);
 
-    EquationInfo update_section(int i, int u);
-    EquationInfo update_global(int i, int u);
-    EquationInfo update_bd_check(int i, int u, int lb, int ub);
-
-    void mk_bkup_init(int st, int ed);
-    void mk_bkup_st1(int st, int ed);
-    void bkup_cp(real *src, real *dst, int st,int ed);
-
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);
     EquationInfo update_lower_no_check(int kl, int k);
 
-    void st3_replace();
-
     void tpr_stage1(int st, int ed);
     void tpr_stage2();
     void tpr_stage3(int st, int ed);
-
-    void patch_equation_info(EquationInfo eqi);
 };
