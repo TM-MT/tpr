@@ -14,7 +14,7 @@ int PCR::solve() {
     for (int p = 0; p < pn; p++) {
         #pragma acc kernels create(a1[:n], c1[:n], rhs1[:n]) present(this->a[:n], this->c[:n], this->rhs[:n], this, this->n)
         #ifdef _OPENMP
-        #pragma omp parallel shared(a1, c1, rhs1, s)
+        #pragma omp parallel shared(a1, c1, rhs1)
         #endif
         {
             #pragma acc update device(p)
