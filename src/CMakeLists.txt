@@ -31,6 +31,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 endif()
 
+# CR
+add_library(libcr
+    cr.cpp)
+target_include_directories(libcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+
 
 # PCR
 add_library(libpcr
@@ -63,7 +68,7 @@ if (TPR_PROJECT)
         )
     endif()
     target_link_libraries(tpr_main
-        PUBLIC libpcr libtpr)
+        PUBLIC libcr libpcr libtpr)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
                 ${PROJECT_SOURCE_DIR}/dbg-macro)
