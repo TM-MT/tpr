@@ -35,10 +35,6 @@ public:
         RMALLOC(this->rr, this->n);
         RMALLOC(this->x, this->n);
 
-        for (int i = 0; i < this->n; i++) {
-            this->x[i] = 1e-9+ 7;
-        }
-
         #pragma acc enter data create(this)
         #pragma acc enter data copyin(this->n)
         #pragma acc enter data copyin(this->a[0:n], this->c[0:n], this->rhs[0:n]) wait
