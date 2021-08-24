@@ -199,9 +199,6 @@ int TPR::solve() {
 
     }
 
-    #ifdef _OPENMP
-    #pragma omp simd
-    #endif
     tpr_stage2();
 
     #ifdef _OPENACC
