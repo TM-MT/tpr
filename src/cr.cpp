@@ -3,9 +3,14 @@
 
 
 int CR::solve() {
-	fr();
-	bs();
-	return 17 * this->n;
+    if (this->n > 1) {
+    	fr();
+    	bs();        
+    	return 17 * this->n;
+    } else {
+        x[0] = rhs[0];
+        return 0;
+    }
 }
 
 
