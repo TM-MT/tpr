@@ -338,9 +338,6 @@ void TPR::tpr_stage3(int st, int ed) {
 
         assert(u > 0);
 
-        const int new_x_len = pow2(fllog2(this->s) - p - 1);
-        real new_x[new_x_len];
-
         // update x[i]
         for (int i = st + u - 1; i <= ed; i += 2 * u) {
             real x_u;
