@@ -37,7 +37,8 @@ class TPR: Solver
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
-    int n, s;
+    real *bkup_a, *bkup_c, *bkup_rhs;
+    int n, s, m;
 
 public:
     TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
@@ -61,6 +62,9 @@ public:
         SAFE_DELETE(this->inter_a);
         SAFE_DELETE(this->inter_c);
         SAFE_DELETE(this->inter_rhs);
+        SAFE_DELETE(this->bkup_a);
+        SAFE_DELETE(this->bkup_c);
+        SAFE_DELETE(this->bkup_rhs);
         #ifdef _OPENACC
         #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
         #pragma acc exit data delete(this->x[:n])
@@ -83,12 +87,21 @@ private:
     TPR &operator=(const TPR &tpr);
 
     void init(int n, int s);
+    #pragma acc routine vector
+    void mk_bkup_init(int st, int ed);
+    #pragma acc routine vector
+    void mk_bkup_st1(int st, int ed);
+    #pragma acc routine vector
+    void bkup_cp(real *src, real *dst, int st,int ed);
 
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);
     EquationInfo update_lower_no_check(int kl, int k);
 
+    void st3_replace();
+
     void tpr_stage1(int st, int ed);
     void tpr_stage2();
+    #pragma acc routine gang
     void tpr_stage3(int st, int ed);
 };

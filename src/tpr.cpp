@@ -5,7 +5,7 @@
 #endif
 
 #include "lib.hpp"
-#include "pcr.hpp"
+#include "cr.hpp"
 #include "tpr.hpp"
 
 #ifdef __GNUC__
@@ -51,11 +51,16 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
+    this->m = this->n / this->s;
     #ifdef _OPENACC
-    #pragma acc enter data copyin(this, this->n, this->s)
+    #pragma acc enter data copyin(this, this->n, this->s, this->m)
     #endif
     // allocation for answer
     RMALLOC(this->x, n);
+    // allocation for backup
+    RMALLOC(this->bkup_a, n);
+    RMALLOC(this->bkup_c, n);
+    RMALLOC(this->bkup_rhs, n);
     // allocation for stage 1 use
     RMALLOC(this->aa, n);
     RMALLOC(this->cc, n);
@@ -110,6 +115,11 @@ void TPR::tpr_stage1(int st, int ed) {
  * @return num of float operation
  */
 int TPR::solve() {
+    #pragma omp parallel for
+    for (int st = 0; st < this->n; st += this->s) {
+        mk_bkup_init(st, st + this->s -1);
+    }
+
     for (int k = 1; k <= static_cast<int>(log2(s)); k += 1) {
         const int u = pow2(k-1);
         const int s = this->s;
@@ -124,21 +134,12 @@ int TPR::solve() {
         for (int st = 0; st < this->n; st += s) {
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
+            const int p2k = pow2(k);
 
-
-            #ifdef _OPENACC
-            #pragma acc loop independent
-            #endif
-            #ifdef _OPENMP
-            #pragma omp simd
-            #endif
-            for (int i = st; i < st + u; i++) {
-                assert(i + u <= ed);
-
-                // from update_uppper_no_check(i, i + u);
-                int k = i;
-                int kr = i + u;
-
+            // update_uppper_no_check(st, st + u);
+            {
+                int k = st;
+                int kr = st + u;
                 real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
 
                 aa[k] = inv_diag_k * a[k];
@@ -152,8 +153,7 @@ int TPR::solve() {
             #ifdef _OPENMP
             #pragma omp simd
             #endif
-            for (int i = st + u; i <= ed - u; i++) {
-                assert(st <= i - u);
+            for (int i = st + p2k; i <= ed - u; i += p2k) {
                 assert(i + u <= ed);
 
                 // from update_no_check(i - u , i, i + u);
@@ -173,15 +173,28 @@ int TPR::solve() {
             #ifdef _OPENMP
             #pragma omp simd
             #endif
-            for (int i = ed - u + 1; i <= ed; i++) {
+            for (int i = st + p2k - 1; i <= ed - u; i += p2k) {
                 assert(st <= i - u);
+                assert(i + u <= ed);
 
-                // form update_lower_no_check(i - u, i);
+                // from update_no_check(i - u , i, i + u);
                 int kl = i - u;
                 int k = i;
+                int kr = i + u;
+                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+                aa[k] = - inv_diag_k * a[kl] * a[k];
+                cc[k] = - inv_diag_k * c[kr] * c[k];
+                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+            }
+
+            // update_lower_no_check(ed - u, ed);
+            {
+                int kl = ed - u;
+                int k = ed;
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
 
-                aa[k] = -inv_diag_k * a[kl] * a[k];
+                aa[k] = - inv_diag_k * a[kl] * a[k];
                 cc[k] = inv_diag_k * c[k];
                 rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
             }
@@ -196,10 +209,16 @@ int TPR::solve() {
                 this->rhs[i] = rr[i];
             }
         }
-
+    }
+    #pragma omp parallel for
+    for (int st = 0; st < this->n; st += this->s) {
+        mk_bkup_st1(st, st + this->s -1);
     }
 
+
     tpr_stage2();
+
+    st3_replace();
 
     #ifdef _OPENACC
     #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
@@ -209,35 +228,10 @@ int TPR::solve() {
     #pragma omp parallel for schedule(static)
     #endif
     for (int st = 0; st < this->n; st += s) {
-        // from tpr_stage3(st, st + s - 1);
-        int ed = st + s - 1;
-
-        int lbi = st - 1; // use as index of the slice top
-        real xl;
-        if (lbi < 0) {
-            xl = 0.0; // x[-1] does not exists
-        } else {
-            xl = x[lbi];
-        }
-
-        real key;
-        if (c[ed] == 0.0) { // c[n] should be 0.0
-            key = 0.0;
-        } else {
-            key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
-        }
-
-        // x[ed] is known
-        #ifdef _OPENACC
-        #pragma acc loop vector
-        #endif
-        #ifdef _OPENMP
-        #pragma omp simd
-        #endif
-        for (int i = st; i < ed; i++) {
-            x[i] = rhs[i] - a[i] * xl - c[i] * key;
-        }
+        tpr_stage3(st, st + s - 1);
     }
+
+    st3_replace();
 
     int m = n / s;
     return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
@@ -316,22 +310,14 @@ void TPR::tpr_stage2() {
         }
     }
 
+    CR cr(this->st2_a, nullptr, this->st2_c, this->st2_rhs, this->m);
+    cr.solve();
+    cr.get_ans(this->st2_rhs);
 
-    PCR p = PCR(this->st2_a, nullptr, this->st2_c, this->st2_rhs, n / s);
-    p.solve();
-    // assert this->st2_rhs has the answer
-    // copy back to TPR::x
-    #ifdef _OPENACC
-    #pragma acc kernels present(this)
-    #endif
-    {
-        #ifdef _OPENACC
-        #pragma acc loop independent
-        #endif
-        for (int i = s - 1; i < n - s; i += s) {
-           this->x[i] = this->st2_rhs[i / s];
-        }
-        this->x[n - 1] = this->st2_rhs[n / s - 1];
+    // copy back
+    // this->st2_rhs has the answer
+    for (int i = 0; i < this->m; i++) {
+        x[(i+1)*this->s - 1] = this->st2_rhs[i];
     }
 }
 
@@ -342,6 +328,28 @@ void TPR::tpr_stage2() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage3(int st, int ed) {
+    // REPLACE should have done.
+
+    for (int p = fllog2(s) - 1; p >= 0; p--) {
+        int u = pow2(p);
+
+        assert(u > 0);
+
+        const int new_x_len = pow2(fllog2(this->s) - p - 1);
+        real new_x[new_x_len];
+
+        // update x[i]
+        for (int i = st + u - 1; i <= ed; i += 2 * u) {
+            real x_u;
+            if (i - u < 0) {
+                x_u = 0.0;
+            } else {
+                x_u = x[i - u];
+            }
+
+            this->x[i] = rhs[i] - a[i] * x_u - c[i]*x[i+u];
+        }
+    }
 }
 
 
@@ -413,6 +421,48 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
     return eqi;
 }
 
+/**
+ * @brief      make backup equation for STAGE 3 use.
+ *
+ * @param[in]    st    start index of equation
+ * @param[in]    ed    end index of equation
+ */
+void TPR::mk_bkup_init(int st, int ed) {
+    int stidx = st;
+    bkup_cp(this->a, this->bkup_a, stidx, ed);
+    bkup_cp(this->c, this->bkup_c, stidx, ed);
+    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
+}
+
+/**
+ * @brief      make backup equation for STAGE 3 use.
+ *
+ * @param[in]    st    start index of equation
+ * @param[in]    ed    end index of equation
+ */
+void TPR::mk_bkup_st1(int st, int ed) {
+    int stidx = st + 1;
+    bkup_cp(this->a, this->bkup_a, stidx, ed);
+    bkup_cp(this->c, this->bkup_c, stidx, ed);
+    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
+}
+
+void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
+    for (int i = st; i <= ed; i += 2) {
+        dst[i] = src[i];
+    }
+}
+
+/**
+ * @brief   subroutine for STAGE 3 REPLACE
+ *
+ * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
+ */
+void TPR::st3_replace() {
+    std::swap(this->a, this->bkup_a);
+    std::swap(this->c, this->bkup_c);
+    std::swap(this->rhs, this->bkup_rhs);
+}
 
 /**
  * @brief get the answer
