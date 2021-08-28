@@ -15,7 +15,7 @@ int CR::solve() {
 
 
 int CR::fr() {
-    for (int p = 0; p < fllog2(this->n); p++) {
+    for (int p = 0; p < fllog2(this->n) - 1; p++) {
         int u = pow2(p);
         int i;
 
