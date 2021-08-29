@@ -37,7 +37,8 @@ public:
 
         #pragma acc enter data create(this)
         #pragma acc enter data copyin(this->n)
-        #pragma acc enter data copyin(this->a[0:n], this->c[0:n], this->rhs[0:n]) wait
+        #pragma acc enter data create(this->aa[0:n], this->cc[0:n], this->rr[0:n], this->x[0:n])
+        #pragma acc enter data copyin(this->a[0:n], this->c[0:n], this->rhs[0:n])
         // TO-DO
         // make sure diag = {1., 1., ..., 1.};
     };
@@ -47,6 +48,8 @@ public:
     	SAFE_DELETE(this->cc);
     	SAFE_DELETE(this->rr);
     	SAFE_DELETE(this->x);
+
+        #pragma acc exit data delete(this->aa[:n], this->cc[:n], this->rr[:n], this->x[:n])
         #pragma acc exit data copyout(this->a[0:n], this->c[0:n], this->rhs[0:n])
         #pragma acc exit data delete(this, this->n)
     }
