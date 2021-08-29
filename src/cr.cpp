@@ -4,57 +4,76 @@
 
 int CR::solve() {
     if (this->n > 1) {
-    	fr();
-    	bs();        
-    	return 17 * this->n;
+        fr();
+        bs();        
+        return 17 * this->n;
     } else {
         x[0] = rhs[0];
         return 0;
     }
 }
 
-
+/**
+ * @brief CR Forward Reduction
+ * @return
+ */
 int CR::fr() {
     for (int p = 0; p < fllog2(this->n) - 1; p++) {
-        int u = pow2(p);
-        int i;
-
-        for (i = pow2(p+1) - 1; i < this->n - pow2(p+1); i += pow2(p+1)) {
-            // update(i, u)
-            int kl = i - u;
-            int k = i;
-            int kr = i + u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
-
-            aa[k] = - inv_diag_k * a[kl] * a[k];
-            cc[k] = - inv_diag_k * c[kr] * c[k];
-            rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
-        }
-
-        // update_upper_no_check(i, i - u)
+        #pragma acc kernels present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this, this->n)
+        #pragma omp parallel
         {
-            int k = this->n - 1;
-            int kl = k - u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+            #pragma acc update device(p)
+            int u = 1 << p;
+            int ux = 1 << (p+1);
 
-            aa[k] = - inv_diag_k * a[kl] * a[k];
-            cc[k] = inv_diag_k * c[k];
-            rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
-        }
+            #pragma acc loop independent
+            #pragma omp for schedule(static)
+            for (int i = ux - 1; i < this->n - ux; i += ux) {
+                // update(i, u)
+                int kl = i - u;
+                int k = i;
+                int kr = i + u;
+                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
 
-        for (int i = pow2(p+1) - 1; i < this->n; i += pow2(p+1)) {
-            a[i] = aa[i];
-            c[i] = cc[i];
-            rhs[i] = rr[i];
+                aa[k] = - inv_diag_k * a[kl] * a[k];
+                cc[k] = - inv_diag_k * c[kr] * c[k];
+                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+            }
+
+            // update_upper_no_check(i, i - u)
+            #pragma omp single
+            {
+                int k = this->n - 1;
+                int kl = k - u;
+                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+
+                aa[k] = - inv_diag_k * a[kl] * a[k];
+                cc[k] = inv_diag_k * c[k];
+                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
+            }
+
+            #pragma acc loop independent
+            #pragma omp for schedule(static)
+            for (int i = ux - 1; i < this->n; i += ux) {
+                a[i] = aa[i];
+                c[i] = cc[i];
+                rhs[i] = rr[i];
+            }
         }
     }
 
     return 0;
 }
 
+
+/**
+ * @brief CR Backward Subtitution
+ * @return
+ */
 int CR::bs() {
+    #pragma acc serial present(this, this->n, this->a[:n], this->c[:n], this->rhs[:n], this->x[:n])
     {
-        int i = this->n / 2 -1;
+        int i = this->n / 2 - 1;
         int u = this->n / 2;
         real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
 
@@ -63,21 +82,21 @@ int CR::bs() {
     }
 
     for (int k = fllog2(this->n) - 2; k >= 0; k--) {
-    	int u = pow2(k);
+        #pragma acc kernels present(this, this->n, this->a[:n], this->c[:n], this->rhs[:n], this->x[:n])
+        {
+            #pragma acc update device(k)
+            int u = 1 << k;
+            {
+                int i = (1 << k) - 1;
+                this->x[i] = rhs[i] - c[i] * x[i+u];
+            }
 
-    	// use aa[:n] as new_x[:n]
-    	{
-	    	int i = pow2(k) - 1;
-    		this->aa[i] = rhs[i] - c[i] * x[i+u];
-    	}
-
-    	for (int i = pow2(k) - 1 + pow2(k+1); i < this->n - u; i += pow2(k+1)) {
-    		this->aa[i] = rhs[i] - a[i] * x[i-u] - c[i] * x[i+u];
-    	}
-
-    	for (int i = pow2(k) - 1; i < this->n - u; i += pow2(k+1)) {
-			this->x[i] = this->aa[i];
-    	}
+            #pragma acc loop independent
+            #pragma omp parallel for
+            for (int i = u - 1 + 2*u; i < this->n - u; i += 2*u) {
+                this->x[i] = rhs[i] - a[i] * x[i-u] - c[i] * x[i+u];
+            }
+        }
     }
 
     return 0;
@@ -85,8 +104,15 @@ int CR::bs() {
 
 
 int CR::get_ans(real *x) {
-	for (int i = 0; i < this->n; i++) {
-		x[i] = this->x[i];
-	}
-	return 0;
+    #ifdef _OPENACC
+    #pragma acc update host(this->x[:n])
+    #endif
+
+    #ifdef _OPENMP
+    #pragma omp simd
+    #endif
+    for (int i = 0; i < this->n; i++) {
+        x[i] = this->x[i];
+    }
+    return 0;
 }
