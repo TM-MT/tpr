@@ -35,8 +35,12 @@ public:
         RMALLOC(this->rr, this->n);
         RMALLOC(this->x, this->n);
 
-        #pragma acc enter data create(this)
-        #pragma acc enter data copyin(this->n)
+        if ((this->aa == nullptr) || (this->cc == nullptr)
+            || (this->rr == nullptr) || (this->x == nullptr)) {
+            abort();
+        }
+
+        #pragma acc enter data copyin(this)
         #pragma acc enter data create(this->aa[0:n], this->cc[0:n], this->rr[0:n], this->x[0:n])
         #pragma acc enter data copyin(this->a[0:n], this->c[0:n], this->rhs[0:n])
         // TO-DO

@@ -5,7 +5,7 @@
 int CR::solve() {
     if (this->n > 1) {
         fr();
-        bs();        
+        bs();
         return 17 * this->n;
     } else {
         x[0] = rhs[0];
@@ -19,7 +19,7 @@ int CR::solve() {
  */
 int CR::fr() {
     for (int p = 0; p < fllog2(this->n) - 1; p++) {
-        #pragma acc kernels present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this, this->n)
+        #pragma acc kernels present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this)
         #pragma omp parallel
         {
             #pragma acc update device(p)
@@ -71,7 +71,7 @@ int CR::fr() {
  * @return
  */
 int CR::bs() {
-    #pragma acc serial present(this, this->n, this->a[:n], this->c[:n], this->rhs[:n], this->x[:n])
+    #pragma acc serial default(present)
     {
         int i = this->n / 2 - 1;
         int u = this->n / 2;
@@ -82,12 +82,12 @@ int CR::bs() {
     }
 
     for (int k = fllog2(this->n) - 2; k >= 0; k--) {
-        #pragma acc kernels present(this, this->n, this->a[:n], this->c[:n], this->rhs[:n], this->x[:n])
+        int u = 1 << k;
+
+        #pragma acc kernels default(present)
         {
-            #pragma acc update device(k)
-            int u = 1 << k;
             {
-                int i = (1 << k) - 1;
+                int i = u - 1;
                 this->x[i] = rhs[i] - c[i] * x[i+u];
             }
 
