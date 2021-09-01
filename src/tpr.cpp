@@ -121,7 +121,7 @@ int TPR::solve() {
     #pragma acc parallel loop present(this) collapse(2)
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += this->s) {
-        // mk_bkup_init(st, st + this->s -1);
+        // mk_bkup_init(st, st + this->s - 1);
         for (int i = st; i <= st + this->s - 1; i+=2) {
             bkup_a[i] = a[i];
             bkup_c[i] = c[i];
@@ -227,7 +227,7 @@ int TPR::solve() {
     #pragma acc parallel loop collapse(2)
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += this->s) {
-        // mk_bkup_st1(st, st + this->s -1);
+        // mk_bkup_st1(st, st + this->s - 1);
         for (int i = st + 1; i <= st + this->s - 1; i+=2) {
             bkup_a[i] = a[i];
             bkup_c[i] = c[i];
@@ -272,8 +272,6 @@ int TPR::solve() {
             }
         }
     }
-
-    // st3_replace();
 
     int m = n / s;
     return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
@@ -481,11 +479,6 @@ void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
  * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
  */
 void TPR::st3_replace() {
-    // std::swap(this->a, this->bkup_a);
-    // std::swap(this->c, this->bkup_c);
-    // std::swap(this->rhs, this->bkup_rhs);
-    // #pragma acc update device(this->a[:n], this->c[:n], this->rhs[:n])
-
     #pragma acc parallel loop present(this)
     for (int i = 0; i < this->n; i++) {
         this->a[i] = this->bkup_a[i];
