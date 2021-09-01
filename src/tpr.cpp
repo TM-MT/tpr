@@ -130,13 +130,9 @@ int TPR::solve() {
     }
 
     for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
-        #ifdef _OPENACC
         #pragma acc kernels present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
         #pragma acc loop independent
-        #endif
-        #ifdef _OPENMP
         #pragma omp parallel for schedule(static)
-        #endif
         for (int st = 0; st < this->n; st += s) {
             // tpr_stage1(st, st + s - 1);
             #pragma acc update device(p)
@@ -155,12 +151,8 @@ int TPR::solve() {
                 rr[k] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
             }
 
-            #ifdef _OPENACC
             #pragma acc loop independent
-            #endif
-            #ifdef _OPENMP
             #pragma omp simd
-            #endif
             for (int i = st + p2k; i <= ed - u; i += p2k) {
                 assert(i + u <= ed);
 
@@ -175,12 +167,8 @@ int TPR::solve() {
                 rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
             }
 
-            #ifdef _OPENACC
             #pragma acc loop independent
-            #endif
-            #ifdef _OPENMP
             #pragma omp simd
-            #endif
             for (int i = st + p2k - 1; i <= ed - u; i += p2k) {
                 assert(st <= i - u);
                 assert(i + u <= ed);
@@ -208,9 +196,7 @@ int TPR::solve() {
             }
 
             // patch
-            #ifdef _OPENACC
             #pragma acc loop independent
-            #endif
             for (int i = st; i <= ed; i += p2k) {
                 this->a[i] = aa[i];
                 this->c[i] = cc[i];
@@ -244,6 +230,7 @@ int TPR::solve() {
     for (int p = fllog2(s) - 1; p >= 0; p--) {
         #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
         #pragma acc loop
+        #pragma omp parallel for
         for (int st = 0; st < this->n; st += s) {
             // tpr_stage3(st, st + s - 1);
             int ed = st + this->s - 1;
@@ -264,6 +251,7 @@ int TPR::solve() {
 
             // update x[i]
             #pragma acc loop
+            #pragma omp simd
             for (int i = st + u - 1 + 2 * u; i <= ed; i += 2 * u) {
                 assert(i - u >= st);
                 assert(i + u <= ed);
@@ -285,14 +273,11 @@ int TPR::solve() {
  *
  */
 void TPR::tpr_stage2() {
-    #ifdef _OPENACC
     #pragma acc kernels present(this)
-    #endif
     {
         // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
-        #ifdef _OPENACC
         #pragma acc loop independent
-        #endif
+        #pragma omp simd
         for (int st = 0; st < this->n; st += s) {
             // EquationInfo eqi = update_uppper_no_check(st, ed);
             int k = st, kr = st + s - 1;
@@ -320,12 +305,8 @@ void TPR::tpr_stage2() {
         {
             int len_inter = 2 * n / s;
 
-            #ifdef _OPENACC
             #pragma acc loop independent
-            #endif
-            #ifdef _OPENMP
             #pragma omp simd
-            #endif
             for (int i = 1; i < len_inter - 1; i += 2) {
                 int k = i;
                 int kr = i + 1;
@@ -496,9 +477,6 @@ int TPR::get_ans(real *x) {
     #pragma acc update host(this->x[:n])
     #endif
 
-    #ifdef _OPENMP
-    #pragma omp simd
-    #endif
     for (int i = 0; i < n; i++) {
         x[i] = this->x[i];
     }
