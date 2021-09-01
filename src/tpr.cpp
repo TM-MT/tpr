@@ -105,19 +105,11 @@ void TPR::init(int n, int s) {
 
 
 /**
- * @brief      TPR STAGE 1
- *
- * @param[in]  st     start index of equation that this function calculate
- * @param[in]  ed     end index of equation that this function calculate
- */
-void TPR::tpr_stage1(int st, int ed) {
-}
-
-/**
  * @brief solve
  * @return num of float operation
  */
 int TPR::solve() {
+    // Make Backup for Stage 3 use
     #pragma acc parallel loop present(this) collapse(2)
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += this->s) {
@@ -129,6 +121,7 @@ int TPR::solve() {
         }
     }
 
+    // TPR Stage 1
     for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
         #pragma acc kernels present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
         #pragma acc loop independent
@@ -210,6 +203,8 @@ int TPR::solve() {
             }
         }
     }
+
+    // Make Backup for stage 3 use
     #pragma acc parallel loop collapse(2)
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += this->s) {
@@ -226,7 +221,7 @@ int TPR::solve() {
 
     st3_replace();
 
-
+    // TPR Stage 3
     for (int p = fllog2(s) - 1; p >= 0; p--) {
         #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
         #pragma acc loop
@@ -421,38 +416,6 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
     return eqi;
 }
 
-/**
- * @brief      make backup equation for STAGE 3 use.
- *
- * @param[in]    st    start index of equation
- * @param[in]    ed    end index of equation
- */
-void TPR::mk_bkup_init(int st, int ed) {
-    int stidx = st;
-    bkup_cp(this->a, this->bkup_a, stidx, ed);
-    bkup_cp(this->c, this->bkup_c, stidx, ed);
-    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
-}
-
-/**
- * @brief      make backup equation for STAGE 3 use.
- *
- * @param[in]    st    start index of equation
- * @param[in]    ed    end index of equation
- */
-void TPR::mk_bkup_st1(int st, int ed) {
-    int stidx = st + 1;
-    bkup_cp(this->a, this->bkup_a, stidx, ed);
-    bkup_cp(this->c, this->bkup_c, stidx, ed);
-    bkup_cp(this->rhs, this->bkup_rhs, stidx, ed);
-}
-
-void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
-    #pragma acc loop
-    for (int i = st; i <= ed; i += 2) {
-        dst[i] = src[i];
-    }
-}
 
 /**
  * @brief   subroutine for STAGE 3 REPLACE

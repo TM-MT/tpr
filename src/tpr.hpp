@@ -88,12 +88,6 @@ private:
     TPR &operator=(const TPR &tpr);
 
     void init(int n, int s);
-    #pragma acc routine vector
-    void mk_bkup_init(int st, int ed);
-    #pragma acc routine vector
-    void mk_bkup_st1(int st, int ed);
-    #pragma acc routine vector
-    void bkup_cp(real *src, real *dst, int st,int ed);
 
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);
