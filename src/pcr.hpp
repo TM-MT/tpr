@@ -13,7 +13,7 @@ public:
         this->rhs = rhs;
         this->n = n;
 
-        #pragma acc enter data create(this, this->n)
+        #pragma acc enter data copyin(this, this->n)
         #pragma acc enter data copyin(this->a[0:n], this->c[0:n], this->rhs[0:n]) wait
         // TO-DO
         // make sure diag = {1., 1., ..., 1.};
