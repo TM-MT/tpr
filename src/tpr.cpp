@@ -35,7 +35,8 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->c = c;
     this->rhs = rhs;
     #ifdef _OPENACC
-    #pragma acc enter data copyin(a[:n], c[:n], rhs[:n])
+    #pragma acc enter data copyin(this->a[:n], this->c[:n], this->rhs[:n])
+    #pragma acc update device(this)
     #endif
 }
 
@@ -52,9 +53,6 @@ void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
     this->m = this->n / this->s;
-    #ifdef _OPENACC
-    #pragma acc enter data copyin(this, this->n, this->s, this->m)
-    #endif
     // allocation for answer
     RMALLOC(this->x, n);
     // allocation for backup
@@ -74,8 +72,10 @@ void TPR::init(int n, int s) {
     RMALLOC(this->inter_c, 2 * n / s);
     RMALLOC(this->inter_rhs, 2 * n / s);
     #ifdef _OPENACC
+    #pragma acc enter data copyin(this, this->n, this->s, this->m)
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
     #pragma acc enter data create(x[:n])
+    #pragma acc enter data create(bkup_a[:n], bkup_c[:n], bkup_rhs[:n])
     #pragma acc enter data create(st2_a[:n/s], st2_c[:n/s], st2_rhs[:n/s])
     #pragma acc enter data create(inter_a[:2*n/s], inter_c[:2*n/s], inter_rhs[:2*n/s])
     #endif
@@ -118,17 +118,20 @@ void TPR::tpr_stage1(int st, int ed) {
  * @return num of float operation
  */
 int TPR::solve() {
+    #pragma acc parallel loop present(this) collapse(2)
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += this->s) {
-        mk_bkup_init(st, st + this->s -1);
+        // mk_bkup_init(st, st + this->s -1);
+        for (int i = st; i <= st + this->s - 1; i+=2) {
+            bkup_a[i] = a[i];
+            bkup_c[i] = c[i];
+            bkup_rhs[i] = rhs[i];
+        }
     }
 
-    for (int k = 1; k <= static_cast<int>(log2(s)); k += 1) {
-        const int u = pow2(k-1);
-        const int s = this->s;
-
+    for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
         #ifdef _OPENACC
-        #pragma acc kernels present(this, a[:n], c[:n], rhs[:n], aa[:s], cc[:s], rr[:s])
+        #pragma acc kernels present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
         #pragma acc loop independent
         #endif
         #ifdef _OPENMP
@@ -136,8 +139,10 @@ int TPR::solve() {
         #endif
         for (int st = 0; st < this->n; st += s) {
             // tpr_stage1(st, st + s - 1);
+            #pragma acc update device(p)
             int ed = st + s - 1;
-            const int p2k = pow2(k);
+            int u = pow2(p-1);
+            int p2k = pow2(p);
 
             // update_uppper_no_check(st, st + u);
             {
@@ -204,18 +209,30 @@ int TPR::solve() {
 
             // patch
             #ifdef _OPENACC
-            #pragma acc loop
+            #pragma acc loop independent
             #endif
-            for (int i = st; i <= ed; i++) {
+            for (int i = st; i <= ed; i += p2k) {
+                this->a[i] = aa[i];
+                this->c[i] = cc[i];
+                this->rhs[i] = rr[i];
+            }
+            #pragma acc loop independent
+            for (int i = st + p2k - 1; i <= ed; i += p2k) {
                 this->a[i] = aa[i];
                 this->c[i] = cc[i];
                 this->rhs[i] = rr[i];
             }
         }
     }
+    #pragma acc parallel loop collapse(2)
     #pragma omp parallel for
     for (int st = 0; st < this->n; st += this->s) {
-        mk_bkup_st1(st, st + this->s -1);
+        // mk_bkup_st1(st, st + this->s -1);
+        for (int i = st + 1; i <= st + this->s - 1; i+=2) {
+            bkup_a[i] = a[i];
+            bkup_c[i] = c[i];
+            bkup_rhs[i] = rhs[i];
+        }
     }
 
 
@@ -223,18 +240,40 @@ int TPR::solve() {
 
     st3_replace();
 
-    #ifdef _OPENACC
-    #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
-    #pragma acc loop gang
-    #endif
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
-    for (int st = 0; st < this->n; st += s) {
-        tpr_stage3(st, st + s - 1);
+
+    for (int p = fllog2(s) - 1; p >= 0; p--) {
+        #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
+        #pragma acc loop
+        for (int st = 0; st < this->n; st += s) {
+            // tpr_stage3(st, st + s - 1);
+            int ed = st + this->s - 1;
+            int u = pow2(p);
+
+            assert(u > 0);
+
+            {
+                int i = st + u - 1;
+                real x_u;
+                if (i - u < 0) {
+                    x_u = 0.0;
+                } else {
+                    x_u = x[i - u];
+                }
+                this->x[i] = rhs[i] - a[i] * x_u - c[i]*x[i+u];
+            }
+
+            // update x[i]
+            #pragma acc loop
+            for (int i = st + u - 1 + 2 * u; i <= ed; i += 2 * u) {
+                assert(i - u >= st);
+                assert(i + u <= ed);
+
+                this->x[i] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
+            }
+        }
     }
 
-    st3_replace();
+    // st3_replace();
 
     int m = n / s;
     return m * ((14 * s - 10) * fllog2(s) + 14) // stage 1
@@ -319,6 +358,7 @@ void TPR::tpr_stage2() {
 
     // copy back
     // this->st2_rhs has the answer
+    #pragma acc kernels loop independent present(this)
     for (int i = 0; i < this->m; i++) {
         x[(i+1)*this->s - 1] = this->st2_rhs[i];
     }
@@ -331,25 +371,6 @@ void TPR::tpr_stage2() {
  * @param[in]  ed     end index of equation that this function calculate
  */
 void TPR::tpr_stage3(int st, int ed) {
-    // REPLACE should have done.
-
-    for (int p = fllog2(s) - 1; p >= 0; p--) {
-        int u = pow2(p);
-
-        assert(u > 0);
-
-        // update x[i]
-        for (int i = st + u - 1; i <= ed; i += 2 * u) {
-            real x_u;
-            if (i - u < 0) {
-                x_u = 0.0;
-            } else {
-                x_u = x[i - u];
-            }
-
-            this->x[i] = rhs[i] - a[i] * x_u - c[i]*x[i+u];
-        }
-    }
 }
 
 
@@ -448,6 +469,7 @@ void TPR::mk_bkup_st1(int st, int ed) {
 }
 
 void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
+    #pragma acc loop
     for (int i = st; i <= ed; i += 2) {
         dst[i] = src[i];
     }
@@ -459,9 +481,17 @@ void TPR::bkup_cp(real *src, real *dst, int st,int ed) {
  * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
  */
 void TPR::st3_replace() {
-    std::swap(this->a, this->bkup_a);
-    std::swap(this->c, this->bkup_c);
-    std::swap(this->rhs, this->bkup_rhs);
+    // std::swap(this->a, this->bkup_a);
+    // std::swap(this->c, this->bkup_c);
+    // std::swap(this->rhs, this->bkup_rhs);
+    // #pragma acc update device(this->a[:n], this->c[:n], this->rhs[:n])
+
+    #pragma acc parallel loop present(this)
+    for (int i = 0; i < this->n; i++) {
+        this->a[i] = this->bkup_a[i];
+        this->c[i] = this->bkup_c[i];
+        this->rhs[i] = this->bkup_rhs[i];
+    }
 }
 
 /**

@@ -68,9 +68,10 @@ public:
         #ifdef _OPENACC
         #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
         #pragma acc exit data delete(this->x[:n])
+        #pragma acc exit data delete(bkup_a[:n], bkup_c[:n], bkup_rhs[:n])
         #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
         #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
-        #pragma acc exit data delete(this->n, this->s, this)
+        #pragma acc exit data delete(this)
         #endif
     }
 
@@ -102,6 +103,5 @@ private:
 
     void tpr_stage1(int st, int ed);
     void tpr_stage2();
-    #pragma acc routine gang
     void tpr_stage3(int st, int ed);
 };
