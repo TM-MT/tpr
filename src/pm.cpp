@@ -9,54 +9,88 @@
 #include "pcr.hpp"
 #include "tpr.hpp"
 #include "effolkronium/random.hpp"
-#include "dbg.h"
-#include <structopt/app.hpp>
 
 
 // std::mt19937 base pseudo-random
 using Random = effolkronium::random_static;
 
 
-/**
- * @brief Command Line Args
- * @details Define Command Line Arguments
- */
-struct Options {
-    // size of system
-    std::optional<int> n = 2048;
-    // size of slice
-    std::optional<int> s = 1024;
-    // Iteration Times
-    std::optional<int> iter = 1000;
-    // Solver
-    enum class Solver { PCR, TPR };
-    std::optional<Solver> solver = Solver::TPR;
-};
-STRUCTOPT(Options, n, s, iter, solver);
+namespace pmcpp {
+    enum class Solver {
+        TPR,
+        PCR,
+    };
+
+    /**
+     * @brief Command Line Args
+     * @details Define Command Line Arguments
+     */
+    struct Options {
+        // size of system
+        int n;
+        // size of slice
+        int s;
+        // Iteration Times
+        int iter;
+        // Solver
+        Solver solver;
+    };
+
+    void to_lower(std::string &s1);
+    Solver str2Solver(std::string &solver);
+
+
+    Solver str2Solver(std::string solver) {
+        to_lower(solver);
+        if (solver.compare(std::string("pcr")) == 0) {
+            return Solver::PCR;
+        } else if (solver.compare(std::string("tpr")) == 0) {
+            return Solver::TPR;
+        } else{
+            std::cerr << "Solver Not Found.\n";
+            abort();
+        }
+    }
+    
+    void to_lower(std::string &s1) {
+       transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
+    }
+
+    /**
+     * @brief parse command line args
+     * 
+     * @param argc [description]
+     * @param argv [description]
+     */
+    Options parse(int argc, char *argv[]) {
+        // assert args are given in Options order
+        if (argc != 5) {
+            std::cerr << "Invalid command line args.\n";
+            std::cerr << "Usage: " << argv[0] << " n s iter solver\n";
+            exit(EXIT_FAILURE); 
+        }
+
+        Options ret;
+        ret.n = atoi(argv[1]);
+        ret.s = atoi(argv[2]);
+        ret.iter = atoi(argv[3]);
+        ret.solver = pmcpp::str2Solver(std::string(argv[4]));
+
+        return ret;
+    }
+}
 
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
-    Options::Solver solver;
+    pmcpp::Solver solver;
     // Parse Command Line Args
-    try {
-        auto options = structopt::app("tpr_pm", "v1.0.0").parse<Options>(argc, argv);
-        n = options.n.value();
-        s = options.s.value();
-        iter_times = options.iter.value();
-        solver = options.solver.value();
-    } catch (structopt::exception& e) {
-        std::cout << e.what() << "\n";
-        std::cout << e.help();
-        exit(EXIT_FAILURE);
-    }
-
-    // print type infomation
     {
-        const real v = 0.0;
-        std::cerr << "type info: " ;
-        dbg(v);
+        pmcpp::Options in = pmcpp::parse(argc, argv);
+        n = in.n;
+        s = in.s;
+        iter_times = in.iter;
+        solver = in.solver;
     }
-
 
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
@@ -68,14 +102,14 @@ int main(int argc, char *argv[]) {
     // 1. setup the system by calling assign()
     // 2. set the system
     // 3. measure
-    switch(solver){
-        case Options::Solver::TPR: {
+    switch (solver) {
+        case pmcpp::Solver::TPR: {
             auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
             pm.setProperties(tpr_all_label, pm.CALC);
 
             // Measureing TPR reusable implementation
             {
-                TPR t = TPR(sys->n, s, &pm);
+                TPR t(sys->n, s, &pm);
                 for (int i = 0; i < iter_times; i++) {
                     assign(sys);
                     t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
@@ -86,12 +120,12 @@ int main(int argc, char *argv[]) {
                 }
             }
         } break;
-        case Options::Solver::PCR: {
+        case pmcpp::Solver::PCR: {
             auto pcr_label = std::string("PCR");
             pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
-                PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+                PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
                 pm.start(pcr_label);
                 int flop_count = p.solve();
                 flop_count += p.get_ans(sys->diag);

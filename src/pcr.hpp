@@ -28,4 +28,7 @@ public:
 
     int get_ans(real *x);
 
+private:
+    PCR(const PCR &pcr);
+    PCR &operator=(const PCR &pcr);
 };
