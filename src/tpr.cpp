@@ -123,15 +123,14 @@ int TPR::solve() {
 
     // TPR Stage 1
     for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+        int u = pow2(p-1);
+        int p2k = pow2(p);
         #pragma acc kernels present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
         #pragma acc loop independent
         #pragma omp parallel for schedule(static)
         for (int st = 0; st < this->n; st += s) {
             // tpr_stage1(st, st + s - 1);
-            #pragma acc update device(p)
             int ed = st + s - 1;
-            int u = pow2(p-1);
-            int p2k = pow2(p);
 
             // update_uppper_no_check(st, st + u);
             {
