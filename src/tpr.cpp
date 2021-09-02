@@ -77,7 +77,7 @@ void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     RMALLOC(this->inter_c, 2 * n / s);
     RMALLOC(this->inter_rhs, 2 * n / s);
     #ifdef _OPENACC
-    #pragma acc enter data copyin(this, this->n, this->s, this->m)
+    #pragma acc enter data copyin(this)
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
     #pragma acc enter data create(x[:n])
     #pragma acc enter data create(bkup_a[:n], bkup_c[:n], bkup_rhs[:n])
