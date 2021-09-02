@@ -4,6 +4,7 @@
 
 #include "main.hpp"
 #include "lib.hpp"
+#include "cr.hpp"
 #include "pcr.hpp"
 #include "tpr.hpp"
 #include "dbg.h"
@@ -14,8 +15,15 @@ int main() {
     int n = 1024;
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    assign(sys);
 
+    assign(sys);
+    CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+    cr.solve();
+    cr.get_ans(sys->diag);
+    print_array(sys->diag, n);
+    printf("\n");
+
+    assign(sys);
     PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
     p.solve();
     p.get_ans(sys->diag);

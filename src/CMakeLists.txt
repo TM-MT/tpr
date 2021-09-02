@@ -3,12 +3,32 @@ if (TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
 endif()
 
-# For OpenMP
-find_package(OpenMP REQUIRED)
-if(OpenMP_FOUND)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
+if (with_ACC)
+    message(STATUS "Using OpenACC")
+    # For OpenACC
+    # Currently, only NVHPC, PGI, GNU and Cray compilers are supported. (cmake 3.20)
+    find_package(OpenACC REQUIRED)
+    if (OpenACC_C_FOUND AND OpenACC_CXX_FOUND)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenACC_C_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenACC_CXX_FLAGS}")
+    else()
+        message(FATAL_ERROR "FAILED TO FIND OPENACC")
+    endif()
+else()
+    message(STATUS "Using OpenMP")
+    # For OpenMP
+    find_package(OpenMP REQUIRED)
+    if(OpenMP_FOUND)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    endif()
 endif()
+
+# CR
+add_library(libcr
+    cr.cpp)
+target_include_directories(libcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
 
 
 # PCR
@@ -25,7 +45,7 @@ add_library(libtpr
 target_include_directories(libtpr
     PUBLIC ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/PMlib/include)
-target_link_libraries(libtpr PUBLIC pmlib)
+target_link_libraries(libtpr PUBLIC pmlib libcr)
 set_property(TARGET libtpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
@@ -89,7 +109,7 @@ if (TPR_PROJECT)
         pm.cpp
     )
     target_link_libraries(tpr_pm
-        PUBLIC libtpr libpcr pmlib structopt effolkronium_random)
+        PUBLIC libpcr libtpr pmlib structopt effolkronium_random)
     if (${OPT_PAPI})
         target_link_libraries(tpr_pm
             PUBLIC papi_ext "${PAPI_STATIC_LIB}")

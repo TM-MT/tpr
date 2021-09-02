@@ -37,11 +37,14 @@ struct EquationInfo {
 class TPR: Solver
 {
     real *a, *c, *rhs, *x;
+    real *aa, *cc, *rr;
+    real *st2_a, *st2_c, *st2_rhs;
+    real *inter_a, *inter_c, *inter_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
-    int n, s;
     pm_lib::PerfMonitor *pm;
     std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
     std::array<std::string, 3> labels;
+    int n, s, m;
 
 public:
     TPR(real *a, real *diag, real *c, real *rhs, int n, int s, pm_lib::PerfMonitor *pm) {
@@ -55,12 +58,29 @@ public:
 
     ~TPR() {
         // free local variables
+        SAFE_DELETE(this->x);
+        SAFE_DELETE(this->aa);
+        SAFE_DELETE(this->cc);
+        SAFE_DELETE(this->rr);
+        SAFE_DELETE(this->st2_a);
+        SAFE_DELETE(this->st2_c);
+        SAFE_DELETE(this->st2_rhs);
+        SAFE_DELETE(this->inter_a);
+        SAFE_DELETE(this->inter_c);
+        SAFE_DELETE(this->inter_rhs);
         SAFE_DELETE(this->bkup_a);
         SAFE_DELETE(this->bkup_c);
         SAFE_DELETE(this->bkup_rhs);
-        SAFE_DELETE(this->x);
+        #ifdef _OPENACC
+        #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
+        #pragma acc exit data delete(this->x[:n])
+        #pragma acc exit data delete(bkup_a[:n], bkup_c[:n], bkup_rhs[:n])
+        #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
+        #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
+        #pragma acc exit data delete(this)
+        #endif
     }
- 
+
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();
@@ -75,14 +95,6 @@ private:
 
     void init(int n, int s, pm_lib::PerfMonitor *pm);
 
-    EquationInfo update_section(int i, int u);
-    EquationInfo update_global(int i, int u);
-    EquationInfo update_bd_check(int i, int u, int lb, int ub);
-
-    void mk_bkup_init(int st, int ed);
-    void mk_bkup_st1(int st, int ed);
-    void bkup_cp(real *src, real *dst, int st,int ed);
-
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);
     EquationInfo update_lower_no_check(int kl, int k);
@@ -92,6 +104,4 @@ private:
     void tpr_stage1(int st, int ed);
     void tpr_stage2();
     void tpr_stage3(int st, int ed);
-
-    void patch_equation_info(EquationInfo eqi);
 };

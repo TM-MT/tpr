@@ -59,8 +59,10 @@ T min(T a, T b) {
 }
 
 static void print_array(real *array, int n);
+#pragma acc routine seq
 static int fllog2(int a) pure_function;
 static inline uint32_t ilog2(const uint32_t x) pure_function;
+#pragma acc routine seq
 static int pow2(int k) pure_function;
 
 
@@ -71,7 +73,7 @@ static void print_array(real *array, int n) {
     std::cout << std::endl;
 }
 
-
+#pragma acc routine seq
 static int fllog2(int a) {
     #ifdef ILOG2_USE_x86_ASM
         return (int)ilog2(static_cast<uint32_t>(a));
@@ -100,6 +102,7 @@ static inline uint32_t ilog2(const uint32_t x) {
 }
 #endif
 
+#pragma acc routine seq
 static int pow2(int k) {
     assert(k >= 0);
     return 1 << k;
