@@ -19,7 +19,10 @@ int main() {
     assign(sys);
     CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
     cr.solve();
-    cr.get_ans(sys->diag);
+    #pragma acc data create(sys->diag[:n]) copyout(sys->diag[:n])
+    {
+        cr.get_ans(sys->diag);        
+    }
     print_array(sys->diag, n);
     printf("\n");
 
