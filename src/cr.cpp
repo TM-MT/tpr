@@ -18,9 +18,10 @@ int CR::solve() {
  * @return
  */
 int CR::fr() {
+    #pragma acc data  present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this)
     #pragma omp parallel
     for (int p = 0; p < fllog2(this->n) - 1; p++) {
-        #pragma acc kernels present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this)
+        #pragma acc kernels
         {
             #pragma acc update device(p)
             int u = 1 << p;
@@ -70,32 +71,36 @@ int CR::fr() {
  * @return
  */
 int CR::bs() {
-    #pragma acc serial default(present)
+    #pragma acc data present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this)
     {
-        int i = this->n / 2 - 1;
-        int u = this->n / 2;
-        real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
-
-        x[i] = (rhs[i] - c[i]*rhs[i+u]) * inv_det;
-        x[i+u] =  (rhs[i+u] - rhs[i]*a[i+u]) * inv_det;
-    }
-
-    #pragma omp parallel
-    for (int k = fllog2(this->n) - 2; k >= 0; k--) {
-        const int u = 1 << k;
-
-        #pragma acc kernels default(present)
+        #pragma acc serial
         {
-            #pragma omp single
-            {
-                int i = u - 1;
-                this->x[i] = rhs[i] - c[i] * x[i+u];
-            }
+            int i = this->n / 2 - 1;
+            int u = this->n / 2;
+            real inv_det = 1.0 / (1.0 - c[i]*a[i+u]);
 
-            #pragma acc loop independent
-            #pragma omp for simd
-            for (int i = u - 1 + 2*u; i < this->n - u; i += 2*u) {
-                this->x[i] = rhs[i] - a[i] * x[i-u] - c[i] * x[i+u];
+            x[i] = (rhs[i] - c[i]*rhs[i+u]) * inv_det;
+            x[i+u] =  (rhs[i+u] - rhs[i]*a[i+u]) * inv_det;
+        }
+
+        #pragma omp parallel
+        for (int k = fllog2(this->n) - 2; k >= 0; k--) {
+
+            #pragma acc kernels
+            {
+                #pragma acc update device(k)
+                int u = 1 << k;
+                #pragma omp single
+                {
+                    int i = u - 1;
+                    this->x[i] = rhs[i] - c[i] * x[i+u];
+                }
+
+                #pragma acc loop independent
+                #pragma omp for simd
+                for (int i = u - 1 + 2*u; i < this->n - u; i += 2*u) {
+                    this->x[i] = rhs[i] - a[i] * x[i-u] - c[i] * x[i+u];
+                }
             }
         }
     }
@@ -103,12 +108,14 @@ int CR::bs() {
     return 0;
 }
 
-
+/**
+ * @brief get the answer
+ * 
+ * @note [OpenACC] assert `*x` exists at the device
+ * @param x x[0:n]
+ */
 int CR::get_ans(real *x) {
-    #ifdef _OPENACC
-    #pragma acc update host(this->x[:n])
-    #endif
-
+    #pragma acc parallel loop present(x[:n], this)
     for (int i = 0; i < this->n; i++) {
         x[i] = this->x[i];
     }

@@ -40,7 +40,7 @@ public:
             abort();
         }
 
-        #pragma acc enter data copyin(this)
+        #pragma acc enter data copyin(this, this->n)
         #pragma acc enter data create(this->aa[0:n], this->cc[0:n], this->rr[0:n], this->x[0:n])
         #pragma acc enter data copyin(this->a[0:n], this->c[0:n], this->rhs[0:n])
         // TO-DO
