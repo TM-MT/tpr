@@ -18,16 +18,16 @@ int CR::solve() {
  * @return
  */
 int CR::fr() {
+    #pragma omp parallel
     for (int p = 0; p < fllog2(this->n) - 1; p++) {
         #pragma acc kernels present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this)
-        #pragma omp parallel
         {
             #pragma acc update device(p)
             int u = 1 << p;
-            int ux = 1 << (p+1);
+            const int ux = 1 << (p+1);
 
             #pragma acc loop independent
-            #pragma omp for schedule(static)
+            #pragma omp for simd schedule(static)
             for (int i = ux - 1; i < this->n - ux; i += ux) {
                 // update(i, u)
                 int kl = i - u;
@@ -53,7 +53,6 @@ int CR::fr() {
             }
 
             #pragma acc loop independent
-            #pragma omp for schedule(static)
             for (int i = ux - 1; i < this->n; i += ux) {
                 a[i] = aa[i];
                 c[i] = cc[i];
@@ -81,18 +80,20 @@ int CR::bs() {
         x[i+u] =  (rhs[i+u] - rhs[i]*a[i+u]) * inv_det;
     }
 
+    #pragma omp parallel
     for (int k = fllog2(this->n) - 2; k >= 0; k--) {
-        int u = 1 << k;
+        const int u = 1 << k;
 
         #pragma acc kernels default(present)
         {
+            #pragma omp single
             {
                 int i = u - 1;
                 this->x[i] = rhs[i] - c[i] * x[i+u];
             }
 
             #pragma acc loop independent
-            #pragma omp parallel for
+            #pragma omp for simd
             for (int i = u - 1 + 2*u; i < this->n - u; i += 2*u) {
                 this->x[i] = rhs[i] - a[i] * x[i-u] - c[i] * x[i+u];
             }
@@ -108,9 +109,6 @@ int CR::get_ans(real *x) {
     #pragma acc update host(this->x[:n])
     #endif
 
-    #ifdef _OPENMP
-    #pragma omp simd
-    #endif
     for (int i = 0; i < this->n; i++) {
         x[i] = this->x[i];
     }
