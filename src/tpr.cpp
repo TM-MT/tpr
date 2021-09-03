@@ -36,6 +36,7 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->rhs = rhs;
     #ifdef _OPENACC
     #pragma acc enter data copyin(a[:n], c[:n], rhs[:n])
+    #pragma acc update device(this)
     #endif
 }
 
@@ -51,9 +52,6 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
-    #ifdef _OPENACC
-    #pragma acc enter data copyin(this, this->n, this->s)
-    #endif
     // allocation for answer
     RMALLOC(this->x, n);
     // allocation for stage 1 use
@@ -69,6 +67,7 @@ void TPR::init(int n, int s) {
     RMALLOC(this->inter_c, 2 * n / s);
     RMALLOC(this->inter_rhs, 2 * n / s);
     #ifdef _OPENACC
+    #pragma acc enter data copyin(this, this->n, this->s)
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
     #pragma acc enter data create(x[:n])
     #pragma acc enter data create(st2_a[:n/s], st2_c[:n/s], st2_rhs[:n/s])
@@ -110,12 +109,11 @@ void TPR::tpr_stage1(int st, int ed) {
  * @return num of float operation
  */
 int TPR::solve() {
-    for (int k = 1; k <= static_cast<int>(log2(s)); k += 1) {
-        const int u = pow2(k-1);
-        const int s = this->s;
+    for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+        int u = pow2(p-1);
 
         #ifdef _OPENACC
-        #pragma acc kernels present(this, a[:n], c[:n], rhs[:n], aa[:s], cc[:s], rr[:s])
+        #pragma acc kernels present(this, a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n])
         #pragma acc loop independent
         #endif
         #ifdef _OPENMP
@@ -124,6 +122,7 @@ int TPR::solve() {
         for (int st = 0; st < this->n; st += s) {
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
+            #pragma acc update device(u)
 
 
             #ifdef _OPENACC
