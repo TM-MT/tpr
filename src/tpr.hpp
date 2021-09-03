@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "cr.hpp"
 #include "lib.hpp"
 
 /**
@@ -38,6 +39,7 @@ class TPR: Solver
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
+    CR st2solver;
     int n, s, m;
 
 public:

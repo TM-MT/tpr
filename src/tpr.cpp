@@ -53,6 +53,10 @@ void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
     this->m = this->n / this->s;
+
+    // solver for stage 2
+    this->st2solver.init(this->m);
+
     // allocation for answer
     RMALLOC(this->x, n);
     // allocation for backup
@@ -324,9 +328,9 @@ void TPR::tpr_stage2() {
         }
     }
 
-    CR cr(this->st2_a, nullptr, this->st2_c, this->st2_rhs, this->m);
-    cr.solve();
-    cr.get_ans(this->st2_rhs);
+    this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c, this->st2_rhs);
+    this->st2solver.solve();
+    this->st2solver.get_ans(this->st2_rhs);
 
     // copy back
     // this->st2_rhs has the answer
