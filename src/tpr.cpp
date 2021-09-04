@@ -210,8 +210,8 @@ int TPR::solve() {
     tpr_stage2();
 
     #ifdef _OPENACC
-    #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
-    #pragma acc loop independent
+    #pragma acc parallel num_gangs(this->m) vector_length(this->s-1) present(this, a[:n], c[:n], rhs[:n], x[:n])
+    #pragma acc loop gang independent
     #endif
     #ifdef _OPENMP
     #pragma omp parallel for schedule(static)
@@ -219,16 +219,11 @@ int TPR::solve() {
     for (int st = 0; st < this->n; st += s) {
         // from tpr_stage3(st, st + s - 1);
         int ed = st + s - 1;
-
-        int lbi = st - 1; // use as index of the slice top
         // x[-1] should be 0.0
-        real xl = x[lbi];
 
-        real key;
-        if (c[ed] == 0.0) { // c[n] should be 0.0
+        real key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[st-1] - x[ed]);
+        if (c[ed] == 0.0) {
             key = 0.0;
-        } else {
-            key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
         }
 
         // x[ed] is known
@@ -239,7 +234,7 @@ int TPR::solve() {
         #pragma omp simd
         #endif
         for (int i = st; i < ed; i++) {
-            x[i] = rhs[i] - a[i] * xl - c[i] * key;
+            x[i] = rhs[i] - a[i] * x[st-1] - c[i] * key;
         }
     }
 
