@@ -29,9 +29,9 @@ int main() {
     assign(sys);
     #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
     {
-        PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-        p.solve();
-        p.get_ans(sys->diag);
+        PCR pcr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        pcr.solve();
+        pcr.get_ans(sys->diag);
     }
     print_array(sys->diag, n);
     printf("\n");

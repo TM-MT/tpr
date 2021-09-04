@@ -14,7 +14,7 @@ int PCR::solve() {
     for (int p = 0; p < pn-1; p++) {
         int s = 1 << p;
 
-        #pragma acc parallel copyin(s)
+        #pragma acc kernels copyin(s)
         #ifdef _OPENMP
         #pragma omp parallel shared(a1, c1, rhs1)
         #endif
