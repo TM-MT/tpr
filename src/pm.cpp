@@ -29,21 +29,47 @@ struct Options {
     // Iteration Times
     std::optional<int> iter = 1000;
     // Solver
-    enum class Solver { PCR, TPR };
-    std::optional<Solver> solver = Solver::TPR;
+    std::optional<std::string> solver = "TPR";
 };
 STRUCTOPT(Options, n, s, iter, solver);
 
+namespace pmcpp {
+    enum class Solver {
+        TPR,
+        PCR,
+
+    };
+    void to_lower(std::string &s1);
+    Solver str2Solver(std::string &solver);
+
+
+    Solver str2Solver(std::string &solver) {
+        to_lower(solver);
+        if (solver.compare(std::string("pcr")) == 0) {
+            return Solver::PCR;
+        } else if (solver.compare(std::string("tpr")) == 0) {
+            return Solver::TPR;
+        } else{
+            std::cerr << "Solver Not Found.\n";
+            abort();
+        }
+    }
+    
+    void to_lower(std::string &s1) {
+       transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
+    }
+}
+
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
-    Options::Solver solver;
+    pmcpp::Solver solver;
     // Parse Command Line Args
     try {
         auto options = structopt::app("tpr_pm", "v1.0.0").parse<Options>(argc, argv);
         n = options.n.value();
         s = options.s.value();
         iter_times = options.iter.value();
-        solver = options.solver.value();
+        solver = pmcpp::str2Solver(options.solver.value());
     } catch (structopt::exception& e) {
         std::cout << e.what() << "\n";
         std::cout << e.help();
@@ -68,8 +94,8 @@ int main(int argc, char *argv[]) {
     // 1. setup the system by calling assign()
     // 2. set the system
     // 3. measure
-    switch(solver){
-        case Options::Solver::TPR: {
+    switch (solver) {
+        case pmcpp::Solver::TPR: {
             auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
             pm.setProperties(tpr_all_label, pm.CALC);
 
@@ -86,7 +112,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         } break;
-        case Options::Solver::PCR: {
+        case pmcpp::Solver::PCR: {
             auto pcr_label = std::string("PCR");
             pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {

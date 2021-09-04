@@ -9,28 +9,39 @@
  */
 int PCR::solve() {
     int pn = fllog2(this->n);
+    real a1[n], c1[n], rhs1[n];
 
     for (int p = 0; p < pn; p++) {
-        int s = 1 << p;
-        real a1[n], c1[n], rhs1[n];
-
-        #pragma omp parallel shared(a1, c1, rhs1, s)
+        #pragma acc kernels create(a1[:n], c1[:n], rhs1[:n]) present(this->a[:n], this->c[:n], this->rhs[:n], this, this->n)
+        #ifdef _OPENMP
+        #pragma omp parallel shared(a1, c1, rhs1)
+        #endif
         {
+            #pragma acc update device(p)
+            int s = 1 << p;
+
+            #ifdef _OPENACC
+            #pragma acc loop independent
+            #endif
+            #ifdef _OPENMP
             #pragma omp for schedule(static)
+            #endif
             for (int k = 0; k < s; k++) {
                 int kr = k + s;
 
-                real ap = a[k];
-                real cp = c[k];
+                real e = 1.0 / ( 1.0 - c[k] * a[kr]);
 
-                real e = 1.0 / ( 1.0 - cp * a[kr] );
-
-                a1[k] = e * ap;
-                c1[k] = -e * cp * c[kr];
-                rhs1[k] = e * ( rhs[k] - cp * rhs[kr]);
+                a1[k] = e * a[k];
+                c1[k] = -e * c[k] * c[kr];
+                rhs1[k] = e * (rhs[k] - c[k] * rhs[kr]);
             }
 
+            #ifdef _OPENACC
+            #pragma acc loop independent
+            #endif
+            #ifdef _OPENMP
             #pragma omp for schedule(static)
+            #endif
             for (int k = s; k < n - s; k++) {
                 int kl = k - s;
                 int kr = k + s;
@@ -45,7 +56,12 @@ int PCR::solve() {
                 rhs1[k] = e * ( rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
             }
 
+            #ifdef _OPENACC
+            #pragma acc loop independent
+            #endif
+            #ifdef _OPENMP
             #pragma omp for schedule(static)
+            #endif
             for (int k = n - s; k < n; k++) {
                 int kl = k - s;
 
@@ -59,6 +75,7 @@ int PCR::solve() {
                 rhs1[k] = e * ( rhs[k] - ap * rhs[kl]);
             }
 
+            #pragma acc loop
             for (int k = 0; k < n; k++) {
                 a[k] = a1[k];
                 c[k] = c1[k];
@@ -75,7 +92,11 @@ int PCR::solve() {
  * @return num of float operation
  */
 int PCR::get_ans(real *x) {
+    #pragma acc update host(this->rhs[:this->n]) wait
+
+    #ifdef _OPENMP
     #pragma omp simd
+    #endif
     for (int i = 0; i < n; i++) {
         x[i] = this->rhs[i];
     }
