@@ -124,8 +124,8 @@ int TPR::solve() {
         int u = pow2(p-1);
 
         #ifdef _OPENACC
-        #pragma acc kernels copyin(u)
-        #pragma acc loop independent
+        #pragma acc parallel num_gangs(this->m) vector_length(this->s) copyin(u)
+        #pragma acc loop gang
         #endif
         #ifdef _OPENMP
         #pragma omp parallel for schedule(static)
@@ -135,7 +135,7 @@ int TPR::solve() {
             int ed = st + s - 1;
 
             #ifdef _OPENACC
-            #pragma acc loop independent
+            #pragma acc loop vector
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -155,7 +155,7 @@ int TPR::solve() {
             }
 
             #ifdef _OPENACC
-            #pragma acc loop independent
+            #pragma acc loop vector
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -176,7 +176,7 @@ int TPR::solve() {
             }
 
             #ifdef _OPENACC
-            #pragma acc loop independent
+            #pragma acc loop vector
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -193,12 +193,11 @@ int TPR::solve() {
                 cc[k] = inv_diag_k * c[k];
                 rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
             }
-
+        }
+        #pragma acc parallel loop collapse(2) num_gangs(this->m) vector_length(this->s)
+        for (int st = 0; st < this->n; st += s) {
             // patch
-            #ifdef _OPENACC
-            #pragma acc loop
-            #endif
-            for (int i = st; i <= ed; i++) {
+            for (int i = st; i <= st + s - 1; i++) {
                 this->a[i] = aa[i];
                 this->c[i] = cc[i];
                 this->rhs[i] = rr[i];
