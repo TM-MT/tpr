@@ -93,7 +93,7 @@ int PCR::solve() {
  * @return num of float operation
  */
 int PCR::get_ans(real *x) {
-    #pragma acc parallel loop present(x[:n], this, this->rhs[:n])
+    #pragma acc kernels loop present(x[:n], this, this->rhs[:n])
     for (int i = 0; i < n; i++) {
         x[i] = this->rhs[i];
     }
