@@ -40,9 +40,12 @@ int main() {
     for (int s = 4; s <= n; s *= 2) {
         dbg(s);
         assign(sys);
-        TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
-        t.solve();
-        t.get_ans(sys->diag);
+        #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+        {
+            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+            t.solve();
+            t.get_ans(sys->diag);
+        }
         print_array(sys->diag, n);
         printf("\n");
     }

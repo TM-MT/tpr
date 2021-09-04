@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "lib.hpp"
+#include "pcr.hpp"
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
@@ -37,7 +38,8 @@ class TPR: Solver
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
-    int n, s;
+    PCR st2solver;
+    int n, s, m;
 
 public:
     TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
@@ -51,7 +53,7 @@ public:
 
     ~TPR() {
         // free local variables
-        SAFE_DELETE(this->x);
+        delete[] &this->x[-1];
         SAFE_DELETE(this->aa);
         SAFE_DELETE(this->cc);
         SAFE_DELETE(this->rr);
@@ -63,7 +65,7 @@ public:
         SAFE_DELETE(this->inter_rhs);
         #ifdef _OPENACC
         #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
-        #pragma acc exit data delete(this->x[:n])
+        #pragma acc exit data delete(this->x[-1:n+1])
         #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
         #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
         #pragma acc exit data delete(this->n, this->s, this)
