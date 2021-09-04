@@ -17,20 +17,20 @@ int main() {
     setup(sys, n);
 
     assign(sys);
-    CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-    cr.solve();
-    #pragma acc data copy(sys->diag[:n])
+    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
     {
-        cr.get_ans(sys->diag);        
+        CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        cr.solve();
+        cr.get_ans(sys->diag);
     }
     print_array(sys->diag, n);
     printf("\n");
 
     assign(sys);
-    PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-    p.solve();
-    #pragma acc data copy(sys->diag[:n])
+    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
     {
+        PCR p = PCR(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        p.solve();
         p.get_ans(sys->diag);
     }
     print_array(sys->diag, n);

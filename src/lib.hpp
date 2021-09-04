@@ -34,6 +34,7 @@ using real = float;
 class Solver
 {
 public:
+    void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs);
     int solve();
     int get_ans(real *x);
 };

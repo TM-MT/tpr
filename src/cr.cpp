@@ -2,13 +2,34 @@
 #include "cr.hpp"
 
 
+/**
+ * @brief set Tridiagnoal System
+ * @note [OpenACC] given arrays are exists on the device
+ * 
+ * @param a [description]
+ * @param diag [description]
+ * @param c [description]
+ * @param rhs [description]
+ */
+void CR::set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
+    this->a = a;
+    this->c = c;
+    this->rhs = rhs;
+    #pragma acc update device(this)
+    #pragma acc enter data attach(this->a, this->c, this->rhs)
+}
+
+
 int CR::solve() {
     if (this->n > 1) {
         fr();
         bs();
         return 17 * this->n;
     } else {
-        x[0] = rhs[0];
+        #pragma acc kernels present(this)
+        {
+            x[0] = rhs[0];
+        }
         return 0;
     }
 }
@@ -18,7 +39,7 @@ int CR::solve() {
  * @return
  */
 int CR::fr() {
-    #pragma acc data  present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this)
+    #pragma acc data present(a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n], this)
     #pragma omp parallel
     for (int p = 0; p < fllog2(this->n) - 1; p++) {
         #pragma acc kernels
