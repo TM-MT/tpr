@@ -6,7 +6,8 @@
  - PAPI == papi-5-7-0-t, if using HWPC
 
 #### Requirements for GPU Run
- - nvc++ >= 21.5-0
+ - nvc++ >= 20.11-0
+ - cuda 11.0
 
 ## Clone & Build & Run
 
@@ -25,7 +26,7 @@ $ ./src/tpr_pm
 
 # Use GPU
 $ export CC=nvc CXX=nvc++
-$ cmake -D CMAKE_BUILD_TYPE=Release -Dwith_ACC=yes -DCMAKE_C_FLAGS="-noswitcherror -gpu=cc75" -DCMAKE_CXX_FLAGS="-noswitcherror -gpu=cc75" -DRandom_BuildTests=off  ..
+$ cmake -D CMAKE_BUILD_TYPE=Release -Dwith_ACC=yes -DCMAKE_C_FLAGS="-noswitcherror -ta=tesla:managed" -DCMAKE_CXX_FLAGS="-noswitcherror -ta=tesla:managed" -DRandom_BuildTests=off  ..
 ```
 
 #### Options
