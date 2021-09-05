@@ -7,6 +7,7 @@
 
 #include "PerfMonitor.h"
 #include "lib.hpp"
+#include "pcr.hpp"
 #include "pm.hpp"
 
 /**
@@ -40,7 +41,8 @@ class TPR: Solver
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
-    int n, s;
+    PCR st2solver;
+    int n, s, m;
     pm_lib::PerfMonitor *pm;
     std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
     std::array<std::string, 3> labels;
@@ -57,7 +59,7 @@ public:
 
     ~TPR() {
         // free local variables
-        SAFE_DELETE(this->x);
+        delete[] &this->x[-1];
         SAFE_DELETE(this->aa);
         SAFE_DELETE(this->cc);
         SAFE_DELETE(this->rr);
@@ -69,7 +71,7 @@ public:
         SAFE_DELETE(this->inter_rhs);
         #ifdef _OPENACC
         #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
-        #pragma acc exit data delete(this->x[:n])
+        #pragma acc exit data delete(this->x[-1:n+1])
         #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
         #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
         #pragma acc exit data delete(this->n, this->s, this)

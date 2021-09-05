@@ -5,6 +5,7 @@
 #include "PerfMonitor.h"
 #include "main.hpp"
 #include "lib.hpp"
+#include "cr.hpp"
 #include "pcr.hpp"
 #include "tpr.hpp"
 
@@ -14,11 +15,24 @@ int main() {
     int n = 1024;
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    assign(sys);
 
-    PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-    p.solve();
-    p.get_ans(sys->diag);
+    assign(sys);
+    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+    {
+        CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        cr.solve();
+        cr.get_ans(sys->diag);
+    }
+    print_array(sys->diag, n);
+    printf("\n");
+
+    assign(sys);
+    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+    {
+        PCR pcr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        pcr.solve();
+        pcr.get_ans(sys->diag);
+    }
     print_array(sys->diag, n);
     printf("\n");
 
@@ -30,11 +44,14 @@ int main() {
     for (int s = 4; s <= n; s *= 2) {
         std::cerr << "s=" << s << "\n";
         assign(sys);
-        TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s, &pm);
-        pm.start(tpr_label);
-        int flop_count = t.solve();
-        flop_count += t.get_ans(sys->diag);
-        pm.stop(tpr_label, flop_count);
+        #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+        {
+            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s, &pm);
+            pm.start(tpr_label);
+            int flop_count = t.solve();
+            flop_count += t.get_ans(sys->diag);
+            pm.stop(tpr_label, flop_count);
+        }
         print_array(sys->diag, n);
         printf("\n");
     }

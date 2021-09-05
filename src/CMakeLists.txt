@@ -25,6 +25,17 @@ else()
     endif()
 endif()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -finline-functions -mavx2 -mfma -fopt-info-missed=missed.all --param vect-max-version-for-alias-checks=50")
+    endif()
+endif()
+
+# CR
+add_library(libcr
+    cr.cpp)
+target_include_directories(libcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+
 
 # PCR
 add_library(libpcr
@@ -40,7 +51,8 @@ add_library(libtpr
 target_include_directories(libtpr
     PUBLIC ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/PMlib/include)
-target_link_libraries(libtpr PUBLIC pmlib)
+target_link_libraries(libtpr
+    PUBLIC pmlib libpcr)
 set_property(TARGET libtpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
@@ -69,7 +81,7 @@ if (TPR_PROJECT)
         )
     endif()
     target_link_libraries(tpr_main
-        PUBLIC libpcr libtpr pmlib)
+        PUBLIC libcr libpcr libtpr pmlib)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/PMlib/include)
