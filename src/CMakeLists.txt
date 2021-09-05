@@ -25,6 +25,17 @@ else()
     endif()
 endif()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -finline-functions -mavx2 -mfma -fopt-info-missed=missed.all --param vect-max-version-for-alias-checks=50")
+    endif()
+endif()
+
+# CR
+add_library(libcr
+    cr.cpp)
+target_include_directories(libcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+
 
 # PCR
 add_library(libpcr

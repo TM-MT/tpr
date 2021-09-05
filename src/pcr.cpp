@@ -9,17 +9,16 @@
  */
 int PCR::solve() {
     int pn = fllog2(this->n);
-    real a1[n], c1[n], rhs1[n];
 
-    for (int p = 0; p < pn; p++) {
-        #pragma acc kernels create(a1[:n], c1[:n], rhs1[:n]) present(this->a[:n], this->c[:n], this->rhs[:n], this, this->n)
+    #pragma acc data present(this->a[:n], this->c[:n], this->rhs[:n], this->a1[:n], this->c1[:n], this->rhs1[:n], this, this->n)
+    for (int p = 0; p < pn-1; p++) {
+        int s = 1 << p;
+
+        #pragma acc kernels copyin(s)
         #ifdef _OPENMP
         #pragma omp parallel shared(a1, c1, rhs1)
         #endif
         {
-            #pragma acc update device(p)
-            int s = 1 << p;
-
             #ifdef _OPENACC
             #pragma acc loop independent
             #endif
@@ -89,14 +88,12 @@ int PCR::solve() {
 
 /**
  * @brief get the answer
+ *  
+ * @note [OpenACC] assert `*x` exists at the device
  * @return num of float operation
  */
 int PCR::get_ans(real *x) {
-    #pragma acc update host(this->rhs[:this->n]) wait
-
-    #ifdef _OPENMP
-    #pragma omp simd
-    #endif
+    #pragma acc kernels loop present(x[:n], this, this->rhs[:n])
     for (int i = 0; i < n; i++) {
         x[i] = this->rhs[i];
     }

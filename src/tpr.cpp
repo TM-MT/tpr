@@ -40,6 +40,7 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->rhs = rhs;
     #ifdef _OPENACC
     #pragma acc enter data copyin(a[:n], c[:n], rhs[:n])
+    #pragma acc update device(this)
     #endif
 }
 
@@ -55,14 +56,19 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     this->n = n;
     this->s = s;
-    #ifdef _OPENACC
-    #pragma acc enter data copyin(this, this->n, this->s)
-    #endif
-
     this->pm = pm;
+    this->m = n / s;
+
+    // solver for stage 2
+    this->st2solver.init(this->m);
 
     // allocation for answer
-    RMALLOC(this->x, n);
+    RMALLOC(this->x, n+1);
+    for (int i = 0; i < n + 1; i++) {
+        this->x[i] = 0;
+    }
+    this->x = &this->x[1];
+
     // allocation for stage 1 use
     RMALLOC(this->aa, n);
     RMALLOC(this->cc, n);
@@ -76,8 +82,9 @@ void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
     RMALLOC(this->inter_c, 2 * n / s);
     RMALLOC(this->inter_rhs, 2 * n / s);
     #ifdef _OPENACC
+    #pragma acc enter data copyin(this, this->n, this->s)
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
-    #pragma acc enter data create(x[:n])
+    #pragma acc enter data copyin(x[-1:n+1])
     #pragma acc enter data create(st2_a[:n/s], st2_c[:n/s], st2_rhs[:n/s])
     #pragma acc enter data create(inter_a[:2*n/s], inter_c[:2*n/s], inter_rhs[:2*n/s])
     #endif
@@ -133,13 +140,13 @@ int TPR::solve() {
 
     // STAGE 1
     this->pm->start(labels[0]);
-    for (int k = 1; k <= static_cast<int>(log2(s)); k += 1) {
-        const int u = pow2(k-1);
-        const int s = this->s;
+    #pragma acc data present(this, a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n])
+    for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+        int u = pow2(p-1);
 
         #ifdef _OPENACC
-        #pragma acc kernels present(this, a[:n], c[:n], rhs[:n], aa[:s], cc[:s], rr[:s])
-        #pragma acc loop independent
+        #pragma acc parallel num_gangs(this->m) vector_length(this->s) copyin(u)
+        #pragma acc loop gang
         #endif
         #ifdef _OPENMP
         #pragma omp parallel for schedule(static)
@@ -148,9 +155,8 @@ int TPR::solve() {
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
 
-
             #ifdef _OPENACC
-            #pragma acc loop independent
+            #pragma acc loop vector
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -170,7 +176,7 @@ int TPR::solve() {
             }
 
             #ifdef _OPENACC
-            #pragma acc loop independent
+            #pragma acc loop vector
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -191,7 +197,7 @@ int TPR::solve() {
             }
 
             #ifdef _OPENACC
-            #pragma acc loop independent
+            #pragma acc loop vector
             #endif
             #ifdef _OPENMP
             #pragma omp simd
@@ -208,12 +214,11 @@ int TPR::solve() {
                 cc[k] = inv_diag_k * c[k];
                 rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
             }
-
+        }
+        #pragma acc parallel loop collapse(2) num_gangs(this->m) vector_length(this->s)
+        for (int st = 0; st < this->n; st += s) {
             // patch
-            #ifdef _OPENACC
-            #pragma acc loop
-            #endif
-            for (int i = st; i <= ed; i++) {
+            for (int i = st; i <= st + s - 1; i++) {
                 this->a[i] = aa[i];
                 this->c[i] = cc[i];
                 this->rhs[i] = rr[i];
@@ -231,8 +236,8 @@ int TPR::solve() {
     // STAGE 3
     this->pm->start(labels[2]);
     #ifdef _OPENACC
-    #pragma acc parallel present(this, a[:n], c[:n], rhs[:n], x[:n])
-    #pragma acc loop gang
+    #pragma acc parallel num_gangs(this->m) vector_length(this->s-1) present(this, a[:n], c[:n], rhs[:n], x[:n])
+    #pragma acc loop gang independent
     #endif
     #ifdef _OPENMP
     #pragma omp parallel for schedule(static)
@@ -240,20 +245,11 @@ int TPR::solve() {
     for (int st = 0; st < this->n; st += s) {
         // from tpr_stage3(st, st + s - 1);
         int ed = st + s - 1;
+        // x[-1] should be 0.0
 
-        int lbi = st - 1; // use as index of the slice top
-        real xl;
-        if (lbi < 0) {
-            xl = 0.0; // x[-1] does not exists
-        } else {
-            xl = x[lbi];
-        }
-
-        real key;
-        if (c[ed] == 0.0) { // c[n] should be 0.0
+        real key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[st-1] - x[ed]);
+        if (c[ed] == 0.0) {
             key = 0.0;
-        } else {
-            key = 1.0 / c[ed] * (rhs[ed] - a[ed] * xl - x[ed]);
         }
 
         // x[ed] is known
@@ -264,7 +260,7 @@ int TPR::solve() {
         #pragma omp simd
         #endif
         for (int i = st; i < ed; i++) {
-            x[i] = rhs[i] - a[i] * xl - c[i] * key;
+            x[i] = rhs[i] - a[i] * x[st-1] - c[i] * key;
         }
     }
     this->pm->stop(labels[2], static_cast<double>(fp_st3));
@@ -344,8 +340,9 @@ void TPR::tpr_stage2() {
     }
 
 
-    PCR p = PCR(this->st2_a, nullptr, this->st2_c, this->st2_rhs, n / s);
-    p.solve();
+    this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c, this->st2_rhs);
+    this->st2solver.solve();
+    // this->st2solver.get_ans(this->st2_rhs);
     // assert this->st2_rhs has the answer
     // copy back to TPR::x
     #ifdef _OPENACC
@@ -446,13 +443,7 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
  * @return num of float operation
  */
 int TPR::get_ans(real *x) {
-    #ifdef _OPENACC
-    #pragma acc update host(this->x[:n])
-    #endif
-
-    #ifdef _OPENMP
-    #pragma omp simd
-    #endif
+    #pragma acc kernels loop present(this, this->x[:n], x[:n])
     for (int i = 0; i < n; i++) {
         x[i] = this->x[i];
     }
