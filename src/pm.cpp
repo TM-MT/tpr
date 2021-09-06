@@ -11,6 +11,7 @@
 #include "effolkronium/random.hpp"
 #include "dbg.h"
 #include <structopt/app.hpp>
+#include "pm.hpp"
 
 
 // std::mt19937 base pseudo-random
@@ -33,32 +34,24 @@ struct Options {
 };
 STRUCTOPT(Options, n, s, iter, solver);
 
-namespace pmcpp {
-    enum class Solver {
-        TPR,
-        PCR,
-
-    };
-    void to_lower(std::string &s1);
-    Solver str2Solver(std::string &solver);
 
 
-    Solver str2Solver(std::string &solver) {
-        to_lower(solver);
-        if (solver.compare(std::string("pcr")) == 0) {
-            return Solver::PCR;
-        } else if (solver.compare(std::string("tpr")) == 0) {
-            return Solver::TPR;
-        } else{
-            std::cerr << "Solver Not Found.\n";
-            abort();
-        }
-    }
-    
-    void to_lower(std::string &s1) {
-       transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
+pmcpp::Solver pmcpp::str2Solver(std::string &solver) {
+    to_lower(solver);
+    if (solver.compare(std::string("pcr")) == 0) {
+        return Solver::PCR;
+    } else if (solver.compare(std::string("tpr")) == 0) {
+        return Solver::TPR;
+    } else{
+        std::cerr << "Solver Not Found.\n";
+        abort();
     }
 }
+
+void pmcpp::to_lower(std::string &s1) {
+   std::transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
+}
+
 
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
