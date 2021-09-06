@@ -320,17 +320,9 @@ void TPR::tpr_stage2() {
     // this->st2solver.get_ans(this->st2_rhs);
     // assert this->st2_rhs has the answer
     // copy back to TPR::x
-    #ifdef _OPENACC
-    #pragma acc kernels present(this)
-    #endif
-    {
-        #ifdef _OPENACC
-        #pragma acc loop independent
-        #endif
-        for (int i = s - 1; i < n - s; i += s) {
-           this->x[i] = this->st2_rhs[i / s];
-        }
-        this->x[n - 1] = this->st2_rhs[n / s - 1];
+    #pragma acc kernels loop independent present(this)
+    for (int i = s - 1; i < n; i += s) {
+       this->x[i] = this->st2_rhs[i / s];
     }
 }
 
