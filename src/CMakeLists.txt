@@ -56,6 +56,12 @@ target_link_libraries(libtpr
 set_property(TARGET libtpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
+option(TPR_PERF "Enable PMlib in TPR" "no")
+if (TPR_PERF) 
+    set_property(TARGET libtpr
+        APPEND PROPERTY COMPILE_DEFINITIONS TPR_PERF="yes")
+endif()
+
 
 if (${OPT_PAPI})
     target_link_libraries(libtpr

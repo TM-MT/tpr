@@ -17,6 +17,8 @@ namespace pmcpp {
         PCR,
 
     };
+    extern pm_lib::PerfMonitor pm;
+
     void to_lower(std::string &s1);
     Solver str2Solver(std::string &solver);
 }
