@@ -43,19 +43,17 @@ class TPR: Solver
     real *inter_a, *inter_c, *inter_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
     pm_lib::PerfMonitor *pm;
-    std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
-    std::array<std::string, 3> labels;
     CR st2solver;
     int n, s, m;
 
 public:
-    TPR(real *a, real *diag, real *c, real *rhs, int n, int s, pm_lib::PerfMonitor *pm) {
-        init(n, s, pm);
+    TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
+        init(n, s);
         set_tridiagonal_system(a, c, rhs);
     };
 
-    TPR(int n, int  s, pm_lib::PerfMonitor *pm) {
-        init(n, s, pm);
+    TPR(int n, int  s) {
+        init(n, s);
     };
 
     ~TPR() {
@@ -95,7 +93,7 @@ private:
     TPR(const TPR &tpr);
     TPR &operator=(const TPR &tpr);
 
-    void init(int n, int s, pm_lib::PerfMonitor *pm);
+    void init(int n, int s);
 
     EquationInfo update_no_check(int kl, int k, int kr);
     EquationInfo update_uppper_no_check(int k, int kr);

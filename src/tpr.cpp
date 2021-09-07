@@ -19,6 +19,66 @@
 #endif
 
 
+
+/**
+ * Helper Functions for Performance Monitoring TPR
+ */
+namespace tprperf {
+    // Labels
+    // c++ does not allow to hold string
+    enum Labels {
+        st1 = 0,
+        st2,
+        st3,
+    };
+
+    std::array<std::string, 3> section_names = { "st1", "st2", "st3" };
+    std::array<std::string, 3> display_labels;
+
+    /**
+     * @brief Init Function for Perf.
+     * 
+     * @param n Size of Equation
+     * @param s
+     */
+    void init(int n, int s) {
+        #ifdef TPR_PERF
+        // Initialize PerfMonitor and set labels
+        for (unsigned long int i = 0; i < section_names.size(); i++) {
+            auto format = std::string("TPR_n_");
+            auto gen_label = format.replace(4, 1, std::to_string(s))
+                                .append(section_names[i]);
+            display_labels[i] = gen_label;
+            pmcpp::pm.setProperties(gen_label, pmcpp::pm.CALC);
+        }
+        #endif
+    }
+
+    /**
+     * @brief Helper function of pm.start()
+     * 
+     * @param lb Label
+     */
+    void start(Labels lb) {
+        #ifdef TPR_PERF
+        return pmcpp::pm.start(display_labels[static_cast<int>(lb)]);
+        #endif
+    }
+
+    /**
+     * @brief Helper function of pm.stop()
+     * 
+     * @param lb Label
+     * @param fp user provided count
+     */
+    void stop(Labels lb, double fp=0.0) {
+        #ifdef TPR_PERF
+        return pmcpp::pm.stop(display_labels[static_cast<int>(lb)], fp);
+        #endif
+    }
+}
+
+
 /**
  * @brief set Tridiagonal System for TPR
  *
@@ -53,11 +113,12 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
  * @param n size of given system
  * @param s size of a slice. `s` should be power of 2
  */
-void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
+void TPR::init(int n, int s) {
+    tprperf::init(n, s);
+
     this->n = n;
     this->s = s;
-    this->m = this->n / this->s;
-    this->pm = pm;
+    this->m = n / s;
 
     // solver for stage 2
     this->st2solver.init(this->m);
@@ -111,14 +172,6 @@ void TPR::init(int n, int s, pm_lib::PerfMonitor *pm) {
         }
     }
 
-    // Initialize PerfMonitor and set labels
-    for (unsigned long int i = 0; i < this->default_labels.size(); i++) {
-        auto format = std::string("TPR_n_");
-        auto gen_label = format.replace(4, 1, std::to_string(this->s))
-                            .append(this->default_labels[i]);
-        this->labels[i] = gen_label;
-        this->pm->setProperties(gen_label, this->pm->CALC);
-    }
 }
 
 
@@ -131,8 +184,8 @@ int TPR::solve() {
     int fp_st2 = 14 * m - 19 + 4 * m;
     int fp_st3 = m * 4 * (s - 1);
 
-
-    this->pm->start(labels[0]);
+    // STAGE 1
+    tprperf::start(tprperf::Labels::st1);
     #pragma acc data present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
     {
         // Make Backup for Stage 3 use
@@ -241,15 +294,15 @@ int TPR::solve() {
             }
         }
     }
-    this->pm->stop(labels[0], static_cast<double>(fp_st1));
+    tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
 
-    this->pm->start(labels[1]);
+    // STAGE 2
+    tprperf::start(tprperf::Labels::st2);
     tpr_stage2();
-    this->pm->stop(labels[1], static_cast<double>(fp_st2));
+    tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
 
-    this->pm->start(labels[2]);
     st3_replace();
-
+    tprperf::start(tprperf::Labels::st3);
     // TPR Stage 3
     #pragma acc data present(this, a[:n], c[:n], rhs[:n], x[:n])
     for (int p = fllog2(s) - 1; p >= 0; p--) {
@@ -284,8 +337,7 @@ int TPR::solve() {
             }
         }
     }
-
-    this->pm->stop(labels[2], static_cast<double>(fp_st3));
+    tprperf::stop(tprperf::Labels::st3, static_cast<double>(fp_st3));
 
     return fp_st1 + fp_st2 + fp_st3;
 }

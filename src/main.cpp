@@ -9,6 +9,7 @@
 #include "pcr.hpp"
 #include "tpr.hpp"
 
+pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 
 
 int main() {
@@ -36,15 +37,12 @@ int main() {
     print_array(sys->diag, n);
     printf("\n");
 
-    pm_lib::PerfMonitor pm = pm_lib::PerfMonitor();
-    pm.initialize(100);
-    auto tpr_label = std::string("TPR");
-    pm.setProperties(tpr_label, pm.CALC);
+    pmcpp::pm.initialize(100);
 
     for (int s = 4; s <= n; s *= 2) {
         std::cerr << "s=" << s << "\n";
         assign(sys);
-        TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s, &pm);
+        TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
         t.solve();
         #pragma acc data copy(sys->diag[:n])
         {
@@ -54,8 +52,6 @@ int main() {
         printf("\n");
     }
 
-    pm.print(stderr, std::string(""), std::string(), 1);
-    pm.printDetail(stderr, 0, 1);
 
     clean(sys);
     free(sys);
