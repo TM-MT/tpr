@@ -9,6 +9,7 @@
 #include "pcr.hpp"
 #include "tpr.hpp"
 
+pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 
 
 int main() {
@@ -36,28 +37,27 @@ int main() {
     print_array(sys->diag, n);
     printf("\n");
 
-    pm_lib::PerfMonitor pm = pm_lib::PerfMonitor();
-    pm.initialize(100);
+    pmcpp::pm.initialize(100);
     auto tpr_label = std::string("TPR");
-    pm.setProperties(tpr_label, pm.CALC);
+    pmcpp::pm.setProperties(tpr_label, pmcpp::pm.CALC);
 
     for (int s = 4; s <= n; s *= 2) {
         std::cerr << "s=" << s << "\n";
         assign(sys);
         #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
         {
-            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s, &pm);
-            pm.start(tpr_label);
+            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+            pmcpp::pm.start(tpr_label);
             int flop_count = t.solve();
             flop_count += t.get_ans(sys->diag);
-            pm.stop(tpr_label, flop_count);
+            pmcpp::pm.stop(tpr_label, flop_count);
         }
         print_array(sys->diag, n);
         printf("\n");
     }
 
-    pm.print(stderr, std::string(""), std::string(), 1);
-    pm.printDetail(stderr, 0, 1);
+    pmcpp::pm.print(stderr, std::string(""), std::string(), 1);
+    pmcpp::pm.printDetail(stderr, 0, 1);
 
     clean(sys);
     free(sys);

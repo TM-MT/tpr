@@ -9,6 +9,7 @@
 #include "pcr.hpp"
 #include "tpr.hpp"
 #include "effolkronium/random.hpp"
+#include "pm.hpp"
 
 
 // std::mt19937 base pseudo-random
@@ -16,11 +17,6 @@ using Random = effolkronium::random_static;
 
 
 namespace pmcpp {
-    enum class Solver {
-        TPR,
-        PCR,
-    };
-
     /**
      * @brief Command Line Args
      * @details Define Command Line Arguments
@@ -80,6 +76,11 @@ namespace pmcpp {
     }
 }
 
+
+pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
+
+
+
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
     pmcpp::Solver solver;
@@ -96,8 +97,7 @@ int main(int argc, char *argv[]) {
     setup(sys, n);
     assign(sys);
 
-    pm_lib::PerfMonitor pm = pm_lib::PerfMonitor();
-    pm.initialize(100);
+    pmcpp::pm.initialize(100);
 
     // 1. setup the system by calling assign()
     // 2. set the system
@@ -105,43 +105,43 @@ int main(int argc, char *argv[]) {
     switch (solver) {
         case pmcpp::Solver::TPR: {
             auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
-            pm.setProperties(tpr_all_label, pm.CALC);
+            pmcpp::pm.setProperties(tpr_all_label, pmcpp::pm.CALC);
 
             // Measureing TPR reusable implementation
             {
-                TPR t(sys->n, s, &pm);
+                TPR t(sys->n, s);
                 for (int i = 0; i < iter_times; i++) {
                     assign(sys);
                     #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
                     {
                         t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
-                        pm.start(tpr_all_label);
+                        pmcpp::pm.start(tpr_all_label);
                         int flop_count = t.solve();
                         flop_count += t.get_ans(sys->diag);                        
-                        pm.stop(tpr_all_label, flop_count);
+                        pmcpp::pm.stop(tpr_all_label, flop_count);
                     }
                 }
             }
         } break;
         case pmcpp::Solver::PCR: {
             auto pcr_label = std::string("PCR");
-            pm.setProperties(pcr_label);
+            pmcpp::pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
                 #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
                 {
                     PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-                    pm.start(pcr_label);
+                    pmcpp::pm.start(pcr_label);
                     int flop_count = p.solve();
                     flop_count += p.get_ans(sys->diag);
-                    pm.stop(pcr_label, flop_count);
+                    pmcpp::pm.stop(pcr_label, flop_count);
                 }
             }
         } break;
     }
 
-    pm.print(stdout, std::string(""), std::string(), 1);
-    pm.printDetail(stdout, 0, 1);
+    pmcpp::pm.print(stdout, std::string(""), std::string(), 1);
+    pmcpp::pm.printDetail(stdout, 0, 1);
 
     clean(sys);
     free(sys);
