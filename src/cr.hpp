@@ -25,9 +25,40 @@ class CR: Solver
 
 public:
     CR(real *a, real *diag, real *c, real *rhs, int n) {
-        this->a = a;
-        this->c = c;
-        this->rhs = rhs;
+        init(n);
+        set_tridiagonal_system(a, diag, c, rhs);
+    };
+
+    CR(int n) {
+        init(n);
+    }
+
+    CR() {};
+
+    ~CR() {
+    	SAFE_DELETE(this->aa);
+    	SAFE_DELETE(this->cc);
+    	SAFE_DELETE(this->rr);
+    	SAFE_DELETE(this->x);
+
+        #pragma acc exit data detach(this->a, this->c, this->rhs)
+        #pragma acc exit data delete(this->aa[:n], this->cc[:n], this->rr[:n], this->x[:n])
+        #pragma acc exit data delete(this)
+    }
+ 
+    void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs);
+
+    int solve();
+
+    int get_ans(real *x);
+
+    /**
+     * @brief Initialize CR with size `n`
+     * @note call this before call any function in CR
+     * 
+     * @param n size of the system
+     */
+    void init(int n) {
         this->n = n;
 
         RMALLOC(this->aa, this->n);
@@ -42,27 +73,12 @@ public:
 
         #pragma acc enter data copyin(this)
         #pragma acc enter data create(this->aa[0:n], this->cc[0:n], this->rr[0:n], this->x[0:n])
-        #pragma acc enter data copyin(this->a[0:n], this->c[0:n], this->rhs[0:n])
-        // TO-DO
-        // make sure diag = {1., 1., ..., 1.};
-    };
-
-    ~CR() {
-    	SAFE_DELETE(this->aa);
-    	SAFE_DELETE(this->cc);
-    	SAFE_DELETE(this->rr);
-    	SAFE_DELETE(this->x);
-
-        #pragma acc exit data delete(this->aa[:n], this->cc[:n], this->rr[:n], this->x[:n])
-        #pragma acc exit data copyout(this->a[0:n], this->c[0:n], this->rhs[0:n])
-        #pragma acc exit data delete(this, this->n)
     }
- 
-    int solve();
-
-    int get_ans(real *x);
 
 private:
+    CR(const CR &cr);
+    CR &operator=(const CR &cr);
+
 	int fr();
 	int bs();
 };

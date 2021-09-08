@@ -6,6 +6,7 @@
 #include <array>
 
 #include "PerfMonitor.h"
+#include "cr.hpp"
 #include "lib.hpp"
 #include "pm.hpp"
 
@@ -44,6 +45,7 @@ class TPR: Solver
     pm_lib::PerfMonitor *pm;
     std::array<std::string, 3> default_labels = { "st1", "st2", "st3" };
     std::array<std::string, 3> labels;
+    CR st2solver;
     int n, s, m;
 
 public:

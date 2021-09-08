@@ -57,6 +57,7 @@ if (${OPT_PAPI})
     target_link_directories(libtpr PUBLIC ${PAPI_DIR}/lib)
 endif()
 
+
 # build sample main and benchmark program
 if (TPR_PROJECT)
     # tpr_main

@@ -17,16 +17,22 @@ int main() {
     setup(sys, n);
 
     assign(sys);
-    CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-    cr.solve();
-    cr.get_ans(sys->diag);
+    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+    {
+        CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        cr.solve();
+        cr.get_ans(sys->diag);
+    }
     print_array(sys->diag, n);
     printf("\n");
 
     assign(sys);
-    PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-    p.solve();
-    p.get_ans(sys->diag);
+    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+    {
+        PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        p.solve();
+        p.get_ans(sys->diag);
+    }
     print_array(sys->diag, n);
     printf("\n");
 
@@ -39,10 +45,11 @@ int main() {
         std::cerr << "s=" << s << "\n";
         assign(sys);
         TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s, &pm);
-        pm.start(tpr_label);
-        int flop_count = t.solve();
-        flop_count += t.get_ans(sys->diag);
-        pm.stop(tpr_label, flop_count);
+        t.solve();
+        #pragma acc data copy(sys->diag[:n])
+        {
+            t.get_ans(sys->diag);
+        }
         print_array(sys->diag, n);
         printf("\n");
     }

@@ -107,16 +107,16 @@ int main(int argc, char *argv[]) {
             auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
             pm.setProperties(tpr_all_label, pm.CALC);
 
-            // Measureing TPR reusable implementation
-            {
-                TPR t(sys->n, s, &pm);
-                for (int i = 0; i < iter_times; i++) {
-                    assign(sys);
+            TPR t(sys->n, s, &pm);
+            for (int i = 0; i < iter_times; i++) {
+                assign(sys);
+                #pragma acc data copyin(sys->a[:n], sys->c[:n], sys->rhs[:n])
+                {
                     t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
                     pm.start(tpr_all_label);
                     int flop_count = t.solve();
                     flop_count += t.get_ans(sys->diag);
-                    pm.stop(tpr_all_label, flop_count);
+                    pm.stop(tpr_all_label, flop_count);                        
                 }
             }
         } break;
@@ -125,11 +125,14 @@ int main(int argc, char *argv[]) {
             pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
-                PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-                pm.start(pcr_label);
-                int flop_count = p.solve();
-                flop_count += p.get_ans(sys->diag);
-                pm.stop(pcr_label, flop_count);
+                #pragma acc data copyin(sys->a[:n], sys->c[:n], sys->rhs[:n])
+                {
+                    PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+                    pm.start(pcr_label);
+                    int flop_count = p.solve();
+                    flop_count += p.get_ans(sys->diag);
+                    pm.stop(pcr_label, flop_count);
+                }
             }
         } break;
     }
