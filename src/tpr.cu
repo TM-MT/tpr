@@ -54,6 +54,55 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             __syncthreads();
         }
     }
+
+__global__ void pcr_ker(float *a, float *c, float *rhs, float *x, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp_aa, tmp_cc, tmp_rr;
+
+    if (idx < n) {
+        for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
+            // reduction
+            int u = 1 << (p - 1); // offset
+            int lidx = idx - u;
+            float akl, ckl, rkl;
+            if (lidx < 0) {
+                akl = -1.0;
+                ckl = 0.0;
+                rkl = 0.0;
+            } else {
+                akl = a[lidx];
+                ckl = c[lidx];
+                rkl = rhs[lidx];
+            }
+            int ridx = idx + u;
+            float akr, ckr, rkr;
+            if (ridx >= n) {
+                akr = 0.0;
+                ckr = -1.0;
+                rkr = 0.0;
+            } else {
+                akr = a[ridx];
+                ckr = c[ridx];
+                rkr = rhs[ridx];
+            }
+
+            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
+
+            tmp_aa = - inv_diag_k * akl* a[idx];
+            tmp_cc = - inv_diag_k * ckr * c[idx];
+            tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
+
+            __syncthreads();
+
+            // copy back
+            a[idx] = tmp_aa;
+            c[idx] = tmp_cc;
+            rhs[idx] = tmp_rr;
+
+            __syncthreads();
+        }
+    }
+    x[idx] = rhs[idx];
 }
 
 
