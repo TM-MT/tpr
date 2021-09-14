@@ -51,6 +51,13 @@ add_library(libtpr
 target_include_directories(libtpr PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(libtpr PUBLIC libpcr)
 
+add_library(tpr_cu tpr.cu)
+set_target_properties(tpr_cu 
+    PROPERTIES POSITION_INDEPENDENT_CODE ON)
+                # CUDA_SEPARABLE_COMPILATION ON)
+target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
+
+
 # build sample main and benchmark program
 if (TPR_PROJECT)
     # tpr_main
@@ -59,7 +66,8 @@ if (TPR_PROJECT)
             main.cpp
             ${BACKWARD_ENABLE}
         )
-        set_target_properties(tpr_main PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+        set_target_properties(tpr_main 
+            PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX}) 
         target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src/backward-cpp)
         add_backward(tpr_main)
     else() # Release etc.
@@ -68,7 +76,7 @@ if (TPR_PROJECT)
         )
     endif()
     target_link_libraries(tpr_main
-        PUBLIC libcr libpcr libtpr)
+        PUBLIC libcr libpcr libtpr tpr_cu)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
                 ${PROJECT_SOURCE_DIR}/dbg-macro)
