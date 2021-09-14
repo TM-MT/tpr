@@ -56,6 +56,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     }
 
 __global__ void pcr_ker(float *a, float *c, float *rhs, float *x, int n) {
+__global__ void pcr_ker(float *a, float *c, float *rhs, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     float tmp_aa, tmp_cc, tmp_rr;
 
@@ -102,7 +103,6 @@ __global__ void pcr_ker(float *a, float *c, float *rhs, float *x, int n) {
             __syncthreads();
         }
     }
-    x[idx] = rhs[idx];
 }
 
 
