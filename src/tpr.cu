@@ -106,7 +106,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
 
     // PCR
-    if (idx < m) {
+    if (idx < n && idx == ed) {
         for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
              p <= static_cast<int>(log2f(static_cast<double>(n))); 
              p++) 
