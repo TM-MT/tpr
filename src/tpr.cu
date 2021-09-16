@@ -76,11 +76,10 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
             __syncthreads();
 
-            a[st] = tmp_aa;
-            c[st] = tmp_cc;
-            rhs[st] = tmp_rr;
+            a[idx] = tmp_aa;
+            c[idx] = tmp_cc;
+            rhs[idx] = tmp_rr;
         }
-        __syncthreads();
     }
 
 
@@ -102,8 +101,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     }
 
     // FIX-ME should be block sync
-    __syncthreads();
-
+    // __syncthreads();
 
     // PCR
     if (idx < n && idx == ed) {
@@ -126,7 +124,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             }
             int ridx = idx + u;
             float akr, ckr, rkr;
-            if (ridx >= m) {
+            if (ridx >= n) {
                 akr = 0.0;
                 ckr = -1.0;
                 rkr = 0.0;
@@ -142,16 +140,17 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             tmp_cc = - inv_diag_k * ckr * c[idx];
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
 
-            __syncthreads();
+            // __syncthreads();
 
             // copy back
             a[idx] = tmp_aa;
             c[idx] = tmp_cc;
             rhs[idx] = tmp_rr;
 
-            __syncthreads();
+            // __syncthreads();
         }
     }
+    // __syncthreads();
 
     // FIX-ME should be block sync
 
@@ -163,7 +162,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
         }
 
         // FIX-ME should be block sync
-        __syncthreads();
+        // __syncthreads();
 
         if (idx == st) {
             a[idx] = inter_ast;
@@ -177,7 +176,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             rhs[idx] = inter_rhsed;            
         }
 
-        __syncthreads();
+        // __syncthreads();
 
         int lidx = max(0, st - 1);
 
@@ -188,6 +187,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
         x[idx] = rhs[idx] - a[idx] * x[lidx] - c[idx] * key;
     }
+    return ;
 }
 
 /**
@@ -275,15 +275,17 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     tpr_ker<<<n / s, s>>>(d_a, d_c, d_r, d_x, n, s);
 
     cudaDeviceSynchronize();
-    cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost); 
+
+    CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
     for (int i = 0; i < n; i++) {
         std::cout << x[i] << ", ";
     }
     std::cout << "\n";
-    cudaFree(d_a);
-    cudaFree(d_c);
-    cudaFree(d_r);
-    cudaFree(d_x);
+    CU_CHECK(cudaFree(d_a));
+    CU_CHECK(cudaFree(d_c));
+    CU_CHECK(cudaFree(d_r));
+    CU_CHECK(cudaFree(d_x));
     free(x);
+    return ;
 }
