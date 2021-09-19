@@ -51,10 +51,10 @@ add_library(libtpr
 target_include_directories(libtpr PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(libtpr PUBLIC libpcr)
 
-add_library(tpr_cu tpr.cu)
+add_executable(tpr_cu  tpr.cu tpr.cuh)
 set_target_properties(tpr_cu 
-    PROPERTIES POSITION_INDEPENDENT_CODE ON)
-                # CUDA_SEPARABLE_COMPILATION ON)
+    PROPERTIES POSITION_INDEPENDENT_CODE ON
+                CUDA_SEPARABLE_COMPILATION ON)
 target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
 
 
@@ -76,7 +76,7 @@ if (TPR_PROJECT)
         )
     endif()
     target_link_libraries(tpr_main
-        PUBLIC libcr libpcr libtpr tpr_cu)
+        PUBLIC libcr libpcr libtpr)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
                 ${PROJECT_SOURCE_DIR}/dbg-macro)
