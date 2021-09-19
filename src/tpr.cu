@@ -353,9 +353,12 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
         CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
         CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
 
+        cudaDeviceSynchronize();
+
         pcr_ker<<<1, n>>>(d_a, d_c, d_r, n);
 
-        CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
+        cudaDeviceSynchronize();
+        CU_CHECK(cudaMemcpy(x, d_r, size, cudaMemcpyDeviceToHost));
 
         for (int i = 0; i < n; i++) {
             std::cout << x[i] << ", ";
