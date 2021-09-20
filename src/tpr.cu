@@ -252,11 +252,16 @@ __global__ void pcr_ker(float *a, float *c, float *rhs, int n) {
 
 
 int main() {
-    int n = 256;
+    int n = 1024;
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
+    for (int s = 128; s <= n; s *= 2) {
+        assign(sys);
+        tpr_cu(sys->a, sys->c, sys->rhs, n, s);
+    }
+
     assign(sys);
-    tpr_cu(sys->a, sys->c, sys->rhs, n, 64);
+    pcr_cu(sys->a, sys->c, sys->rhs, n);
 
     clean(sys);
     free(sys);
@@ -330,6 +335,7 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     CU_CHECK(cudaMalloc((void **)&d_r, size));
     CU_CHECK(cudaMalloc((void **)&d_x, size));
 
+    std::cerr << "TPR: s=" << s << "\n";
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice)); 
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice)); 
@@ -348,29 +354,50 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     }
     std::cout << "\n";
 
-    {
-        CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
-        CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
-        CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
-
-        cudaDeviceSynchronize();
-
-        pcr_ker<<<1, n>>>(d_a, d_c, d_r, n);
-
-        cudaDeviceSynchronize();
-        CU_CHECK(cudaMemcpy(x, d_r, size, cudaMemcpyDeviceToHost));
-
-        for (int i = 0; i < n; i++) {
-            std::cout << x[i] << ", ";
-        }
-        std::cout << "\n";
-    }
-
 
     CU_CHECK(cudaFree(d_a));
     CU_CHECK(cudaFree(d_c));
     CU_CHECK(cudaFree(d_r));
     CU_CHECK(cudaFree(d_x));
+    free(x);
+    return ;
+}
+
+
+
+void pcr_cu(float *a, float *c, float *rhs, int n) {
+    int size = n * sizeof(float);
+    // Host
+    float *x;
+
+    x = (float*)malloc(size);
+
+    // Device
+    float *d_a, *d_c, *d_r;   // device copies of a, c, rhs
+    CU_CHECK(cudaMalloc((void **)&d_a, size));
+    CU_CHECK(cudaMalloc((void **)&d_c, size));
+    CU_CHECK(cudaMalloc((void **)&d_r, size));
+
+    std::cerr << "PCR\n";
+    CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
+    CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
+    CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
+
+    cudaDeviceSynchronize();
+
+    pcr_ker<<<1, n>>>(d_a, d_c, d_r, n);
+
+    cudaDeviceSynchronize();
+    CU_CHECK(cudaMemcpy(x, d_r, size, cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < n; i++) {
+        std::cout << x[i] << ", ";
+    }
+    std::cout << "\n";
+
+    CU_CHECK(cudaFree(d_a));
+    CU_CHECK(cudaFree(d_c));
+    CU_CHECK(cudaFree(d_r));
     free(x);
     return ;
 }
