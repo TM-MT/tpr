@@ -156,6 +156,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     // FIX-ME should be block sync
 
     // stage 3
+    cg::thread_block tb = cg::this_thread_block();
     if (idx < n) {
         // copy the answer from stage 2 PCR
         if (idx == ed) {
@@ -176,9 +177,19 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             c[idx] = inter_ced;
             rhs[idx] = inter_rhsed;            
         }
+    }
+    tpr_st3_ker(tb, a, c, rhs, x, n, s);
+ 
+    return ;
+}
 
-        // __syncthreads();
 
+__device__ void tpr_st3_ker(cg::thread_block tb, float *a, float *c, float *rhs, float *x, int n, int s) {
+    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+    int st = idx / s * s;
+    int ed = st + s - 1;
+
+   if (idx < n) {
         int lidx = max(0, st - 1);
 
         float key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[lidx] - x[ed]);
