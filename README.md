@@ -29,7 +29,7 @@ $ export CC=nvc CXX=nvc++
 $ cmake -D CMAKE_BUILD_TYPE=Release -Dwith_ACC=yes -DCMAKE_C_FLAGS="-noswitcherror -ta=tesla:managed" -DCMAKE_CXX_FLAGS="-noswitcherror -ta=tesla:managed" -DRandom_BuildTests=off  ..
 
 # Use cuda
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_FLAGS="-Minfo=accel -noswitcherror -cuda -gpu=cc75" -DCMAKE_C_FLAGS="-noswitcherror" -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,code=sm_75"  -Dwith_ACC=no -DRandom_BuildTests=no ..
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_FLAGS="-Minfo=accel -noswitcherror -cuda -gpu=cc75" -DCMAKE_C_FLAGS="-noswitcherror" -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,code=sm_75"  -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
 ```
 
 #### Options
@@ -38,6 +38,7 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_C_COMPILER
  - `-D REAL_TYPE={float|double}`: Specify real type of floating point. The default is `float`.
  - `-D with_ACC={no|yes}`
  - `-D TPR_PERF={no|yes}`: Enable Performance monitoring for each stage in TPR. This option may affect the performance.
+ - `-D BUILD_CUDA={no|yes}`: Build tpr.cu. The default is `no`
 
 ## References
  - Adrián P. Diéguez, Margarita Amor, and Ramón Doallo. 2019. Tree Partitioning Reduction: A New Parallel Partition Method for Solving Tridiagonal Systems. ACM Trans. Math. Softw. 45, 3, Article 31 (August 2019), 26 pages. DOI:https://doi.org/10.1145/3328731

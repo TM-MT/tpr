@@ -5,7 +5,14 @@ if (DEFINED PROJECT_NAME)
     set(TPR_PROJECT OFF)
 endif()
 
-project(tpr C CXX CUDA)
+option(BUILD_CUDA "Build tpr.cu" off)
+
+if (BUILD_CUDA)
+    project(tpr C CXX CUDA)
+else()
+    project(tpr C CXX)
+endif()
+
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_DEBUG_POSTFIX d)

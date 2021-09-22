@@ -70,11 +70,13 @@ if (${OPT_PAPI})
     target_link_directories(libtpr PUBLIC ${PAPI_DIR}/lib)
 endif()
 
-add_executable(tpr_cu  tpr.cu tpr.cuh)
-set_target_properties(tpr_cu 
-    PROPERTIES POSITION_INDEPENDENT_CODE ON
-                CUDA_SEPARABLE_COMPILATION ON)
-target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
+if (BUILD_CUDA)
+    add_executable(tpr_cu  tpr.cu tpr.cuh)
+    set_target_properties(tpr_cu
+        PROPERTIES POSITION_INDEPENDENT_CODE ON
+                    CUDA_SEPARABLE_COMPILATION ON)
+    target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
+endif()
 
 
 # build sample main and benchmark program
