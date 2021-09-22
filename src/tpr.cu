@@ -32,17 +32,14 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     cg::thread_block tb = cg::this_thread_block();
 
     float tmp_aa, tmp_cc, tmp_rr;
+    // bkups, .x -> a, .y -> c, .z -> rhs
     float3 bkup_st;
-    float inter_ast, inter_cst, inter_rhsst; // bkup
     float inter_aed, inter_ced, inter_rhsed; // bkup
 
     tpr_st1_ker(tb, eq, params);
 
 
     tpr_inter(tb, eq, &bkup_st, params);
-    inter_ast = bkup_st.x;
-    inter_cst = bkup_st.y;
-    inter_rhsst = bkup_st.z;
 
 
     // Update E_{st-1} by E_{st}
@@ -122,9 +119,9 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     // stage 3
     if (idx < n) {
         if (idx == st) {
-            a[idx] = inter_ast;
-            c[idx] = inter_cst;
-            rhs[idx] = inter_rhsst;
+            a[idx] = bkup_st.x;
+            c[idx] = bkup_st.y;
+            rhs[idx] = bkup_st.z;
         }
 
         if (idx == ed && idx != n-1) {
