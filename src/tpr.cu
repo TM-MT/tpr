@@ -1,6 +1,12 @@
 #include "tpr.cuh"
 #include "main.hpp"
 #include <iostream>
+#include <cooperative_groups.h>
+#include <cooperative_groups/memcpy_async.h>
+#include <cooperative_groups/reduce.h>
+
+namespace cg = cooperative_groups;
+
 
 
 __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
@@ -8,15 +14,16 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     int m = n / s;
     int st = idx / s * s;
     int ed = st + s - 1;
-    // printf("%d: %d, %d\n", idx, st, ed);
+
 
     float tmp_aa, tmp_cc, tmp_rr;
     float inter_ast, inter_cst, inter_rhsst; // bkup
     float inter_aed, inter_ced, inter_rhsed; // bkup
 
+
     // stage 1
-    if (idx < n) {
-        for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
+    for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
+        if (idx < n) {
             // reduction
             int u = 1 << (p - 1); // offset
             int lidx = idx - u;
@@ -47,41 +54,45 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             tmp_aa = - inv_diag_k * akl* a[idx];
             tmp_cc = - inv_diag_k * ckr * c[idx];
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
+        }
 
-            __syncthreads();
+        __syncthreads();
 
+        if (idx < n) {
             // copy back
             a[idx] = tmp_aa;
             c[idx] = tmp_cc;
             rhs[idx] = tmp_rr;
-
-            __syncthreads();
         }
 
-        // Update E_{st} by E_{ed}
-        if (idx == st) {
-            int k = st, kr = ed;
-            float ak = a[k], akr = a[kr];
-            float ck = c[k], ckr = c[kr];
-            float rhsk = rhs[k], rhskr = rhs[kr];
-
-            float inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-            tmp_aa = inv_diag_k * ak;
-            tmp_cc = -inv_diag_k * ckr * ck;
-            tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
-
-            inter_ast = a[st];
-            inter_cst = c[st];
-            inter_rhsst = rhs[st];
-
-            __syncthreads();
-
-            a[idx] = tmp_aa;
-            c[idx] = tmp_cc;
-            rhs[idx] = tmp_rr;
-        }
+        __syncthreads();
     }
+
+
+    // Update E_{st} by E_{ed}
+    if (idx < n && idx == st) {
+        int k = st, kr = ed;
+        float ak = a[k], akr = a[kr];
+        float ck = c[k], ckr = c[kr];
+        float rhsk = rhs[k], rhskr = rhs[kr];
+
+        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+        tmp_aa = inv_diag_k * ak;
+        tmp_cc = -inv_diag_k * ckr * ck;
+        tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
+
+        inter_ast = a[st];
+        inter_cst = c[st];
+        inter_rhsst = rhs[st];
+
+        // __syncthreads();
+
+        a[idx] = tmp_aa;
+        c[idx] = tmp_cc;
+        rhs[idx] = tmp_rr;
+    }
+
 
 
     // Update E_{st-1} by E_{st}
@@ -102,14 +113,13 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     }
 
     // FIX-ME should be block sync
-    // __syncthreads();
 
     // PCR
-    if (idx < n && idx == ed) {
-        for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
-             p <= static_cast<int>(log2f(static_cast<double>(n))); 
-             p++) 
-        {
+    for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
+         p <= static_cast<int>(log2f(static_cast<double>(n)));
+         p++)
+    {
+        if (idx < n && idx == ed) {
             // reduction
             int u = 1 << (p - 1); // offset
             int lidx = idx - u;
@@ -140,32 +150,28 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             tmp_aa = - inv_diag_k * akl* a[idx];
             tmp_cc = - inv_diag_k * ckr * c[idx];
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
+        }
 
-            // __syncthreads();
+        __syncthreads();
 
-            // copy back
+        if (idx < n && idx == ed) {
+        // copy back
             a[idx] = tmp_aa;
             c[idx] = tmp_cc;
             rhs[idx] = tmp_rr;
-
-            // __syncthreads();
         }
+
+        __syncthreads();
     }
-    // __syncthreads();
 
-    // FIX-ME should be block sync
+    __syncthreads();
 
-    // stage 3
+
     cg::thread_block tb = cg::this_thread_block();
+    tpr_st2_copyback(tb, rhs, x, n, s);
+    __syncthreads();
+    // stage 3
     if (idx < n) {
-        // copy the answer from stage 2 PCR
-        if (idx == ed) {
-            x[idx] = rhs[idx];
-        }
-
-        // FIX-ME should be block sync
-        // __syncthreads();
-
         if (idx == st) {
             a[idx] = inter_ast;
             c[idx] = inter_cst;
@@ -175,14 +181,26 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
         if (idx == ed && idx != n-1) {
             a[idx] = inter_aed;
             c[idx] = inter_ced;
-            rhs[idx] = inter_rhsed;            
+            rhs[idx] = inter_rhsed;
         }
     }
+    __syncthreads();
     tpr_st3_ker(tb, a, c, rhs, x, n, s);
  
     return ;
 }
 
+
+// copy the answer from stage 2 PCR
+__device__ void tpr_st2_copyback(cg::thread_block tb, float *rhs, float *x, int n, int s) {
+	int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+    int st = idx / s * s;
+    int ed = st + s - 1;
+
+        if (idx < n && idx == ed) {
+            x[idx] = rhs[idx];
+        }
+}
 
 __device__ void tpr_st3_ker(cg::thread_block tb, float *a, float *c, float *rhs, float *x, int n, int s) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
@@ -349,7 +367,7 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     std::cerr << "TPR: s=" << s << "\n";
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice)); 
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
-    CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice)); 
+    CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
 
