@@ -43,7 +43,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
     tpr_inter_global(tb, eq, &bkup_ed, params);
 
-    // FIX-ME should be block sync
+    tb.sync();
 
     // PCR
     for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
@@ -83,7 +83,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
         }
 
-        __syncthreads();
+        tb.sync();
 
         if (idx < n && idx == ed) {
         // copy back
@@ -92,14 +92,14 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
             rhs[idx] = tmp_rr;
         }
 
-        __syncthreads();
+        tb.sync();
     }
 
-    __syncthreads();
+    tb.sync();
 
 
     tpr_st2_copyback(tb, rhs, x, n, s);
-    __syncthreads();
+    tb.sync();
     // stage 3
     if (idx < n && idx == st) {
         a[idx] = bkup_st.x;
@@ -114,7 +114,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
         rhs[idx] = bkup_ed.z;
     }
 
-    __syncthreads();
+    tb.sync();
 
     tpr_st3_ker(tb, eq, params);
  
@@ -179,7 +179,7 @@ __device__ void tpr_st1_ker(cg::thread_block tb, Equation eq, TPR_Params params)
 // TPR Intermidiate stage 1
 // Update E_{st} by E_{ed}
 __device__ void tpr_inter(cg::thread_block tb, Equation eq, float3 *bkup, TPR_Params params){
-    int idx = params.idx;
+    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
     if (idx < params.n && idx == params.st) {
@@ -229,7 +229,6 @@ __device__ void tpr_inter_global(cg::thread_block tb, Equation eq, float3 *bkup,
         bkup->y = eq.c[idx];
         bkup->z = eq.rhs[idx];
     }
-
 }
 
 
@@ -240,13 +239,13 @@ __device__ void tpr_st2_copyback(cg::thread_block tb, float *rhs, float *x, int 
     int st = idx / s * s;
     int ed = st + s - 1;
 
-        if (idx < n && idx == ed) {
-            x[idx] = rhs[idx];
-        }
+    if (idx < n && idx == ed) {
+        x[idx] = rhs[idx];
+    }
 }
 
 __device__ void tpr_st3_ker(cg::thread_block tb, Equation eq, TPR_Params params) {
-    int idx = params.idx;
+    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int st = params.st;
     int ed = params.ed;
     int n = params.n;
