@@ -7,6 +7,8 @@
 
 namespace cg = cooperative_groups;
 
+using namespace TPR_CU;
+
 
 
 __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
@@ -14,13 +16,27 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     int st = idx / s * s;
     int ed = st + s - 1;
 
+    Equation eq;
+    eq.a = a;
+    eq.c = c;
+    eq.rhs = rhs;
+    eq.x = x;
+
+    TPR_Params params;
+    params.n = n;
+    params.s = s;
+    params.idx = idx;
+    params.st = st;
+    params.ed = ed;
+
     cg::thread_block tb = cg::this_thread_block();
 
     float tmp_aa, tmp_cc, tmp_rr;
     float inter_ast, inter_cst, inter_rhsst; // bkup
     float inter_aed, inter_ced, inter_rhsed; // bkup
 
-    tpr_st1_ker(tb, a, c, rhs, n, s, idx);
+
+    tpr_st1_ker(tb, eq, params);
 
 
     // Update E_{st} by E_{ed}
@@ -138,18 +154,17 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
         }
     }
     __syncthreads();
-    tpr_st3_ker(tb, a, c, rhs, x, n, s);
+    tpr_st3_ker(tb, eq, params);
  
     return ;
 }
 
 
 // stage 1
-__device__ void tpr_st1_ker(cg::thread_block tb,
-    float *a, float *c, float *rhs, int n, int s,
-    int idx){
-    int st = idx / s * s;
-    int ed = st + s - 1;
+__device__ void tpr_st1_ker(cg::thread_block tb, Equation eq, TPR_Params params){
+    int idx = params.idx;
+    int n = params.n, s = params.s;
+    int st = params.st, ed = params.ed;
     float tmp_aa, tmp_cc, tmp_rr;
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
@@ -163,9 +178,9 @@ __device__ void tpr_st1_ker(cg::thread_block tb,
                 ckl = 0.0;
                 rkl = 0.0;
             } else {
-                akl = a[lidx];
-                ckl = c[lidx];
-                rkl = rhs[lidx];
+                akl = eq.a[lidx];
+                ckl = eq.c[lidx];
+                rkl = eq.rhs[lidx];
             }
             int ridx = idx + u;
             float akr, ckr, rkr;
@@ -174,25 +189,25 @@ __device__ void tpr_st1_ker(cg::thread_block tb,
                 ckr = -1.0;
                 rkr = 0.0;
             } else {
-                akr = a[ridx];
-                ckr = c[ridx];
-                rkr = rhs[ridx];
+                akr = eq.a[ridx];
+                ckr = eq.c[ridx];
+                rkr = eq.rhs[ridx];
             }
 
-            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
+            float inv_diag_k = 1.0 / (1.0 - ckl * eq.a[idx] - akr * eq.c[idx]);
 
-            tmp_aa = - inv_diag_k * akl* a[idx];
-            tmp_cc = - inv_diag_k * ckr * c[idx];
-            tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
+            tmp_aa = - inv_diag_k * akl* eq.a[idx];
+            tmp_cc = - inv_diag_k * ckr * eq.c[idx];
+            tmp_rr = inv_diag_k * (eq.rhs[idx] - rkl * eq.a[idx] - rkr * eq.c[idx]);
         }
 
         tb.sync();
 
         if (idx < n) {
             // copy back
-            a[idx] = tmp_aa;
-            c[idx] = tmp_cc;
-            rhs[idx] = tmp_rr;
+            eq.a[idx] = tmp_aa;
+            eq.c[idx] = tmp_cc;
+            eq.rhs[idx] = tmp_rr;
         }
 
         tb.sync();
@@ -212,20 +227,21 @@ __device__ void tpr_st2_copyback(cg::thread_block tb, float *rhs, float *x, int 
         }
 }
 
-__device__ void tpr_st3_ker(cg::thread_block tb, float *a, float *c, float *rhs, float *x, int n, int s) {
-    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-    int st = idx / s * s;
-    int ed = st + s - 1;
+__device__ void tpr_st3_ker(cg::thread_block tb, Equation eq, TPR_Params params) {
+    int idx = params.idx;
+    int st = params.st;
+    int ed = params.ed;
+    int n = params.n;
 
    if (idx < n) {
         int lidx = max(0, st - 1);
 
-        float key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[lidx] - x[ed]);
-        if (c[ed] == 0.0) {
+        float key = 1.0 / eq.c[ed] * (eq.rhs[ed] - eq.a[ed] * eq.x[lidx] - eq.x[ed]);
+        if (eq.c[ed] == 0.0) {
             key = 0.0;
         }
 
-        x[idx] = rhs[idx] - a[idx] * x[lidx] - c[idx] * key;
+        eq.x[idx] = eq.rhs[idx] - eq.a[idx] * eq.x[lidx] - eq.c[idx] * key;
     }
     return ;
 }
