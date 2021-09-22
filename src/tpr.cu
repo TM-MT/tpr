@@ -123,7 +123,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
 
 // stage 1
-__device__ void tpr_st1_ker(cg::thread_block tb, Equation eq, TPR_Params params){
+__device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params params){
     int idx = params.idx;
     int n = params.n, s = params.s;
     int st = params.st, ed = params.ed;
@@ -178,7 +178,7 @@ __device__ void tpr_st1_ker(cg::thread_block tb, Equation eq, TPR_Params params)
 
 // TPR Intermidiate stage 1
 // Update E_{st} by E_{ed}
-__device__ void tpr_inter(cg::thread_block tb, Equation eq, float3 *bkup, TPR_Params params){
+__device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params params){
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
@@ -206,7 +206,7 @@ __device__ void tpr_inter(cg::thread_block tb, Equation eq, float3 *bkup, TPR_Pa
 }
 
 // Update E_{st-1} by E_{st}
-__device__ void tpr_inter_global(cg::thread_block tb, Equation eq, float3 *bkup, TPR_Params params) {
+__device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
 
@@ -234,7 +234,7 @@ __device__ void tpr_inter_global(cg::thread_block tb, Equation eq, float3 *bkup,
 
 
 // copy the answer from stage 2 PCR
-__device__ void tpr_st2_copyback(cg::thread_block tb, float *rhs, float *x, int n, int s) {
+__device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int n, int s) {
 	int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int st = idx / s * s;
     int ed = st + s - 1;
@@ -244,7 +244,7 @@ __device__ void tpr_st2_copyback(cg::thread_block tb, float *rhs, float *x, int 
     }
 }
 
-__device__ void tpr_st3_ker(cg::thread_block tb, Equation eq, TPR_Params params) {
+__device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int st = params.st;
     int ed = params.ed;
