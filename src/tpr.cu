@@ -33,31 +33,15 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
     float tmp_aa, tmp_cc, tmp_rr;
     // bkups, .x -> a, .y -> c, .z -> rhs
-    float3 bkup_st;
-    float inter_aed, inter_ced, inter_rhsed; // bkup
+    float3 bkup_st, bkup_ed;
 
     tpr_st1_ker(tb, eq, params);
 
-
     tpr_inter(tb, eq, &bkup_st, params);
 
+    tb.sync();
 
-    // Update E_{st-1} by E_{st}
-    if (idx < n - 1 && idx == ed) {
-        int k = idx, kr = idx+1; // (k, kr) = (st-1, st)
-        float ak = a[k], akr = a[kr];
-        float ck = c[k], ckr = c[kr];
-        float rhsk = rhs[k], rhskr = rhs[kr];
-        float inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-        inter_aed = a[idx];
-        inter_ced = c[idx];
-        inter_rhsed = rhs[idx];
-
-        a[k] = inv_diag_k * ak;
-        c[k] = -inv_diag_k * ckr * ck;
-        rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
-    }
+    tpr_inter_global(tb, eq, &bkup_ed, params);
 
     // FIX-ME should be block sync
 
@@ -117,20 +101,21 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     tpr_st2_copyback(tb, rhs, x, n, s);
     __syncthreads();
     // stage 3
-    if (idx < n) {
-        if (idx == st) {
-            a[idx] = bkup_st.x;
-            c[idx] = bkup_st.y;
-            rhs[idx] = bkup_st.z;
-        }
-
-        if (idx == ed && idx != n-1) {
-            a[idx] = inter_aed;
-            c[idx] = inter_ced;
-            rhs[idx] = inter_rhsed;
-        }
+    if (idx < n && idx == st) {
+        a[idx] = bkup_st.x;
+        c[idx] = bkup_st.y;
+        rhs[idx] = bkup_st.z;
     }
+
+    // should be same condition as tpr_inter_global
+    if (idx < n && idx == ed) {
+        a[idx] = bkup_ed.x;
+        c[idx] = bkup_ed.y;
+        rhs[idx] = bkup_ed.z;
+    }
+
     __syncthreads();
+
     tpr_st3_ker(tb, eq, params);
  
     return ;
@@ -218,6 +203,33 @@ __device__ void tpr_inter(cg::thread_block tb, Equation eq, float3 *bkup, TPR_Pa
         eq.c[idx] = tmp_cc;
         eq.rhs[idx] = tmp_rr;
     }
+}
+
+// Update E_{st-1} by E_{st}
+__device__ void tpr_inter_global(cg::thread_block tb, Equation eq, float3 *bkup, TPR_Params params) {
+    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+    int ed = params.ed;
+
+    if (idx < params.n - 1 && idx == ed) {
+        int k = idx, kr = idx+1; // (k, kr) = (st-1, st)
+        float ak = eq.a[k], akr = eq.a[kr];
+        float ck = eq.c[k], ckr = eq.c[kr];
+        float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
+        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+        bkup->x = eq.a[idx];
+        bkup->y = eq.c[idx];
+        bkup->z = eq.rhs[idx];
+
+        eq.a[k] = inv_diag_k * ak;
+        eq.c[k] = -inv_diag_k * ckr * ck;
+        eq.rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+    } else if (idx == params.n - 1) {
+        bkup->x = eq.a[idx];
+        bkup->y = eq.c[idx];
+        bkup->z = eq.rhs[idx];
+    }
+
 }
 
 
