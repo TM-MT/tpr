@@ -32,37 +32,17 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     cg::thread_block tb = cg::this_thread_block();
 
     float tmp_aa, tmp_cc, tmp_rr;
+    float3 bkup_st;
     float inter_ast, inter_cst, inter_rhsst; // bkup
     float inter_aed, inter_ced, inter_rhsed; // bkup
-
 
     tpr_st1_ker(tb, eq, params);
 
 
-    // Update E_{st} by E_{ed}
-    if (idx < n && idx == st) {
-        int k = st, kr = ed;
-        float ak = a[k], akr = a[kr];
-        float ck = c[k], ckr = c[kr];
-        float rhsk = rhs[k], rhskr = rhs[kr];
-
-        float inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-        tmp_aa = inv_diag_k * ak;
-        tmp_cc = -inv_diag_k * ckr * ck;
-        tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
-
-        inter_ast = a[st];
-        inter_cst = c[st];
-        inter_rhsst = rhs[st];
-
-        // __syncthreads();
-
-        a[idx] = tmp_aa;
-        c[idx] = tmp_cc;
-        rhs[idx] = tmp_rr;
-    }
-
+    tpr_inter(tb, eq, &bkup_st, params);
+    inter_ast = bkup_st.x;
+    inter_cst = bkup_st.y;
+    inter_rhsst = bkup_st.z;
 
 
     // Update E_{st-1} by E_{st}
@@ -211,6 +191,35 @@ __device__ void tpr_st1_ker(cg::thread_block tb, Equation eq, TPR_Params params)
         }
 
         tb.sync();
+    }
+}
+
+// TPR Intermidiate stage 1
+// Update E_{st} by E_{ed}
+__device__ void tpr_inter(cg::thread_block tb, Equation eq, float3 *bkup, TPR_Params params){
+    int idx = params.idx;
+    float tmp_aa, tmp_cc, tmp_rr;
+
+    if (idx < params.n && idx == params.st) {
+        int k = params.st, kr = params.ed;
+        float ak = eq.a[k], akr = eq.a[kr];
+        float ck = eq.c[k], ckr = eq.c[kr];
+        float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
+
+        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+        tmp_aa = inv_diag_k * ak;
+        tmp_cc = -inv_diag_k * ckr * ck;
+        tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
+
+        // idx == st
+        bkup->x = eq.a[idx];
+        bkup->y = eq.c[idx];
+        bkup->z = eq.rhs[idx];
+
+        eq.a[idx] = tmp_aa;
+        eq.c[idx] = tmp_cc;
+        eq.rhs[idx] = tmp_rr;
     }
 }
 
