@@ -24,9 +24,12 @@ $ ./src/tpr_main
 # run with PMlib Reporting
 $ ./src/tpr_pm
 
-# Use GPU
+# Use GPU with OpenACC
 $ export CC=nvc CXX=nvc++
 $ cmake -D CMAKE_BUILD_TYPE=Release -Dwith_ACC=yes -DCMAKE_C_FLAGS="-noswitcherror -ta=tesla:managed" -DCMAKE_CXX_FLAGS="-noswitcherror -ta=tesla:managed" -DRandom_BuildTests=off  ..
+
+# Use cuda
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_FLAGS="-Minfo=accel -noswitcherror -cuda -gpu=cc75" -DCMAKE_C_FLAGS="-noswitcherror" -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,code=sm_75"  -Dwith_ACC=no -DRandom_BuildTests=no ..
 ```
 
 #### Options

@@ -5,7 +5,7 @@ if (DEFINED PROJECT_NAME)
     set(TPR_PROJECT OFF)
 endif()
 
-project(tpr C CXX)
+project(tpr C CXX CUDA)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_DEBUG_POSTFIX d)
