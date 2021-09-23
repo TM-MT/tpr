@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
 
             // Measureing TPR reusable implementation
             {
-                TPR t(sys->n, s);
+                PTPR t(sys->n, s);
                 for (int i = 0; i < iter_times; i++) {
                     assign(sys);
                     #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)

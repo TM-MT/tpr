@@ -46,7 +46,7 @@ int main() {
         assign(sys);
         #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
         {
-            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+            PTPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
             pmcpp::pm.start(tpr_label);
             int flop_count = t.solve();
             flop_count += t.get_ans(sys->diag);

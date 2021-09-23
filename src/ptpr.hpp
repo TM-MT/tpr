@@ -35,7 +35,7 @@ struct EquationInfo {
     real rhs;
 };
 
-class TPR: Solver
+class PTPR: Solver
 {
     real *a, *c, *rhs, *x;
     real *aa, *cc, *rr;
@@ -45,16 +45,16 @@ class TPR: Solver
     int n, s, m;
 
 public:
-    TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
+    PTPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
         init(n, s);
         set_tridiagonal_system(a, c, rhs);
     };
 
-    TPR(int n, int  s) {
+    PTPR(int n, int  s) {
         init(n, s);
     };
 
-    ~TPR() {
+    ~PTPR() {
         // free local variables
         delete[] &this->x[-1];
         SAFE_DELETE(this->aa);
@@ -84,8 +84,8 @@ public:
     int get_ans(real *x);
 
 private:
-    TPR(const TPR &tpr);
-    TPR &operator=(const TPR &tpr);
+    PTPR(const PTPR &ptpr);
+    PTPR &operator=(const PTPR &ptpr);
 
     void init(int n, int s);
 

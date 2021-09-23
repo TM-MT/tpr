@@ -80,11 +80,11 @@ namespace tprperf {
 
 
 /**
- * @brief set Tridiagonal System for TPR
+ * @brief set Tridiagonal System for PTPR
  *
  * USAGE
  * ```
- * TPR t(n, s);
+ * PTPR t(n, s);
  * t.set_tridiagonal_system(a, c, rhs);
  * t.solve();
  * t.get_ans(x);
@@ -94,7 +94,7 @@ namespace tprperf {
  * @param c
  * @param rhs
  */
-void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
+void PTPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->a = a;
     this->c = c;
     this->rhs = rhs;
@@ -105,15 +105,15 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 }
 
 /**
- * @brief Initializer for TPR()
- * @details Call this function first to set up for TPR
+ * @brief Initializer for PTPR()
+ * @details Call this function first to set up for PTPR
  *
  * @note This function should call once.
  *
  * @param n size of given system
  * @param s size of a slice. `s` should be power of 2
  */
-void TPR::init(int n, int s) {
+void PTPR::init(int n, int s) {
     tprperf::init(n, s);
 
     this->n = n;
@@ -173,19 +173,19 @@ void TPR::init(int n, int s) {
 
 
 /**
- * @brief      TPR STAGE 1
+ * @brief      PTPR STAGE 1
  *
  * @param[in]  st     start index of equation that this function calculate
  * @param[in]  ed     end index of equation that this function calculate
  */
-void TPR::tpr_stage1(int st, int ed) {
+void PTPR::tpr_stage1(int st, int ed) {
 }
 
 /**
  * @brief solve
  * @return num of float operation
  */
-int TPR::solve() {
+int PTPR::solve() {
     int fp_st1 = m * (14 * s * fllog2(s));
     int fp_st2 = 14 * m + (m-1) * 14 + (14 * m * fllog2(m));
     int fp_st3 = m * 4 * (s - 1);
@@ -322,10 +322,10 @@ int TPR::solve() {
 
 
 /**
- * @brief TPR STAGE 2
+ * @brief PTPR STAGE 2
  *
  */
-void TPR::tpr_stage2() {
+void PTPR::tpr_stage2() {
     #ifdef _OPENACC
     #pragma acc kernels present(this)
     #endif
@@ -396,7 +396,7 @@ void TPR::tpr_stage2() {
     this->st2solver.solve();
     // this->st2solver.get_ans(this->st2_rhs);
     // assert this->st2_rhs has the answer
-    // copy back to TPR::x
+    // copy back to PTPR::x
     #pragma acc kernels loop independent present(this)
     for (int i = s - 1; i < n; i += s) {
        this->x[i] = this->st2_rhs[i / s];
@@ -404,18 +404,18 @@ void TPR::tpr_stage2() {
 }
 
 /**
- * @brief      TPR STAGE 3
+ * @brief      PTPR STAGE 3
  *
  * @param[in]  st     start index of equation that this function calculate
  * @param[in]  ed     end index of equation that this function calculate
  */
-void TPR::tpr_stage3(int st, int ed) {
+void PTPR::tpr_stage3(int st, int ed) {
 }
 
 
 
 /// Update E_k by E_{kl}, E_{kr}
-EquationInfo TPR::update_no_check(int kl, int k, int kr) {
+EquationInfo PTPR::update_no_check(int kl, int k, int kr) {
     assert(0 <= kl && kl < k && k < kr && kr < n);
     real akl = a[kl];
     real ak = a[k];
@@ -440,7 +440,7 @@ EquationInfo TPR::update_no_check(int kl, int k, int kr) {
 
 
 /// Update E_k by E_{kr}
-EquationInfo TPR::update_uppper_no_check(int k, int kr) {
+EquationInfo PTPR::update_uppper_no_check(int k, int kr) {
     assert(0 <= k && k < kr && kr < n);
     real ak = a[k];
     real akr = a[kr];
@@ -461,7 +461,7 @@ EquationInfo TPR::update_uppper_no_check(int k, int kr) {
 }
 
 /// Update E_k by E_{kl}
-EquationInfo TPR::update_lower_no_check(int kl, int k) {
+EquationInfo PTPR::update_lower_no_check(int kl, int k) {
     assert(0 <= kl && kl < k && k < n);
     real ak = a[k];
     real akl = a[kl];
@@ -486,7 +486,7 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
  * @brief get the answer
  * @return num of float operation
  */
-int TPR::get_ans(real *x) {
+int PTPR::get_ans(real *x) {
     #pragma acc kernels loop present(this, this->x[:n], x[:n])
     for (int i = 0; i < n; i++) {
         x[i] = this->x[i];
