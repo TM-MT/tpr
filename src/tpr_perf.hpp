@@ -20,7 +20,7 @@ namespace tprperf {
     static std::array<std::string, 3> section_names = { "st1", "st2", "st3" };
     static std::array<std::string, 3> display_labels;
 
-    void init(int n, int s);
+    void init(std::string const& prefix);
     void start(tprperf::Labels lb);
     void stop(tprperf::Labels lb, double fp=0.0);
 }

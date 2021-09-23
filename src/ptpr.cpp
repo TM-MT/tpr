@@ -55,7 +55,8 @@ void PTPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
  * @param s size of a slice. `s` should be power of 2
  */
 void PTPR::init(int n, int s) {
-    tprperf::init(n, s);
+    auto format = std::string("PTPR_n_");
+    tprperf::init(format.replace(5, 1, std::to_string(s)));
 
     this->n = n;
     this->s = s;

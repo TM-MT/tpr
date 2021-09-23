@@ -10,16 +10,14 @@ namespace tprperf {
     /**
      * @brief Init Function for Perf.
      *
-     * @param n Size of Equation
-     * @param s
+     * @param prefix
      */
-    void init(int n, int s) {
+    void init(std::string const& prefix) {
         #ifdef TPR_PERF
         // Initialize PerfMonitor and set labels
         for (unsigned long int i = 0; i < section_names.size(); i++) {
-            auto format = std::string("TPR_n_");
-            auto gen_label = format.replace(4, 1, std::to_string(s))
-                                .append(section_names[i]);
+            auto format = prefix;  // make copy
+            auto gen_label = format.append(section_names[i]);
             display_labels[i] = gen_label;
             pmcpp::pm.setProperties(gen_label, pmcpp::pm.CALC);
         }
