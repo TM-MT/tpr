@@ -6,6 +6,8 @@ if (DEFINED PROJECT_NAME)
 endif()
 
 option(BUILD_CUDA "Build tpr.cu" off)
+# require this from cmake 3.18
+option(CU_ARCH "CUDA ARCHITECTURE" "")
 
 if (BUILD_CUDA)
     project(tpr C CXX CUDA)

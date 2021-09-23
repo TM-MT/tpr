@@ -75,6 +75,10 @@ if (BUILD_CUDA)
     set_target_properties(tpr_cu
         PROPERTIES POSITION_INDEPENDENT_CODE ON
                     CUDA_SEPARABLE_COMPILATION ON)
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+      set_property(TARGET tpr_cu APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+    endif()
+
     target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
 endif()
 
