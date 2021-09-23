@@ -7,6 +7,7 @@
 #include "main.hpp"
 #include "lib.hpp"
 #include "pcr.hpp"
+#include "tpr.hpp"
 #include "ptpr.hpp"
 #include "effolkronium/random.hpp"
 #include "pm.hpp"
@@ -42,6 +43,8 @@ namespace pmcpp {
             return Solver::PCR;
         } else if (solver.compare(std::string("tpr")) == 0) {
             return Solver::TPR;
+        } else if (solver.compare(std::string("ptpr")) == 0) {
+            return Solver::PTPR;
         } else{
             std::cerr << "Solver Not Found.\n";
             abort();
@@ -105,6 +108,26 @@ int main(int argc, char *argv[]) {
     switch (solver) {
         case pmcpp::Solver::TPR: {
             auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
+            pmcpp::pm.setProperties(tpr_all_label, pmcpp::pm.CALC);
+
+            // Measureing TPR reusable implementation
+            {
+                TPR t(sys->n, s);
+                for (int i = 0; i < iter_times; i++) {
+                    assign(sys);
+                    #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+                    {
+                        t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
+                        pmcpp::pm.start(tpr_all_label);
+                        int flop_count = t.solve();
+                        flop_count += t.get_ans(sys->diag);
+                        pmcpp::pm.stop(tpr_all_label, flop_count);
+                    }
+                }
+            }
+        } break;
+        case pmcpp::Solver::PTPR: {
+            auto tpr_all_label = std::string("PTPR_").append(std::to_string(s));
             pmcpp::pm.setProperties(tpr_all_label, pmcpp::pm.CALC);
 
             // Measureing TPR reusable implementation

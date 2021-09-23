@@ -15,7 +15,7 @@ namespace pmcpp {
     enum class Solver {
         TPR,
         PCR,
-
+        PTPR,
     };
     extern pm_lib::PerfMonitor pm;
 

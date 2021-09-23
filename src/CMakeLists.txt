@@ -51,6 +51,11 @@ set_property(TARGET tpr_perf
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
 target_link_libraries(tpr_perf PRIVATE pmlib)
+if (TPR_PERF)
+    set_property(TARGET tpr_perf
+        APPEND PROPERTY COMPILE_DEFINITIONS TPR_PERF="yes")
+endif()
+
 
 
 # TPR
@@ -61,16 +66,11 @@ target_include_directories(tpr
     PUBLIC ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/PMlib/include)
 target_link_libraries(tpr
-    PUBLIC pmlib libpcr tpr_perf)
+    PUBLIC pmlib libcr tpr_perf)
 set_property(TARGET tpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
 option(TPR_PERF "Enable PMlib in TPR" "no")
-if (TPR_PERF)
-    set_property(TARGET tpr
-        APPEND PROPERTY COMPILE_DEFINITIONS TPR_PERF="yes")
-endif()
-
 
 # PTPR
 add_library(ptpr
@@ -85,10 +85,6 @@ set_property(TARGET ptpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
 option(TPR_PERF "Enable PMlib in TPR" "no")
-if (TPR_PERF)
-    set_property(TARGET ptpr
-        APPEND PROPERTY COMPILE_DEFINITIONS TPR_PERF="yes")
-endif()
 
 
 if (${OPT_PAPI})
@@ -195,7 +191,7 @@ if (TPR_PROJECT)
         pm.cpp
     )
     target_link_libraries(tpr_pm
-        PUBLIC ptpr libpcr pmlib effolkronium_random)
+        PUBLIC tpr ptpr libpcr pmlib effolkronium_random)
     if (${OPT_PAPI})
         target_link_libraries(tpr_pm
             PUBLIC papi_ext "${PAPI_STATIC_LIB}")
