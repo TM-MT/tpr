@@ -8,7 +8,7 @@
 #include "PerfMonitor.h"
 #include "lib.hpp"
 #include "pcr.hpp"
-#include "tpr.hpp"
+#include "ptpr.hpp"
 
 
 namespace pmcpp {

@@ -45,29 +45,29 @@ target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
 
 
 # TPR
-add_library(libtpr
-    tpr.cpp)
+add_library(ptpr
+    ptpr.cpp)
 
-target_include_directories(libtpr
+target_include_directories(ptpr
     PUBLIC ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/PMlib/include)
-target_link_libraries(libtpr
+target_link_libraries(ptpr
     PUBLIC pmlib libpcr)
-set_property(TARGET libtpr
+set_property(TARGET ptpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
 option(TPR_PERF "Enable PMlib in TPR" "no")
 if (TPR_PERF) 
-    set_property(TARGET libtpr
+    set_property(TARGET ptpr
         APPEND PROPERTY COMPILE_DEFINITIONS TPR_PERF="yes")
 endif()
 
 
 if (${OPT_PAPI})
-    target_link_libraries(libtpr
+    target_link_libraries(ptpr
         PUBLIC papi_ext "${PAPI_STATIC_LIB}")
-    target_include_directories(libtpr PUBLIC ${PAPI_DIR}/include)
-    target_link_directories(libtpr PUBLIC ${PAPI_DIR}/lib)
+    target_include_directories(ptpr PUBLIC ${PAPI_DIR}/include)
+    target_link_directories(ptpr PUBLIC ${PAPI_DIR}/lib)
 endif()
 
 if (BUILD_CUDA)
@@ -101,7 +101,7 @@ if (TPR_PROJECT)
         )
     endif()
     target_link_libraries(tpr_main
-        PUBLIC libcr libpcr libtpr pmlib)
+        PUBLIC libcr libpcr ptpr pmlib)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/PMlib/include)
@@ -160,7 +160,7 @@ if (TPR_PROJECT)
         pm.cpp
     )
     target_link_libraries(tpr_pm
-        PUBLIC libtpr libpcr pmlib effolkronium_random)
+        PUBLIC ptpr libpcr pmlib effolkronium_random)
     if (${OPT_PAPI})
         target_link_libraries(tpr_pm
             PUBLIC papi_ext "${PAPI_STATIC_LIB}")

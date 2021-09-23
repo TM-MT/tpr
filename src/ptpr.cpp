@@ -7,7 +7,7 @@
 
 #include "lib.hpp"
 #include "pcr.hpp"
-#include "tpr.hpp"
+#include "ptpr.hpp"
 #include "pm.hpp"
 #include "PerfMonitor.h"
 

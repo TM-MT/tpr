@@ -1,4 +1,4 @@
-#include "tpr.cuh"
+#include "ptpr.cuh"
 #include "main.hpp"
 #include <iostream>
 #include <cooperative_groups.h>
