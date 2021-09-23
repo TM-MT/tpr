@@ -25,15 +25,17 @@
 #define SAFE_DELETE( p ) delete[] p; p = nullptr
 
 
-/**
- * @brief      Infomation of equation and its index
- */
-struct EquationInfo {
-    int idx;
-    real a;
-    real c;
-    real rhs;
-};
+namespace PTPR_Helpers {
+    /**
+     * @brief      Infomation of equation and its index
+     */
+    struct EquationInfo {
+        int idx;
+        real a;
+        real c;
+        real rhs;
+    };
+}
 
 class PTPR: Solver
 {
@@ -89,9 +91,9 @@ private:
 
     void init(int n, int s);
 
-    EquationInfo update_no_check(int kl, int k, int kr);
-    EquationInfo update_uppper_no_check(int k, int kr);
-    EquationInfo update_lower_no_check(int kl, int k);
+    PTPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);
+    PTPR_Helpers::EquationInfo update_uppper_no_check(int k, int kr);
+    PTPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
 
     void tpr_stage1(int st, int ed);
     void tpr_stage2();

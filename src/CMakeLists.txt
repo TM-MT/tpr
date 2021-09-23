@@ -44,7 +44,35 @@ add_library(libpcr
 target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
 
 
+# TPR_PERF
+add_library(tpr_perf tpr_perf.cpp tpr_perf.hpp)
+target_include_directories(tpr_perf PRIVATE ${PROJECT_SOURCE_DIR}/PMlib/include)
+set_property(TARGET tpr_perf
+    PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
+             COMPILE_DEFINITIONS enable_OPENMP="ON")
+target_link_libraries(tpr_perf PRIVATE pmlib)
+
+
 # TPR
+add_library(tpr
+    tpr.cpp)
+
+target_include_directories(tpr
+    PUBLIC ${PROJECT_SOURCE_DIR}/src
+            ${PROJECT_SOURCE_DIR}/PMlib/include)
+target_link_libraries(tpr
+    PUBLIC pmlib libpcr tpr_perf)
+set_property(TARGET tpr
+    PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
+             COMPILE_DEFINITIONS enable_OPENMP="ON")
+option(TPR_PERF "Enable PMlib in TPR" "no")
+if (TPR_PERF)
+    set_property(TARGET tpr
+        APPEND PROPERTY COMPILE_DEFINITIONS TPR_PERF="yes")
+endif()
+
+
+# PTPR
 add_library(ptpr
     ptpr.cpp)
 
@@ -52,7 +80,7 @@ target_include_directories(ptpr
     PUBLIC ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/PMlib/include)
 target_link_libraries(ptpr
-    PUBLIC pmlib libpcr)
+    PUBLIC pmlib libpcr tpr_perf)
 set_property(TARGET ptpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
@@ -108,7 +136,7 @@ if (TPR_PROJECT)
         )
     endif()
     target_link_libraries(tpr_main
-        PUBLIC libcr libpcr ptpr pmlib)
+        PUBLIC libcr libpcr tpr ptpr pmlib)
     target_include_directories(tpr_main
         PUBLIC ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/PMlib/include)

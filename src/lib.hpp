@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 
+
 // precision
 // same def as cz
 #ifdef _REAL_IS_DOUBLE_

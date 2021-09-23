@@ -8,7 +8,6 @@
 #include "PerfMonitor.h"
 #include "cr.hpp"
 #include "lib.hpp"
-#include "pcr.hpp"
 #include "pm.hpp"
 
 /**
@@ -25,16 +24,17 @@
  */
 #define SAFE_DELETE( p ) delete[] p; p = nullptr
 
-
-/**
- * @brief      Infomation of equation and its index
- */
-struct EquationInfo {
-    int idx;
-    real a;
-    real c;
-    real rhs;
-};
+namespace TPR_Helpers {
+    /**
+     * @brief      Infomation of equation and its index
+     */
+    struct EquationInfo {
+        int idx;
+        real a;
+        real c;
+        real rhs;
+    };
+}
 
 class TPR: Solver
 {
@@ -59,7 +59,7 @@ public:
 
     ~TPR() {
         // free local variables
-        delete[] &this->x[-1];
+        SAFE_DELETE(this->x);
         SAFE_DELETE(this->aa);
         SAFE_DELETE(this->cc);
         SAFE_DELETE(this->rr);
@@ -96,9 +96,9 @@ private:
 
     void init(int n, int s);
 
-    EquationInfo update_no_check(int kl, int k, int kr);
-    EquationInfo update_uppper_no_check(int k, int kr);
-    EquationInfo update_lower_no_check(int kl, int k);
+    TPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);
+    TPR_Helpers::EquationInfo update_uppper_no_check(int k, int kr);
+    TPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
 
     void st3_replace();
 

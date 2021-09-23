@@ -7,6 +7,7 @@
 #include "lib.hpp"
 #include "cr.hpp"
 #include "pcr.hpp"
+#include "tpr.hpp"
 #include "ptpr.hpp"
 
 pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
@@ -42,7 +43,25 @@ int main() {
     pmcpp::pm.setProperties(tpr_label, pmcpp::pm.CALC);
 
     for (int s = 4; s <= n; s *= 2) {
-        std::cerr << "s=" << s << "\n";
+        std::cerr << "TPR s=" << s << "\n";
+        assign(sys);
+        #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+        {
+            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+            pmcpp::pm.start(tpr_label);
+            int flop_count = t.solve();
+            flop_count += t.get_ans(sys->diag);
+            pmcpp::pm.stop(tpr_label, flop_count);
+        }
+        print_array(sys->diag, n);
+        printf("\n");
+    }
+
+    tpr_label = std::string("PTPR");
+    pmcpp::pm.setProperties(tpr_label, pmcpp::pm.CALC);
+
+    for (int s = 4; s <= n; s *= 2) {
+        std::cerr << "PTPR s=" << s << "\n";
         assign(sys);
         #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
         {
