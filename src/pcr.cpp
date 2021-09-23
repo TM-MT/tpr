@@ -88,7 +88,7 @@ int PCR::solve() {
 
 /**
  * @brief get the answer
- *  
+ *
  * @note [OpenACC] assert `*x` exists at the device
  * @return num of float operation
  */

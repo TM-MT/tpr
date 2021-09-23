@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
                         t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
                         pmcpp::pm.start(tpr_all_label);
                         int flop_count = t.solve();
-                        flop_count += t.get_ans(sys->diag);                        
+                        flop_count += t.get_ans(sys->diag);
                         pmcpp::pm.stop(tpr_all_label, flop_count);
                     }
                 }
@@ -128,6 +128,7 @@ int main(int argc, char *argv[]) {
             pmcpp::pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
+
                 #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
                 {
                     PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);

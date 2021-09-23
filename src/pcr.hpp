@@ -34,7 +34,7 @@ public:
         this->rhs1 = new real[n];
 
         #pragma acc enter data copyin(this)
-        #pragma acc enter data create(a1[:n], c1[:n], rhs1[:n]) 
+        #pragma acc enter data create(a1[:n], c1[:n], rhs1[:n])
     }
 
 

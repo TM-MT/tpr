@@ -6,8 +6,8 @@
 #endif
 
 #include "lib.hpp"
-#include "pcr.hpp"
-#include "ptpr.hpp"
+#include "cr.hpp"
+#include "tpr.hpp"
 #include "pm.hpp"
 #include "PerfMonitor.h"
 
@@ -80,11 +80,11 @@ namespace tprperf {
 
 
 /**
- * @brief set Tridiagonal System for PTPR
+ * @brief set Tridiagonal System for TPR
  *
  * USAGE
  * ```
- * PTPR t(n, s);
+ * TPR t(n, s);
  * t.set_tridiagonal_system(a, c, rhs);
  * t.solve();
  * t.get_ans(x);
@@ -94,26 +94,26 @@ namespace tprperf {
  * @param c
  * @param rhs
  */
-void PTPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
+void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->a = a;
     this->c = c;
     this->rhs = rhs;
     #ifdef _OPENACC
-    #pragma acc enter data copyin(a[:n], c[:n], rhs[:n])
+    #pragma acc enter data copyin(this->a[:n], this->c[:n], this->rhs[:n])
     #pragma acc update device(this)
     #endif
 }
 
 /**
- * @brief Initializer for PTPR()
- * @details Call this function first to set up for PTPR
+ * @brief Initializer for TPR()
+ * @details Call this function first to set up for TPR
  *
  * @note This function should call once.
  *
  * @param n size of given system
  * @param s size of a slice. `s` should be power of 2
  */
-void PTPR::init(int n, int s) {
+void TPR::init(int n, int s) {
     tprperf::init(n, s);
 
     this->n = n;
@@ -124,12 +124,11 @@ void PTPR::init(int n, int s) {
     this->st2solver.init(this->m);
 
     // allocation for answer
-    RMALLOC(this->x, n+1);
-    for (int i = 0; i < n + 1; i++) {
-        this->x[i] = 0;
-    }
-    this->x = &this->x[1];
-
+    RMALLOC(this->x, n);
+    // allocation for backup
+    RMALLOC(this->bkup_a, n);
+    RMALLOC(this->bkup_c, n);
+    RMALLOC(this->bkup_rhs, n);
     // allocation for stage 1 use
     RMALLOC(this->aa, n);
     RMALLOC(this->cc, n);
@@ -143,9 +142,10 @@ void PTPR::init(int n, int s) {
     RMALLOC(this->inter_c, 2 * n / s);
     RMALLOC(this->inter_rhs, 2 * n / s);
     #ifdef _OPENACC
-    #pragma acc enter data copyin(this, this->n, this->s)
+    #pragma acc enter data copyin(this)
     #pragma acc enter data create(aa[:n], cc[:n], rr[:n])
-    #pragma acc enter data copyin(x[-1:n+1])
+    #pragma acc enter data create(x[:n])
+    #pragma acc enter data create(bkup_a[:n], bkup_c[:n], bkup_rhs[:n])
     #pragma acc enter data create(st2_a[:n/s], st2_c[:n/s], st2_rhs[:n/s])
     #pragma acc enter data create(inter_a[:2*n/s], inter_c[:2*n/s], inter_rhs[:2*n/s])
     #endif
@@ -157,6 +157,9 @@ void PTPR::init(int n, int s) {
         none_null = none_null && (this->st2_a != nullptr);
         none_null = none_null && (this->st2_c != nullptr);
         none_null = none_null && (this->st2_rhs != nullptr);
+        none_null = none_null && (this->bkup_a != nullptr);
+        none_null = none_null && (this->bkup_c != nullptr);
+        none_null = none_null && (this->bkup_rhs != nullptr);
         none_null = none_null && (this->inter_a != nullptr);
         none_null = none_null && (this->inter_c != nullptr);
         none_null = none_null && (this->inter_rhs != nullptr);
@@ -173,110 +176,123 @@ void PTPR::init(int n, int s) {
 
 
 /**
- * @brief      PTPR STAGE 1
- *
- * @param[in]  st     start index of equation that this function calculate
- * @param[in]  ed     end index of equation that this function calculate
- */
-void PTPR::tpr_stage1(int st, int ed) {
-}
-
-/**
  * @brief solve
  * @return num of float operation
  */
-int PTPR::solve() {
-    int fp_st1 = m * (14 * s * fllog2(s));
-    int fp_st2 = 14 * m + (m-1) * 14 + (14 * m * fllog2(m));
+int TPR::solve() {
+    int fp_st1 = 28 * n - 14;
+    int fp_st2 = 14 * m - 19 + 4 * m;
     int fp_st3 = m * 4 * (s - 1);
 
     // STAGE 1
     tprperf::start(tprperf::Labels::st1);
-    #pragma acc data present(this, a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n])
-    for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
-        int u = pow2(p-1);
-
-        #ifdef _OPENACC
-        #pragma acc parallel num_gangs(this->m) vector_length(this->s) copyin(u)
-        #pragma acc loop gang
-        #endif
-        #ifdef _OPENMP
-        #pragma omp parallel for schedule(static)
-        #endif
-        for (int st = 0; st < this->n; st += s) {
-            // tpr_stage1(st, st + s - 1);
-            int ed = st + s - 1;
-
-            #ifdef _OPENACC
-            #pragma acc loop vector
-            #endif
-            #ifdef _OPENMP
-            #pragma omp simd
-            #endif
-            for (int i = st; i < st + u; i++) {
-                assert(i + u <= ed);
-
-                // from update_uppper_no_check(i, i + u);
-                int k = i;
-                int kr = i + u;
-
-                real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
-
-                aa[k] = inv_diag_k * a[k];
-                cc[k] = -inv_diag_k * c[kr] * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
-            }
-
-            #ifdef _OPENACC
-            #pragma acc loop vector
-            #endif
-            #ifdef _OPENMP
-            #pragma omp simd
-            #endif
-            for (int i = st + u; i <= ed - u; i++) {
-                assert(st <= i - u);
-                assert(i + u <= ed);
-
-                // from update_no_check(i - u , i, i + u);
-                int kl = i - u;
-                int k = i;
-                int kr = i + u;
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
-
-                aa[k] = - inv_diag_k * a[kl] * a[k];
-                cc[k] = - inv_diag_k * c[kr] * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
-            }
-
-            #ifdef _OPENACC
-            #pragma acc loop vector
-            #endif
-            #ifdef _OPENMP
-            #pragma omp simd
-            #endif
-            for (int i = ed - u + 1; i <= ed; i++) {
-                assert(st <= i - u);
-
-                // form update_lower_no_check(i - u, i);
-                int kl = i - u;
-                int k = i;
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
-
-                aa[k] = -inv_diag_k * a[kl] * a[k];
-                cc[k] = inv_diag_k * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
-            }
-        }
-        #pragma acc parallel loop collapse(2) num_gangs(this->m) vector_length(this->s)
-        for (int st = 0; st < this->n; st += s) {
-            // patch
-            for (int i = st; i <= st + s - 1; i++) {
-                this->a[i] = aa[i];
-                this->c[i] = cc[i];
-                this->rhs[i] = rr[i];
+    #pragma acc data present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
+    {
+        // Make Backup for Stage 3 use
+        #pragma acc parallel loop collapse(2)
+        #pragma omp parallel for
+        for (int st = 0; st < this->n; st += this->s) {
+            // mk_bkup_init(st, st + this->s - 1);
+            for (int i = st; i <= st + this->s - 1; i+=2) {
+                bkup_a[i] = a[i];
+                bkup_c[i] = c[i];
+                bkup_rhs[i] = rhs[i];
             }
         }
 
+        // TPR Stage 1
+        for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+            int u = pow2(p-1);
+            int p2k = pow2(p);
+            #pragma acc kernels
+            #pragma acc loop independent
+            #pragma omp parallel for schedule(static)
+            for (int st = 0; st < this->n; st += s) {
+                // tpr_stage1(st, st + s - 1);
+                int ed = st + s - 1;
+
+                // update_uppper_no_check(st, st + u);
+                {
+                    int k = st;
+                    int kr = st + u;
+                    real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
+
+                    aa[k] = inv_diag_k * a[k];
+                    cc[k] = -inv_diag_k * c[kr] * c[k];
+                    rr[k] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
+                }
+
+                #pragma acc loop independent
+                #pragma omp simd
+                for (int i = st + p2k; i <= ed - u; i += p2k) {
+                    assert(i + u <= ed);
+
+                    // from update_no_check(i - u , i, i + u);
+                    int kl = i - u;
+                    int k = i;
+                    int kr = i + u;
+                    real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+                    aa[k] = - inv_diag_k * a[kl] * a[k];
+                    cc[k] = - inv_diag_k * c[kr] * c[k];
+                    rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+                }
+
+                #pragma acc loop independent
+                #pragma omp simd
+                for (int i = st + p2k - 1; i <= ed - u; i += p2k) {
+                    assert(st <= i - u);
+                    assert(i + u <= ed);
+
+                    // from update_no_check(i - u , i, i + u);
+                    int kl = i - u;
+                    int k = i;
+                    int kr = i + u;
+                    real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+
+                    aa[k] = - inv_diag_k * a[kl] * a[k];
+                    cc[k] = - inv_diag_k * c[kr] * c[k];
+                    rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+                }
+
+                // update_lower_no_check(ed - u, ed);
+                {
+                    int kl = ed - u;
+                    int k = ed;
+                    real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+
+                    aa[k] = - inv_diag_k * a[kl] * a[k];
+                    cc[k] = inv_diag_k * c[k];
+                    rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
+                }
+
+                // patch
+                #pragma acc loop independent
+                for (int i = st; i <= ed; i += p2k) {
+                    this->a[i] = aa[i];
+                    this->c[i] = cc[i];
+                    this->rhs[i] = rr[i];
+                }
+                #pragma acc loop independent
+                for (int i = st + p2k - 1; i <= ed; i += p2k) {
+                    this->a[i] = aa[i];
+                    this->c[i] = cc[i];
+                    this->rhs[i] = rr[i];
+                }
+            }
+        }
+
+        // Make Backup for stage 3 use
+        #pragma acc parallel loop collapse(2)
+        #pragma omp parallel for
+        for (int st = 0; st < this->n; st += this->s) {
+            // mk_bkup_st1(st, st + this->s - 1);
+            for (int i = st + 1; i <= st + this->s - 1; i+=2) {
+                bkup_a[i] = a[i];
+                bkup_c[i] = c[i];
+                bkup_rhs[i] = rhs[i];
+            }
+        }
     }
     tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
 
@@ -285,34 +301,40 @@ int PTPR::solve() {
     tpr_stage2();
     tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
 
-    // STAGE 3
+    st3_replace();
     tprperf::start(tprperf::Labels::st3);
-    #ifdef _OPENACC
-    #pragma acc parallel num_gangs(this->m) vector_length(this->s-1) present(this, a[:n], c[:n], rhs[:n], x[:n])
-    #pragma acc loop gang independent
-    #endif
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
-    for (int st = 0; st < this->n; st += s) {
-        // from tpr_stage3(st, st + s - 1);
-        int ed = st + s - 1;
-        // x[-1] should be 0.0
+    // TPR Stage 3
+    #pragma acc data present(this, a[:n], c[:n], rhs[:n], x[:n])
+    for (int p = fllog2(s) - 1; p >= 0; p--) {
+        #pragma acc kernels loop independent
+        #pragma omp parallel for
+        for (int st = 0; st < this->n; st += s) {
+            // tpr_stage3(st, st + s - 1);
+            int ed = st + this->s - 1;
+            int u = pow2(p);
 
-        real key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[st-1] - x[ed]);
-        if (c[ed] == 0.0) {
-            key = 0.0;
-        }
+            assert(u > 0);
 
-        // x[ed] is known
-        #ifdef _OPENACC
-        #pragma acc loop vector
-        #endif
-        #ifdef _OPENMP
-        #pragma omp simd
-        #endif
-        for (int i = st; i < ed; i++) {
-            x[i] = rhs[i] - a[i] * x[st-1] - c[i] * key;
+            {
+                int i = st + u - 1;
+                real x_u;
+                if (i - u < 0) {
+                    x_u = 0.0;
+                } else {
+                    x_u = x[i - u];
+                }
+                this->x[i] = rhs[i] - a[i] * x_u - c[i]*x[i+u];
+            }
+
+            // update x[i]
+            #pragma acc loop independent
+            #pragma omp simd
+            for (int i = st + u - 1 + 2 * u; i <= ed; i += 2 * u) {
+                assert(i - u >= st);
+                assert(i + u <= ed);
+
+                this->x[i] = rhs[i] - a[i] * x[i-u] - c[i]*x[i+u];
+            }
         }
     }
     tprperf::stop(tprperf::Labels::st3, static_cast<double>(fp_st3));
@@ -322,18 +344,15 @@ int PTPR::solve() {
 
 
 /**
- * @brief PTPR STAGE 2
+ * @brief TPR STAGE 2
  *
  */
-void PTPR::tpr_stage2() {
-    #ifdef _OPENACC
+void TPR::tpr_stage2() {
     #pragma acc kernels present(this)
-    #endif
     {
         // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
-        #ifdef _OPENACC
         #pragma acc loop independent
-        #endif
+        #pragma omp simd
         for (int st = 0; st < this->n; st += s) {
             // EquationInfo eqi = update_uppper_no_check(st, ed);
             int k = st, kr = st + s - 1;
@@ -361,12 +380,8 @@ void PTPR::tpr_stage2() {
         {
             int len_inter = 2 * n / s;
 
-            #ifdef _OPENACC
             #pragma acc loop independent
-            #endif
-            #ifdef _OPENMP
             #pragma omp simd
-            #endif
             for (int i = 1; i < len_inter - 1; i += 2) {
                 int k = i;
                 int kr = i + 1;
@@ -391,31 +406,25 @@ void PTPR::tpr_stage2() {
         }
     }
 
-
     this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c, this->st2_rhs);
     this->st2solver.solve();
-    // this->st2solver.get_ans(this->st2_rhs);
-    // assert this->st2_rhs has the answer
-    // copy back to PTPR::x
+    this->st2solver.get_ans(this->st2_rhs);
+
+    // copy back
+    // this->st2_rhs has the answer
     #pragma acc kernels loop independent present(this)
-    for (int i = s - 1; i < n; i += s) {
-       this->x[i] = this->st2_rhs[i / s];
+    for (int i = 0; i < this->m; i++) {
+        x[(i+1)*this->s - 1] = this->st2_rhs[i];
     }
 }
 
-/**
- * @brief      PTPR STAGE 3
- *
- * @param[in]  st     start index of equation that this function calculate
- * @param[in]  ed     end index of equation that this function calculate
- */
-void PTPR::tpr_stage3(int st, int ed) {
+void TPR::tpr_stage3(int st, int ed) {
 }
 
 
 
 /// Update E_k by E_{kl}, E_{kr}
-EquationInfo PTPR::update_no_check(int kl, int k, int kr) {
+EquationInfo TPR::update_no_check(int kl, int k, int kr) {
     assert(0 <= kl && kl < k && k < kr && kr < n);
     real akl = a[kl];
     real ak = a[k];
@@ -440,7 +449,7 @@ EquationInfo PTPR::update_no_check(int kl, int k, int kr) {
 
 
 /// Update E_k by E_{kr}
-EquationInfo PTPR::update_uppper_no_check(int k, int kr) {
+EquationInfo TPR::update_uppper_no_check(int k, int kr) {
     assert(0 <= k && k < kr && kr < n);
     real ak = a[k];
     real akr = a[kr];
@@ -461,7 +470,7 @@ EquationInfo PTPR::update_uppper_no_check(int k, int kr) {
 }
 
 /// Update E_k by E_{kl}
-EquationInfo PTPR::update_lower_no_check(int kl, int k) {
+EquationInfo TPR::update_lower_no_check(int kl, int k) {
     assert(0 <= kl && kl < k && k < n);
     real ak = a[k];
     real akl = a[kl];
@@ -483,11 +492,28 @@ EquationInfo PTPR::update_lower_no_check(int kl, int k) {
 
 
 /**
+ * @brief   subroutine for STAGE 3 REPLACE
+ *
+ * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
+ */
+void TPR::st3_replace() {
+    #pragma acc parallel loop present(this)
+    for (int i = 0; i < this->n; i++) {
+        this->a[i] = this->bkup_a[i];
+        this->c[i] = this->bkup_c[i];
+        this->rhs[i] = this->bkup_rhs[i];
+    }
+}
+
+/**
  * @brief get the answer
+ * 
+ * @note [OpenACC] assert `*x` exists on device
+ * 
  * @return num of float operation
  */
-int PTPR::get_ans(real *x) {
-    #pragma acc kernels loop present(this, this->x[:n], x[:n])
+int TPR::get_ans(real *x) {
+    #pragma acc parallel loop present(x[:n], this->x[:n])
     for (int i = 0; i < n; i++) {
         x[i] = this->x[i];
     }

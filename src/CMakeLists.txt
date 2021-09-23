@@ -57,7 +57,7 @@ set_property(TARGET ptpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
 option(TPR_PERF "Enable PMlib in TPR" "no")
-if (TPR_PERF) 
+if (TPR_PERF)
     set_property(TARGET ptpr
         APPEND PROPERTY COMPILE_DEFINITIONS TPR_PERF="yes")
 endif()
@@ -70,16 +70,23 @@ if (${OPT_PAPI})
     target_link_directories(ptpr PUBLIC ${PAPI_DIR}/lib)
 endif()
 
+
 if (BUILD_CUDA)
     add_executable(tpr_cu  tpr.cu tpr.cuh)
     set_target_properties(tpr_cu
         PROPERTIES POSITION_INDEPENDENT_CODE ON
                     CUDA_SEPARABLE_COMPILATION ON)
+    add_executable(ptpr_cu  ptpr.cu ptpr.cuh)
+    set_target_properties(ptpr_cu
+        PROPERTIES POSITION_INDEPENDENT_CODE ON
+                    CUDA_SEPARABLE_COMPILATION ON)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
       set_property(TARGET tpr_cu APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+      set_property(TARGET ptpr_cu APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
 
     target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
+    target_include_directories(ptpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
 endif()
 
 
@@ -91,8 +98,8 @@ if (TPR_PROJECT)
             main.cpp
             ${BACKWARD_ENABLE}
         )
-        set_target_properties(tpr_main 
-            PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX}) 
+        set_target_properties(tpr_main
+            PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
         target_include_directories(tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src/backward-cpp)
         add_backward(tpr_main)
     else() # Release etc.
