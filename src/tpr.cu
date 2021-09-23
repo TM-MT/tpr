@@ -33,15 +33,28 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
     float tmp_aa, tmp_cc, tmp_rr;
     // bkups, .x -> a, .y -> c, .z -> rhs
-    float3 bkup_st, bkup_ed;
+    float3 bkup;
+
+    if (idx < n && idx % 2 == 0) {
+        bkup.x = a[idx];
+        bkup.y = c[idx];
+        bkup.z = rhs[idx];
+    }
 
     tpr_st1_ker(tb, eq, params);
 
-    tpr_inter(tb, eq, &bkup_st, params);
+
+    if (idx < n && idx % 2 == 1) {
+        bkup.x = a[idx];
+        bkup.y = c[idx];
+        bkup.z = rhs[idx];
+    }
+
+    tpr_inter(tb, eq, NULL, params);
 
     tb.sync();
 
-    tpr_inter_global(tb, eq, &bkup_ed, params);
+    tpr_inter_global(tb, eq, NULL, params);
 
     tb.sync();
 
@@ -101,17 +114,10 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     tpr_st2_copyback(tb, rhs, x, n, s);
     tb.sync();
     // stage 3
-    if (idx < n && idx == st) {
-        a[idx] = bkup_st.x;
-        c[idx] = bkup_st.y;
-        rhs[idx] = bkup_st.z;
-    }
-
-    // should be same condition as tpr_inter_global
-    if (idx < n && idx == ed) {
-        a[idx] = bkup_ed.x;
-        c[idx] = bkup_ed.y;
-        rhs[idx] = bkup_ed.z;
+    if (idx < n) {
+        a[idx] = bkup.x;
+        c[idx] = bkup.y;
+        rhs[idx] = bkup.z;
     }
 
     tb.sync();
@@ -130,9 +136,10 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
     float tmp_aa, tmp_cc, tmp_rr;
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
-        if (idx < n) {
+        int u = 1 << (p - 1); // offset
+        int p2k = 1 << p;
+        if (idx < n && (((idx - st) % p2k == 0) || ((idx - st + 1) % p2k == 0))) {
             // reduction
-            int u = 1 << (p - 1); // offset
             int lidx = idx - u;
             float akl, ckl, rkl;
             if (lidx < st) {
@@ -194,11 +201,6 @@ __device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_P
         tmp_cc = -inv_diag_k * ckr * ck;
         tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
 
-        // idx == st
-        bkup->x = eq.a[idx];
-        bkup->y = eq.c[idx];
-        bkup->z = eq.rhs[idx];
-
         eq.a[idx] = tmp_aa;
         eq.c[idx] = tmp_cc;
         eq.rhs[idx] = tmp_rr;
@@ -217,17 +219,9 @@ __device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
         float inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-        bkup->x = eq.a[idx];
-        bkup->y = eq.c[idx];
-        bkup->z = eq.rhs[idx];
-
         eq.a[k] = inv_diag_k * ak;
         eq.c[k] = -inv_diag_k * ckr * ck;
         eq.rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
-    } else if (idx == params.n - 1) {
-        bkup->x = eq.a[idx];
-        bkup->y = eq.c[idx];
-        bkup->z = eq.rhs[idx];
     }
 }
 
@@ -247,18 +241,23 @@ __device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int
 __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int st = params.st;
-    int ed = params.ed;
-    int n = params.n;
+    int n = params.n, s = params.s;
 
-   if (idx < n) {
-        int lidx = max(0, st - 1);
+    for (int p = static_cast<int>(log2f(static_cast<double>(s))) - 1; p >= 0; p--) {
+        int u = 1 << p;
 
-        float key = 1.0 / eq.c[ed] * (eq.rhs[ed] - eq.a[ed] * eq.x[lidx] - eq.x[ed]);
-        if (eq.c[ed] == 0.0) {
-            key = 0.0;
+        if (idx < n && (idx - st - u + 1) % (2 * u) == 0 && (idx - st - u + 1) > 0) {
+            int lidx = idx - u;
+            float x_u;
+            if (lidx < 0) {
+                x_u = 0.0;
+            } else {
+                x_u = eq.x[lidx];
+            }
+
+            eq.x[idx] = eq.rhs[idx] - eq.a[idx] * x_u - eq.c[idx] * eq.x[idx+u];
         }
-
-        eq.x[idx] = eq.rhs[idx] - eq.a[idx] * eq.x[lidx] - eq.c[idx] * key;
+        tb.sync();
     }
     return ;
 }
@@ -327,7 +326,7 @@ int main() {
     int n = 1024;
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    for (int s = 128; s <= n; s *= 2) {
+    for (int s = 256; s <= 256; s *= 2) {
         assign(sys);
         tpr_cu(sys->a, sys->c, sys->rhs, n, s);
     }
