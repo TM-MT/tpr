@@ -366,7 +366,7 @@ int main() {
     int n = 1024;
     struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    for (int s = 256; s <= 256; s *= 2) {
+    for (int s = 256; s <= n; s *= 2) {
         assign(sys);
         tpr_cu(sys->a, sys->c, sys->rhs, n, s);
     }
