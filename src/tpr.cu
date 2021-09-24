@@ -189,7 +189,7 @@ __device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_P
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
-    if (idx < params.n && idx == params.st) {
+    if ((idx < params.n) && (idx == params.st)) {
         int k = params.st, kr = params.ed;
         float ak = eq.a[k], akr = eq.a[kr];
         float ck = eq.c[k], ckr = eq.c[kr];
@@ -212,7 +212,7 @@ __device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
 
-    if (idx < params.n - 1 && idx == ed) {
+    if ((idx < params.n - 1) && (idx == ed)) {
         int k = idx, kr = idx+1; // (k, kr) = (st-1, st)
         float ak = eq.a[k], akr = eq.a[kr];
         float ck = eq.c[k], ckr = eq.c[kr];
@@ -246,7 +246,9 @@ __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
     for (int p = static_cast<int>(log2f(static_cast<double>(s))) - 1; p >= 0; p--) {
         int u = 1 << p;
 
-        if (idx < n && (idx - st - u + 1) % (2 * u) == 0 && (idx - st - u + 1) > 0) {
+        if (idx < n 
+            && ((idx - st - u + 1) % (2 * u) == 0) 
+            && ((idx - st - u + 1) >= 0)) {
             int lidx = idx - u;
             float x_u;
             if (lidx < 0) {
