@@ -265,14 +265,19 @@ __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
 }
 
 
-__global__ void pcr_ker(float *a, float *c, float *rhs, int n) {
+__global__ void cr_ker(float *a, float *c, float *rhs, float *x, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     float tmp_aa, tmp_cc, tmp_rr;
 
-    if (idx < n) {
-        for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
-            // reduction
-            int u = 1 << (p - 1); // offset
+    for (int p = 0; p < static_cast<int>(log2f(static_cast<double>(n))) - 1; p++) {
+        int u = 1 << p; // offset
+        int ux = 1 << (p + 1);
+        bool condition = (idx < n) 
+            && ((idx - ux + 1) % ux == 0)
+            && ((idx - ux + 1) >= 0);
+
+        // reduction
+        if (condition) {
             int lidx = idx - u;
             float akl, ckl, rkl;
             if (lidx < 0) {
@@ -301,17 +306,50 @@ __global__ void pcr_ker(float *a, float *c, float *rhs, int n) {
             tmp_aa = - inv_diag_k * akl* a[idx];
             tmp_cc = - inv_diag_k * ckr * c[idx];
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
+        }
 
-            __syncthreads();
+        __syncthreads();
 
-            // copy back
+        if (condition) {
             a[idx] = tmp_aa;
             c[idx] = tmp_cc;
             rhs[idx] = tmp_rr;
-
-            __syncthreads();
         }
+
+        __syncthreads();
     }
+
+    if ((n > 1) && (idx == n / 2 - 1)) {
+        int u = n / 2;
+        float inv_det = 1.0 / (1.0 - c[idx]*a[idx+u]);
+
+        x[idx] = (rhs[idx] - c[idx]*rhs[idx+u]) * inv_det;
+        x[idx+u] =  (rhs[idx+u] - rhs[idx]*a[idx+u]) * inv_det;
+    }
+
+    __syncthreads();
+
+    for (int p = static_cast<int>(log2f(static_cast<double>(n)))-2; p >= 0; p--) {
+        int u = 1 << p;
+        int ux = 1 << (p+1);
+        
+        if ((idx < n)
+            && ((idx - u + 1) % ux == 0)
+            && (idx - u + 1 >= 0))
+        {
+            int lidx = idx - u;
+            float x_u;
+            if (lidx < 0) {
+                x_u = 0.0;
+            } else {
+                x_u = x[lidx];
+            }
+            x[idx] = rhs[idx] - a[idx] * x_u - c[idx] * x[idx+u];
+        }
+
+        __syncthreads();
+    }
+    return ;
 }
 
 
@@ -334,7 +372,7 @@ int main() {
     }
 
     assign(sys);
-    pcr_cu(sys->a, sys->c, sys->rhs, n);
+    cr_cu(sys->a, sys->c, sys->rhs, n);
 
     clean(sys);
     free(sys);
@@ -438,7 +476,7 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
 
 
 
-void pcr_cu(float *a, float *c, float *rhs, int n) {
+void cr_cu(float *a, float *c, float *rhs, int n) {
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -446,22 +484,23 @@ void pcr_cu(float *a, float *c, float *rhs, int n) {
     x = (float*)malloc(size);
 
     // Device
-    float *d_a, *d_c, *d_r;   // device copies of a, c, rhs
+    float *d_a, *d_c, *d_r, *d_x;   // device copies of a, c, rhs
     CU_CHECK(cudaMalloc((void **)&d_a, size));
     CU_CHECK(cudaMalloc((void **)&d_c, size));
     CU_CHECK(cudaMalloc((void **)&d_r, size));
+    CU_CHECK(cudaMalloc((void **)&d_x, size));
 
-    std::cerr << "PCR\n";
+    std::cerr << "CR\n";
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
 
-    pcr_ker<<<1, n>>>(d_a, d_c, d_r, n);
+    cr_ker<<<1, n>>>(d_a, d_c, d_r, d_x, n);
 
     cudaDeviceSynchronize();
-    CU_CHECK(cudaMemcpy(x, d_r, size, cudaMemcpyDeviceToHost));
+    CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
     for (int i = 0; i < n; i++) {
         std::cout << x[i] << ", ";
@@ -471,6 +510,7 @@ void pcr_cu(float *a, float *c, float *rhs, int n) {
     CU_CHECK(cudaFree(d_a));
     CU_CHECK(cudaFree(d_c));
     CU_CHECK(cudaFree(d_r));
+    CU_CHECK(cudaFree(d_x));
     free(x);
     return ;
 }
