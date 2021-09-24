@@ -58,14 +58,19 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
     tb.sync();
 
-    // PCR
+    // CR
     for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
          p <= static_cast<int>(log2f(static_cast<double>(n)));
          p++)
     {
-        if (idx < n && idx == ed) {
+        int u = 1 << (p - 1); // offset
+        int ux = 1 << (p + 1);
+        bool select_idx = (idx < n) 
+            && ((idx - ux + 1) % ux == 0)
+            && ((idx - ux + 1) >= 0);
+        
+        if (select_idx) {
             // reduction
-            int u = 1 << (p - 1); // offset
             int lidx = idx - u;
             float akl, ckl, rkl;
             if (lidx < 0) {
@@ -98,8 +103,8 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
         tb.sync();
 
-        if (idx < n && idx == ed) {
-        // copy back
+        if (select_idx) {
+            // copy back
             a[idx] = tmp_aa;
             c[idx] = tmp_cc;
             rhs[idx] = tmp_rr;
@@ -108,10 +113,39 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
         tb.sync();
     }
 
+    if ((n > 1) && (idx == n / 2 - 1)) {
+        int u = n / 2;
+        float inv_det = 1.0 / (1.0 - c[idx]*a[idx+u]);
+
+        x[idx] = (rhs[idx] - c[idx]*rhs[idx+u]) * inv_det;
+        x[idx+u] =  (rhs[idx+u] - rhs[idx]*a[idx+u]) * inv_det;
+    }
+
     tb.sync();
 
+    for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2;
+         p >= static_cast<int>(log2f(static_cast<double>(s))); p--) 
+    {
+        int u = 1 << p;
+        int ux = 1 << (p+1);
+        
+        if ((idx < n)
+            && ((idx - u + 1) % ux == 0)
+            && (idx - u + 1 >= 0))
+        {
+            int lidx = idx - u;
+            float x_u;
+            if (lidx < 0) {
+                x_u = 0.0;
+            } else {
+                x_u = x[lidx];
+            }
+            x[idx] = rhs[idx] - a[idx] * x_u - c[idx] * x[idx+u];
+        }
 
-    tpr_st2_copyback(tb, rhs, x, n, s);
+        tb.sync();
+    }
+
     tb.sync();
     // stage 3
     if (idx < n) {
@@ -225,18 +259,6 @@ __device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup
     }
 }
 
-
-
-// copy the answer from stage 2 PCR
-__device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int n, int s) {
-	int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-    int st = idx / s * s;
-    int ed = st + s - 1;
-
-    if (idx < n && idx == ed) {
-        x[idx] = rhs[idx];
-    }
-}
 
 __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
