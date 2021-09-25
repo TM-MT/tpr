@@ -4,27 +4,6 @@ if (TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 
-if (with_ACC)
-    message(STATUS "Using OpenACC")
-    # For OpenACC
-    # Currently, only NVHPC, PGI, GNU and Cray compilers are supported. (cmake 3.20)
-    find_package(OpenACC REQUIRED)
-    if (OpenACC_C_FOUND AND OpenACC_CXX_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenACC_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenACC_CXX_FLAGS}")
-    else()
-        message(FATAL_ERROR "FAILED TO FIND OPENACC")
-    endif()
-else()
-    message(STATUS "Using OpenMP")
-    # For OpenMP
-    find_package(OpenMP REQUIRED)
-    if(OpenMP_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    endif()
-endif()
-
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -finline-functions -mavx2 -mfma -fopt-info-missed=missed.all --param vect-max-version-for-alias-checks=50")
