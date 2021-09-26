@@ -102,5 +102,5 @@ private:
 
     void tpr_stage1(int st, int ed);
     void tpr_stage2();
-    void tpr_stage3(int st, int ed);
+    void tpr_stage3();
 };
