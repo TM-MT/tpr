@@ -36,10 +36,11 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_C_COMPILER
 
 #### Options
  - `-D CMAKE_BUILD_TYPE={Release|Debug}`: Build type
- - `-D with_PAPI={path/to/papi|OFF}` : Specify path to PAPI installed directory. The default if `OFF`
+ - `-D with_PAPI={path/to/papi|OFF}` : Specify path to PAPI installed directory. The default is `OFF`
  - `-D REAL_TYPE={float|double}`: Specify real type of floating point. The default is `float`.
  - `-D with_ACC={no|yes}`
  - `-D TPR_PERF={no|yes}`: Enable Performance monitoring for each stage in TPR. This option may affect the performance.
+ - `-D ENABLE_TEST={no|yes}`: Enable building test. The default is `no`
  - `-D BUILD_CUDA={no|yes}`: Build tpr.cu. The default is `no`
  - `-D CU_ARCH={CMAKE_CUDA_ARCHITECTURES}`: (cmake >= 3.18) CUDA architectures. ex) ITO-B(Tesla P100) -> "60"
 
