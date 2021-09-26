@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
+#include "lib.hpp"
 #include "main.hpp"
 #include "cr.hpp"
-
+#include "pcr.hpp"
+#include "tpr.hpp"
+#include "ptpr.hpp"
 
 
 
@@ -94,12 +97,22 @@ protected:
 
     void array_float_eq(real *expect, real *actual) {
         for (int i = 0; i < n; i++) {
-            #ifdef _REAL_IS_DOUBLE_
-                ASSERT_DOUBLE_EQ(expect[i], actual[i]) << "Expect " << expect[i] << " but got " << actual[i] << " at index " << i << "\n";
-            #else
-                ASSERT_FLOAT_EQ(expect[i], actual[i]) << "Expect " << expect[i] << " but got " << actual[i] << " at index " << i << "\n";
-            #endif
+            EXPECT_NEAR(expect[i], actual[i], 1e-2) << "Expect " << expect[i] << " but got " << actual[i] << " at index " << i << "\n";
         }
+    }
+
+    void array_float_maxsqsum(real *expect, real *actual, real thre) {
+        real maxsqsum = 0.0;
+        int idx = -1;
+        for (int i = 0; i < n; i++) {
+            real d = powf(fabs(expect[i] - actual[i]), 2);
+            if (d > maxsqsum) {
+                maxsqsum = d;
+                idx = i;
+            }
+        }
+
+        EXPECT_NEAR(0.0, maxsqsum, thre) << "At index=" << idx << "\n";
     }
 };
 
@@ -110,8 +123,20 @@ TEST_F(Examples, CRTest) {
         CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
         cr.solve();
         cr.get_ans(sys->diag);
-        array_float_eq(ans_array, sys->diag);
     }
+    array_float_eq(ans_array, sys->diag);
+    array_float_maxsqsum(ans_array, sys->diag, 1e-3);
+}
+
+TEST_F(Examples, PCRTest) {
+    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+    {
+        PCR pcr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+        pcr.solve();
+        pcr.get_ans(sys->diag);
+    }
+    array_float_eq(ans_array, sys->diag);
+    array_float_maxsqsum(ans_array, sys->diag, 1e-3);
 }
 
 int setup(struct TRIDIAG_SYSTEM *sys, int n) {

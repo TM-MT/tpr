@@ -5,10 +5,8 @@
 #include <stdlib.h>
 #include <array>
 
-#include "PerfMonitor.h"
 #include "lib.hpp"
 #include "pcr.hpp"
-#include "pm.hpp"
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)

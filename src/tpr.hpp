@@ -5,10 +5,9 @@
 #include <stdlib.h>
 #include <array>
 
-#include "PerfMonitor.h"
 #include "cr.hpp"
 #include "lib.hpp"
-#include "pm.hpp"
+
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
@@ -43,7 +42,6 @@ class TPR: Solver
     real *st2_a, *st2_c, *st2_rhs;
     real *inter_a, *inter_c, *inter_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
-    pm_lib::PerfMonitor *pm;
     CR st2solver;
     int n, s, m;
 

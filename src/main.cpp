@@ -9,6 +9,7 @@
 #include "pcr.hpp"
 #include "tpr.hpp"
 #include "ptpr.hpp"
+#include "pm.hpp"
 
 pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 
