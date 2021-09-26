@@ -131,6 +131,28 @@ int TPR::solve() {
 
     // STAGE 1
     tprperf::start(tprperf::Labels::st1);
+    tpr_stage1();
+    tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
+
+    // STAGE 2
+    tprperf::start(tprperf::Labels::st2);
+    tpr_stage2();
+    tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
+
+    st3_replace();
+    tprperf::start(tprperf::Labels::st3);
+    // TPR Stage 3
+    tpr_stage3();
+    tprperf::stop(tprperf::Labels::st3, static_cast<double>(fp_st3));
+
+    return fp_st1 + fp_st2 + fp_st3;
+}
+
+
+/**
+ * @brief TPR stage 1
+ */
+void TPR::tpr_stage1() {
     #pragma acc data present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
     {
         // Make Backup for Stage 3 use
@@ -239,20 +261,6 @@ int TPR::solve() {
             }
         }
     }
-    tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
-
-    // STAGE 2
-    tprperf::start(tprperf::Labels::st2);
-    tpr_stage2();
-    tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
-
-    st3_replace();
-    tprperf::start(tprperf::Labels::st3);
-    // TPR Stage 3
-    tpr_stage3();
-    tprperf::stop(tprperf::Labels::st3, static_cast<double>(fp_st3));
-
-    return fp_st1 + fp_st2 + fp_st3;
 }
 
 
