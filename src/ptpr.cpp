@@ -115,15 +115,6 @@ void PTPR::init(int n, int s) {
 
 
 /**
- * @brief      PTPR STAGE 1
- *
- * @param[in]  st     start index of equation that this function calculate
- * @param[in]  ed     end index of equation that this function calculate
- */
-void PTPR::tpr_stage1(int st, int ed) {
-}
-
-/**
  * @brief solve
  * @return num of float operation
  */
@@ -134,6 +125,27 @@ int PTPR::solve() {
 
     // STAGE 1
     tprperf::start(tprperf::Labels::st1);
+    tpr_stage1();
+    tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
+
+    // STAGE 2
+    tprperf::start(tprperf::Labels::st2);
+    tpr_stage2();
+    tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
+
+    // STAGE 3
+    tprperf::start(tprperf::Labels::st3);
+    tpr_stage3();
+    tprperf::stop(tprperf::Labels::st3, static_cast<double>(fp_st3));
+
+    return fp_st1 + fp_st2 + fp_st3;
+}
+
+
+/**
+ * @brief      PTPR STAGE 1
+ */
+void PTPR::tpr_stage1() {
     #pragma acc data present(this, a[:n], c[:n], rhs[:n], aa[:n], cc[:n], rr[:n])
     for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
         int u = pow2(p-1);
@@ -220,46 +232,6 @@ int PTPR::solve() {
         }
 
     }
-    tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
-
-    // STAGE 2
-    tprperf::start(tprperf::Labels::st2);
-    tpr_stage2();
-    tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
-
-    // STAGE 3
-    tprperf::start(tprperf::Labels::st3);
-    #ifdef _OPENACC
-    #pragma acc parallel num_gangs(this->m) vector_length(this->s-1) present(this, a[:n], c[:n], rhs[:n], x[:n])
-    #pragma acc loop gang independent
-    #endif
-    #ifdef _OPENMP
-    #pragma omp parallel for schedule(static)
-    #endif
-    for (int st = 0; st < this->n; st += s) {
-        // from tpr_stage3(st, st + s - 1);
-        int ed = st + s - 1;
-        // x[-1] should be 0.0
-
-        real key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[st-1] - x[ed]);
-        if (c[ed] == 0.0) {
-            key = 0.0;
-        }
-
-        // x[ed] is known
-        #ifdef _OPENACC
-        #pragma acc loop vector
-        #endif
-        #ifdef _OPENMP
-        #pragma omp simd
-        #endif
-        for (int i = st; i < ed; i++) {
-            x[i] = rhs[i] - a[i] * x[st-1] - c[i] * key;
-        }
-    }
-    tprperf::stop(tprperf::Labels::st3, static_cast<double>(fp_st3));
-
-    return fp_st1 + fp_st2 + fp_st3;
 }
 
 
@@ -347,11 +319,36 @@ void PTPR::tpr_stage2() {
 
 /**
  * @brief      PTPR STAGE 3
- *
- * @param[in]  st     start index of equation that this function calculate
- * @param[in]  ed     end index of equation that this function calculate
  */
-void PTPR::tpr_stage3(int st, int ed) {
+void PTPR::tpr_stage3() {
+    #ifdef _OPENACC
+    #pragma acc parallel num_gangs(this->m) vector_length(this->s-1) present(this, a[:n], c[:n], rhs[:n], x[:n])
+    #pragma acc loop gang independent
+    #endif
+    #ifdef _OPENMP
+    #pragma omp parallel for schedule(static)
+    #endif
+    for (int st = 0; st < this->n; st += s) {
+        // from tpr_stage3(st, st + s - 1);
+        int ed = st + s - 1;
+        // x[-1] should be 0.0
+
+        real key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[st-1] - x[ed]);
+        if (c[ed] == 0.0) {
+            key = 0.0;
+        }
+
+        // x[ed] is known
+        #ifdef _OPENACC
+        #pragma acc loop vector
+        #endif
+        #ifdef _OPENMP
+        #pragma omp simd
+        #endif
+        for (int i = st; i < ed; i++) {
+            x[i] = rhs[i] - a[i] * x[st-1] - c[i] * key;
+        }
+    }
 }
 
 
