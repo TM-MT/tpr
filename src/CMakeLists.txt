@@ -4,12 +4,6 @@ if (TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -finline-functions -mavx2 -mfma -fopt-info-missed=missed.all --param vect-max-version-for-alias-checks=50")
-    endif()
-endif()
-
 # CR
 add_library(libcr
     cr.cpp)
@@ -49,7 +43,6 @@ target_link_libraries(tpr
 set_property(TARGET tpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
-option(TPR_PERF "Enable PMlib in TPR" "no")
 
 # PTPR
 add_library(ptpr
@@ -63,7 +56,6 @@ target_link_libraries(ptpr
 set_property(TARGET ptpr
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
              COMPILE_DEFINITIONS enable_OPENMP="ON")
-option(TPR_PERF "Enable PMlib in TPR" "no")
 
 
 if (${OPT_PAPI})
@@ -130,7 +122,6 @@ if (TPR_PROJECT)
            ${pmlib_srcdir}/PerfProgFortran.cpp)
     configure_file( ${pmlib_incdir}/pmVersion.h.in ${pmlib_incdir}/pmVersion.h @ONLY)
 
-    option (with_PAPI "Enable PAPI" "OFF")
 
     add_library(pmlib STATIC ${pm_files})
     target_include_directories(pmlib PUBLIC ${pmlib_incdir})

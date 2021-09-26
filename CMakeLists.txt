@@ -5,10 +5,13 @@ if (DEFINED PROJECT_NAME)
     set(TPR_PROJECT OFF)
 endif()
 
-option(BUILD_CUDA "Build tpr.cu" off)
+
+option(BUILD_CUDA "Build {tpr|ptpr}.cu" off)
 # require this from cmake 3.18
 option(CU_ARCH "CUDA ARCHITECTURE" "")
 option(ENABLE_TEST "MAKE TEST" off)
+option(TPR_PERF "Enable PMlib in TPR" "no")
+option (with_PAPI "Enable PAPI" "OFF")
 
 if (BUILD_CUDA)
     project(tpr C CXX CUDA)
@@ -42,6 +45,13 @@ else()
     endif()
 endif()
 
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # increase alias check param
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --param vect-max-version-for-alias-checks=50")
+    endif()
+endif()
 
 if(with_PAPI)
     add_definitions(-DUSE_PAPI)
