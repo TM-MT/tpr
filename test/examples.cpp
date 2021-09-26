@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include "PerfMonitor.h"
+#include "pm.hpp"
 #include "lib.hpp"
 #include "main.hpp"
 #include "cr.hpp"
@@ -7,6 +9,7 @@
 #include "ptpr.hpp"
 
 
+pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 
 class Examples : public ::testing::Test {
 public:
@@ -138,6 +141,40 @@ TEST_F(Examples, PCRTest) {
     array_float_eq(ans_array, sys->diag);
     array_float_maxsqsum(ans_array, sys->diag, 1e-3);
 }
+
+
+TEST_F(Examples, TPRTest) {
+    for (int s = 4; s <= n; s *= 2) {
+        assign(sys);
+        #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+        {
+            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+            t.solve();
+            t.get_ans(sys->diag);
+        }
+        print_array(sys->diag, n);
+        printf("\n");
+    }
+    array_float_eq(ans_array, sys->diag);
+    array_float_maxsqsum(ans_array, sys->diag, 1e-3);
+}
+
+TEST_F(Examples, PTPRTest) {
+    for (int s = 4; s <= n; s *= 2) {
+        assign(sys);
+        #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+        {
+            PTPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
+            t.solve();
+            t.get_ans(sys->diag);
+        }
+        print_array(sys->diag, n);
+        printf("\n");
+    }
+    array_float_eq(ans_array, sys->diag);
+    array_float_maxsqsum(ans_array, sys->diag, 1e-3);
+}
+
 
 int setup(struct TRIDIAG_SYSTEM *sys, int n) {
     sys->a = (real *)malloc(n * sizeof(real));
