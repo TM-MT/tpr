@@ -93,7 +93,7 @@ private:
     PTPR_Helpers::EquationInfo update_uppper_no_check(int k, int kr);
     PTPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
 
-    void tpr_stage1(int st, int ed);
+    void tpr_stage1();
     void tpr_stage2();
-    void tpr_stage3(int st, int ed);
+    void tpr_stage3();
 };

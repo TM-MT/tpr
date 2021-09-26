@@ -115,15 +115,6 @@ void PTPR::init(int n, int s) {
 
 
 /**
- * @brief      PTPR STAGE 1
- *
- * @param[in]  st     start index of equation that this function calculate
- * @param[in]  ed     end index of equation that this function calculate
- */
-void PTPR::tpr_stage1(int st, int ed) {
-}
-
-/**
  * @brief solve
  * @return num of float operation
  */
@@ -264,6 +255,13 @@ int PTPR::solve() {
 
 
 /**
+ * @brief      PTPR STAGE 1
+ */
+void PTPR::tpr_stage1() {
+}
+
+
+/**
  * @brief PTPR STAGE 2
  *
  */
@@ -347,11 +345,8 @@ void PTPR::tpr_stage2() {
 
 /**
  * @brief      PTPR STAGE 3
- *
- * @param[in]  st     start index of equation that this function calculate
- * @param[in]  ed     end index of equation that this function calculate
  */
-void PTPR::tpr_stage3(int st, int ed) {
+void PTPR::tpr_stage3() {
 }
 
 
