@@ -9,6 +9,7 @@ namespace cg = cooperative_groups;
 
 using namespace TPR_CU;
 
+extern __shared__ float array[];
 
 
 __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
@@ -125,55 +126,74 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 // stage 1
 __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params){
     int idx = params.idx;
+    int i = tb.thread_index().x;
     int n = params.n, s = params.s;
     int st = params.st, ed = params.ed;
     float tmp_aa, tmp_cc, tmp_rr;
+    __shared__ float *sha, *shc, *shrhs;
+    sha = (float*)array;
+    shc = (float*)&array[s];
+    shrhs = (float*)&array[2 * s];
+
+    // copy to shared memory
+    if (idx < n) {
+        sha[idx-st] = eq.a[idx];
+        shc[idx-st] = eq.c[idx];
+        shrhs[idx-st] = eq.rhs[idx];
+    }
+    tb.sync();
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
         if (idx < n) {
             // reduction
             int u = 1 << (p - 1); // offset
-            int lidx = idx - u;
+            int lidx = i - u;
             float akl, ckl, rkl;
-            if (lidx < st) {
+            if (lidx < 0) {
                 akl = -1.0;
                 ckl = 0.0;
                 rkl = 0.0;
             } else {
-                akl = eq.a[lidx];
-                ckl = eq.c[lidx];
-                rkl = eq.rhs[lidx];
+                akl = sha[lidx];
+                ckl = shc[lidx];
+                rkl = shrhs[lidx];
             }
-            int ridx = idx + u;
+            int ridx = i + u;
             float akr, ckr, rkr;
-            if (ridx > ed) {
+            if (ridx >= s) {
                 akr = 0.0;
                 ckr = -1.0;
                 rkr = 0.0;
             } else {
-                akr = eq.a[ridx];
-                ckr = eq.c[ridx];
-                rkr = eq.rhs[ridx];
+                akr = sha[ridx];
+                ckr = shc[ridx];
+                rkr = shrhs[ridx];
             }
 
-            float inv_diag_k = 1.0 / (1.0 - ckl * eq.a[idx] - akr * eq.c[idx]);
+            float inv_diag_k = 1.0 / (1.0 - ckl * sha[i] - akr * shc[i]);
 
-            tmp_aa = - inv_diag_k * akl* eq.a[idx];
-            tmp_cc = - inv_diag_k * ckr * eq.c[idx];
-            tmp_rr = inv_diag_k * (eq.rhs[idx] - rkl * eq.a[idx] - rkr * eq.c[idx]);
+            tmp_aa = - inv_diag_k * akl* sha[i];
+            tmp_cc = - inv_diag_k * ckr * shc[i];
+            tmp_rr = inv_diag_k * (shrhs[i] - rkl * sha[i] - rkr * shc[i]);
         }
 
         tb.sync();
 
         if (idx < n) {
             // copy back
-            eq.a[idx] = tmp_aa;
-            eq.c[idx] = tmp_cc;
-            eq.rhs[idx] = tmp_rr;
+            sha[i] = tmp_aa;
+            shc[i] = tmp_cc;
+            shrhs[i] = tmp_rr;
         }
 
         tb.sync();
     }
+
+    // copy back
+    eq.a[idx] = sha[idx - st];
+    eq.c[idx] = shc[idx - st];
+    eq.rhs[idx] = shrhs[idx - st];
+    tb.sync();
 }
 
 // TPR Intermidiate stage 1
@@ -415,7 +435,7 @@ void ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
     cudaDeviceSynchronize();
 
     // launch
-    tpr_ker<<<n / s, s>>>(d_a, d_c, d_r, d_x, n, s);
+    tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
 
     cudaDeviceSynchronize();
 
