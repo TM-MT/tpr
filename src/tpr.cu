@@ -11,7 +11,7 @@ using namespace TPR_CU;
 
 
 
-__global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
+__global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
@@ -163,7 +163,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
 
 // stage 1
-__device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params){
+__device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params){
     int idx = params.idx;
     int n = params.n, s = params.s;
     int st = params.st, ed = params.ed;
@@ -219,7 +219,7 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
 
 // TPR Intermidiate stage 1
 // Update E_{st} by E_{ed}
-__device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params){
+__device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params){
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
@@ -242,7 +242,7 @@ __device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_P
 }
 
 // Update E_{st-1} by E_{st}
-__device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params) {
+__device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
 
@@ -260,7 +260,7 @@ __device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup
 }
 
 
-__device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
+__device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int st = params.st;
     int n = params.n, s = params.s;
@@ -287,7 +287,7 @@ __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
 }
 
 
-__global__ void cr_ker(float *a, float *c, float *rhs, float *x, int n) {
+__global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     float tmp_aa, tmp_cc, tmp_rr;
 
@@ -453,7 +453,7 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 
 
 
-void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
+void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -498,7 +498,7 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
 
 
 
-void cr_cu(float *a, float *c, float *rhs, int n) {
+void TPR_CU::cr_cu(float *a, float *c, float *rhs, int n) {
     int size = n * sizeof(float);
     // Host
     float *x;
