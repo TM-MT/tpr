@@ -1,5 +1,7 @@
 # Tree Partitioning Reduction
 
+[![CMake](https://github.com/TM-MT/tpr/actions/workflows/cmake.yml/badge.svg)](https://github.com/TM-MT/tpr/actions/workflows/cmake.yml)
+
 ## Requirements
  - cmake >= 3.8.0
  - g++ >= 9.0.0
