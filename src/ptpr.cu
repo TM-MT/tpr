@@ -329,7 +329,7 @@ int main() {
     setup(sys, n);
     for (int s = 128; s <= n; s *= 2) {
         assign(sys);
-        tpr_cu(sys->a, sys->c, sys->rhs, n, s);
+        ptpr_cu(sys->a, sys->c, sys->rhs, n, s);
     }
 
     assign(sys);
@@ -392,7 +392,7 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 
 
 
-void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
+void ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -407,7 +407,7 @@ void tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     CU_CHECK(cudaMalloc((void **)&d_r, size));
     CU_CHECK(cudaMalloc((void **)&d_x, size));
 
-    std::cerr << "TPR: s=" << s << "\n";
+    std::cerr << "PTPR: s=" << s << "\n";
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice)); 
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
