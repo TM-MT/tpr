@@ -49,6 +49,10 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     cg::wait(tb);
     tpr_st1_ker(tb, eq, params);
 
+    tpr_inter(tb, eq, bkup_st, params);
+
+    tb.sync();
+
     // copy back
     a[idx] = sha[idx - st];
     c[idx] = shc[idx - st];
@@ -56,10 +60,6 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     eq.a = a;
     eq.c = c;
     eq.rhs = rhs;
-    tb.sync();
-
-    tpr_inter(tb, eq, &bkup_st, params);
-
     tb.sync();
 
     tpr_inter_global(tb, eq, &bkup_ed, params);
@@ -201,12 +201,22 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
 
 // TPR Intermidiate stage 1
 // Update E_{st} by E_{ed}
-__device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params){
+__device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
-    if (idx < params.n && idx == params.st) {
-        int k = params.st, kr = params.ed;
+    if ((idx < params.n) && (idx == params.st)) {
+        int k = idx - params.st; // == 0, 
+        /**
+        FIXME: writing 0 cause compile error
+        nvcc: V11.4.48, cuda: 11.4
+        ```
+        Invalid bitcast
+        float* bitcast ([0 x float] addrspace(3)* @array to float*)
+        Error: Broken function found, compilation aborted!
+        ```
+        **/
+        int kr = params.s - 1;
         float ak = eq.a[k], akr = eq.a[kr];
         float ck = eq.c[k], ckr = eq.c[kr];
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
@@ -218,13 +228,13 @@ __device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_P
         tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
 
         // idx == st
-        bkup->x = eq.a[idx];
-        bkup->y = eq.c[idx];
-        bkup->z = eq.rhs[idx];
+        bkup.x = eq.a[k];
+        bkup.y = eq.c[k];
+        bkup.z = eq.rhs[k];
 
-        eq.a[idx] = tmp_aa;
-        eq.c[idx] = tmp_cc;
-        eq.rhs[idx] = tmp_rr;
+        eq.a[k] = tmp_aa;
+        eq.c[k] = tmp_cc;
+        eq.rhs[k] = tmp_rr;
     }
 }
 
