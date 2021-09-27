@@ -7,7 +7,7 @@
 
 namespace cg = cooperative_groups;
 
-using namespace TPR_CU;
+using namespace PTPR_CU;
 
 /**
  * for dynamic shared memory use
@@ -15,7 +15,7 @@ using namespace TPR_CU;
 extern __shared__ float array[];
 
 
-__global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
+__global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
     cg::thread_block tb = cg::this_thread_block();
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
@@ -162,7 +162,7 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
  * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in shared memory
  * @param[in]      params  The parameters of PTPR
  */
-__device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
+__device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = params.idx;
     int i = tb.thread_index().x;
     int n = params.n, s = params.s;
@@ -230,7 +230,7 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
  * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c, bkup->z: rhs
  * @param[in]      params  The parameters of PTPR
  */
-__device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_Params const& params) {
+__device__ void PTPR_CU::tpr_inter(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
@@ -278,7 +278,7 @@ __device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_P
  * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c, bkup->z: rhs
  * @param[in]      params  The parameters of PTPR
  */
-__device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_Params const& params) {
+__device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
 
@@ -316,7 +316,7 @@ __device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 &bkup
  * @param[in]    n     Parameter
  * @param[in]    s     Parameter
  */
-__device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int n, int s) {
+__device__ void PTPR_CU::tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int n, int s) {
 	int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int st = idx / s * s;
     int ed = st + s - 1;
@@ -334,7 +334,7 @@ __device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int
  * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in shared memory
  * @param[in]      params  The parameters of PTPR
  */
-__device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
+__device__ void PTPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int i = tb.thread_index().x;
     int st = params.st;
@@ -359,7 +359,7 @@ __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
 }
 
 
-__global__ void pcr_ker(float *a, float *c, float *rhs, int n) {
+__global__ void PTPR_CU::pcr_ker(float *a, float *c, float *rhs, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     float tmp_aa, tmp_cc, tmp_rr;
 
@@ -487,7 +487,7 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 
 
 
-void ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
+void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -532,7 +532,7 @@ void ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
 
 
 
-void pcr_cu(float *a, float *c, float *rhs, int n) {
+void PTPR_CU::pcr_cu(float *a, float *c, float *rhs, int n) {
     int size = n * sizeof(float);
     // Host
     float *x;
