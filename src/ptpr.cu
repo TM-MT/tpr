@@ -13,14 +13,25 @@ extern __shared__ float array[];
 
 
 __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
+    cg::thread_block tb = cg::this_thread_block();
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
 
+    __shared__ float *sha, *shc, *shrhs;
+    sha = (float*)array;
+    shc = (float*)&array[s];
+    shrhs = (float*)&array[2 * s];
+
+    // make local copy on shared memory
+    cg::memcpy_async(tb, sha, &a[st], sizeof(float) * s);
+    cg::memcpy_async(tb, shc, &c[st], sizeof(float) * s);
+    cg::memcpy_async(tb, shrhs, &rhs[st], sizeof(float) * s);
+
     Equation eq;
-    eq.a = a;
-    eq.c = c;
-    eq.rhs = rhs;
+    eq.a = sha;
+    eq.c = shc;
+    eq.rhs = shrhs;
     eq.x = x;
 
     TPR_Params params;
@@ -30,13 +41,22 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     params.st = st;
     params.ed = ed;
 
-    cg::thread_block tb = cg::this_thread_block();
 
     float tmp_aa, tmp_cc, tmp_rr;
     // bkups, .x -> a, .y -> c, .z -> rhs
     float3 bkup_st, bkup_ed;
 
+    cg::wait(tb);
     tpr_st1_ker(tb, eq, params);
+
+    // copy back
+    a[idx] = sha[idx - st];
+    c[idx] = shc[idx - st];
+    rhs[idx] = shrhs[idx - st];
+    eq.a = a;
+    eq.c = c;
+    eq.rhs = rhs;
+    tb.sync();
 
     tpr_inter(tb, eq, &bkup_st, params);
 
@@ -128,18 +148,9 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
     int idx = params.idx;
     int i = tb.thread_index().x;
     int n = params.n, s = params.s;
-    int st = params.st, ed = params.ed;
     float tmp_aa, tmp_cc, tmp_rr;
-    __shared__ float *sha, *shc, *shrhs;
-    sha = (float*)array;
-    shc = (float*)&array[s];
-    shrhs = (float*)&array[2 * s];
-
-    cg::memcpy_async(tb, sha, &eq.a[st], sizeof(float) * s);    
-    cg::memcpy_async(tb, shc, &eq.c[st], sizeof(float) * s);    
-    cg::memcpy_async(tb, shrhs, &eq.rhs[st], sizeof(float) * s);    
-
-    cg::wait(tb);
+    float *sha = eq.a, *shc = eq.c, *shrhs = eq.rhs;
+    assert(__isshared((void*)sha));
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
         if (idx < n) {
@@ -186,12 +197,6 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
 
         tb.sync();
     }
-
-    // copy back
-    eq.a[idx] = sha[idx - st];
-    eq.c[idx] = shc[idx - st];
-    eq.rhs[idx] = shrhs[idx - st];
-    tb.sync();
 }
 
 // TPR Intermidiate stage 1
