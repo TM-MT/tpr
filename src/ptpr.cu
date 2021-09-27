@@ -9,6 +9,9 @@ namespace cg = cooperative_groups;
 
 using namespace TPR_CU;
 
+/**
+ * for dynamic shared memory use
+ */
 extern __shared__ float array[];
 
 
@@ -18,6 +21,8 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     int st = idx / s * s;
     int ed = st + s - 1;
 
+    // local copy
+    // sha[0:s], shc[0:s], shrhs[0:s]
     __shared__ float *sha, *shc, *shrhs;
     sha = (float*)array;
     shc = (float*)&array[s];
@@ -54,15 +59,16 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     tb.sync();
 
     // copy back
+    // since `tpr_inter_global` and stage 2 are global operations, 
+    // eq.* should hold address in global memory
     a[idx] = sha[idx - st];
     c[idx] = shc[idx - st];
     rhs[idx] = shrhs[idx - st];
     eq.a = a;
     eq.c = c;
     eq.rhs = rhs;
-    tb.sync();
 
-    tpr_inter_global(tb, eq, &bkup_ed, params);
+    tpr_inter_global(tb, eq, bkup_ed, params);
 
     tb.sync();
 
@@ -121,7 +127,9 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 
     tpr_st2_copyback(tb, rhs, x, n, s);
     tb.sync();
+
     // stage 3
+    // assert sh* has data
     if (idx < n && idx == st) {
         // idx - st == 0
         sha[idx-st] = bkup_st.x;
@@ -147,14 +155,22 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
 }
 
 
-// stage 1
-__device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params){
+/**
+ * @brief      TPR Stage 1
+ *
+ * @param          tb      cg::thread_block
+ * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in shared memory
+ * @param[in]      params  The parameters of PTPR
+ */
+__device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = params.idx;
     int i = tb.thread_index().x;
     int n = params.n, s = params.s;
     float tmp_aa, tmp_cc, tmp_rr;
     float *sha = eq.a, *shc = eq.c, *shrhs = eq.rhs;
-    assert(__isshared((void*)sha));
+    assert(__isShared((void*)sha));
+    assert(__isShared((void*)shc));
+    assert(__isShared((void*)shrhs));
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
         if (idx < n) {
@@ -203,8 +219,17 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
     }
 }
 
-// TPR Intermidiate stage 1
-// Update E_{st} by E_{ed}
+
+/**
+ * @brief      TPR Intermediate stage 1
+ * 
+ * Update E_{st} by E_{ed}
+ *
+ * @param          tb      cg::thread_block
+ * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in shared memory
+ * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c, bkup->z: rhs
+ * @param[in]      params  The parameters of PTPR
+ */
 __device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
@@ -242,8 +267,18 @@ __device__ void tpr_inter(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_P
     }
 }
 
-// Update E_{st-1} by E_{st}
-__device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params) {
+
+/**
+ * @brief      TPR Intermediate stage GLOBAL
+ *
+ * Update E_{st-1} by E_{st}
+ * 
+ * @param          tb      cg::thread_block
+ * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in GLOBAL memory
+ * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c, bkup->z: rhs
+ * @param[in]      params  The parameters of PTPR
+ */
+__device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 &bkup, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
 
@@ -254,23 +289,33 @@ __device__ void tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
         float inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-        bkup->x = eq.a[idx];
-        bkup->y = eq.c[idx];
-        bkup->z = eq.rhs[idx];
+        bkup.x = eq.a[idx];
+        bkup.y = eq.c[idx];
+        bkup.z = eq.rhs[idx];
 
         eq.a[k] = inv_diag_k * ak;
         eq.c[k] = -inv_diag_k * ckr * ck;
         eq.rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
     } else if (idx == params.n - 1) {
-        bkup->x = eq.a[idx];
-        bkup->y = eq.c[idx];
-        bkup->z = eq.rhs[idx];
+        bkup.x = eq.a[idx];
+        bkup.y = eq.c[idx];
+        bkup.z = eq.rhs[idx];
     }
 }
 
 
 
-// copy the answer from stage 2 PCR
+/**
+ * @brief      copy the answer from stage 2 PCR
+ * 
+ * @note assert { rhs[i] | i \in [0, n), i % (s-1) == 0 } has the answer
+ *
+ * @param        tb    cg::thread_block
+ * @param[in]    rhs   The right hand side. Address in GLOBAL memory.
+ * @param[out]   x     The answer array. Address in GLOBAL memory.
+ * @param[in]    n     Parameter
+ * @param[in]    s     Parameter
+ */
 __device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int n, int s) {
 	int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int st = idx / s * s;
@@ -281,6 +326,14 @@ __device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int
     }
 }
 
+
+/**
+ * @brief      TPR Stage 3
+ *
+ * @param          tb      cg::thread_block
+ * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in shared memory
+ * @param[in]      params  The parameters of PTPR
+ */
 __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int i = tb.thread_index().x;
