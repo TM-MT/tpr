@@ -135,13 +135,11 @@ __device__ void tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Params const&
     shc = (float*)&array[s];
     shrhs = (float*)&array[2 * s];
 
-    // copy to shared memory
-    if (idx < n) {
-        sha[idx-st] = eq.a[idx];
-        shc[idx-st] = eq.c[idx];
-        shrhs[idx-st] = eq.rhs[idx];
-    }
-    tb.sync();
+    cg::memcpy_async(tb, sha, &eq.a[st], sizeof(float) * s);    
+    cg::memcpy_async(tb, shc, &eq.c[st], sizeof(float) * s);    
+    cg::memcpy_async(tb, shrhs, &eq.rhs[st], sizeof(float) * s);    
+
+    cg::wait(tb);
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
         if (idx < n) {
