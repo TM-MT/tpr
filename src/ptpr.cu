@@ -14,7 +14,16 @@ using namespace PTPR_CU;
  */
 extern __shared__ float array[];
 
-
+/**
+ * @brief      PTPR main kernel
+ *
+ * @param      a     { parameter_description }
+ * @param      c     { parameter_description }
+ * @param      rhs   The right hand side
+ * @param      x     { parameter_description }
+ * @param[in]  n     { parameter_description }
+ * @param[in]  s     { parameter_description }
+ */
 __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
     cg::thread_block tb = cg::this_thread_block();
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -486,7 +495,22 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 }
 
 
-
+/**
+ * @brief      Helper function for ptpr_cu
+ * 
+ * 1. allocate host memory for the answer
+ * 2. allocate device memory for compute
+ * 3. launch kernel `tpr_cu`
+ * 4. print the result
+ * 5. free device memory
+ * 6. free host memory for the answer
+ *
+ * @param[in]  a     { parameter_description }
+ * @param[in]  c     { parameter_description }
+ * @param[in]  rhs   The right hand side
+ * @param[in]  n     { parameter_description }
+ * @param[in]  s     { parameter_description }
+ */
 void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
     int size = n * sizeof(float);
     // Host
