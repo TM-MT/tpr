@@ -123,20 +123,24 @@ __global__ void tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) 
     tb.sync();
     // stage 3
     if (idx < n && idx == st) {
-        a[idx] = bkup_st.x;
-        c[idx] = bkup_st.y;
-        rhs[idx] = bkup_st.z;
+        // idx - st == 0
+        sha[idx-st] = bkup_st.x;
+        shc[idx-st] = bkup_st.y;
+        shrhs[idx-st] = bkup_st.z;
     }
 
     // should be same condition as tpr_inter_global
     if (idx < n && idx == ed) {
-        a[idx] = bkup_ed.x;
-        c[idx] = bkup_ed.y;
-        rhs[idx] = bkup_ed.z;
+        sha[s-1] = bkup_ed.x;
+        shc[s-1] = bkup_ed.y;
+        shrhs[s-1] = bkup_ed.z;
     }
 
     tb.sync();
 
+    eq.a = sha;
+    eq.c = shc;
+    eq.rhs = shrhs;
     tpr_st3_ker(tb, eq, params);
  
     return ;
@@ -279,19 +283,24 @@ __device__ void tpr_st2_copyback(cg::thread_block &tb, float *rhs, float *x, int
 
 __device__ void tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+    int i = tb.thread_index().x;
     int st = params.st;
     int ed = params.ed;
-    int n = params.n;
+    int n = params.n, s = params.s;
+    assert(__isShared((void*)eq.a));
+    assert(__isShared((void*)eq.c));
+    assert(__isShared((void*)eq.rhs));
+    assert(__isGlobal((void*)eq.x));
 
    if (idx < n) {
         int lidx = max(0, st - 1);
 
-        float key = 1.0 / eq.c[ed] * (eq.rhs[ed] - eq.a[ed] * eq.x[lidx] - eq.x[ed]);
-        if (eq.c[ed] == 0.0) {
+        float key = 1.0 / eq.c[s-1] * (eq.rhs[s-1] - eq.a[s-1] * eq.x[lidx] - eq.x[ed]);
+        if (eq.c[s-1] == 0.0) {
             key = 0.0;
         }
 
-        eq.x[idx] = eq.rhs[idx] - eq.a[idx] * eq.x[lidx] - eq.c[idx] * key;
+        eq.x[idx] = eq.rhs[i] - eq.a[i] * eq.x[lidx] - eq.c[i] * key;
     }
     return ;
 }
