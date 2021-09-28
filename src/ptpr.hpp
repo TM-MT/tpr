@@ -1,9 +1,10 @@
 #pragma once
 #include <assert.h>
-#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <array>
+#include <cmath>
 
 #include "lib.hpp"
 #include "pcr.hpp"
@@ -20,23 +21,23 @@
 /**
  * @brief Safely delete pointer `p` and set `p = nullptr`
  */
-#define SAFE_DELETE( p ) delete[] p; p = nullptr
-
+#define SAFE_DELETE(p) \
+    delete[] p;        \
+    p = nullptr
 
 namespace PTPR_Helpers {
-    /**
-     * @brief      Infomation of equation and its index
-     */
-    struct EquationInfo {
-        int idx;
-        real a;
-        real c;
-        real rhs;
-    };
-}
+/**
+ * @brief      Infomation of equation and its index
+ */
+struct EquationInfo {
+    int idx;
+    real a;
+    real c;
+    real rhs;
+};
+}  // namespace PTPR_Helpers
 
-class PTPR: Solver
-{
+class PTPR : Solver {
     real *a, *c, *rhs, *x;
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
@@ -44,19 +45,17 @@ class PTPR: Solver
     PCR st2solver;
     int n, s, m;
 
-public:
+   public:
     PTPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
         init(n, s);
         set_tridiagonal_system(a, c, rhs);
     };
 
-    PTPR(int n, int  s) {
-        init(n, s);
-    };
+    PTPR(int n, int s) { init(n, s); };
 
     ~PTPR() {
         // free local variables
-        delete[] &this->x[-1];
+        delete[] & this->x[-1];
         SAFE_DELETE(this->aa);
         SAFE_DELETE(this->cc);
         SAFE_DELETE(this->rr);
@@ -66,13 +65,17 @@ public:
         SAFE_DELETE(this->inter_a);
         SAFE_DELETE(this->inter_c);
         SAFE_DELETE(this->inter_rhs);
-        #ifdef _OPENACC
-        #pragma acc exit data delete(aa[:n], cc[:n], rr[:n])
-        #pragma acc exit data delete(this->x[-1:n+1])
-        #pragma acc exit data delete(this->st2_a[:n/s], this->st2_c[:n/s], this->st2_rhs[:n/s])
-        #pragma acc exit data delete(this->inter_a[:2*n/s], this->inter_c[:2*n/s], this->inter_rhs[:2*n/s])
-        #pragma acc exit data delete(this->n, this->s, this)
-        #endif
+#ifdef _OPENACC
+#pragma acc exit data delete (aa[:n], cc[:n], rr[:n])
+#pragma acc exit data delete (this->x [-1:n + 1])
+#pragma acc exit data delete ( \
+    this->st2_a[:n / s], this->st2_c[:n / s], this->st2_rhs[:n / s])
+#pragma acc exit data delete (                                                 \
+    this->inter_a[:2 * n / s], this->inter_c[:2 * n / s], this->inter_rhs[:2 * \
+                                                                           n / \
+                                                                           s])
+#pragma acc exit data delete (this->n, this->s, this)
+#endif
     }
 
     void set_tridiagonal_system(real *a, real *c, real *rhs);
@@ -83,7 +86,7 @@ public:
 
     int get_ans(real *x);
 
-private:
+   private:
     PTPR(const PTPR &ptpr);
     PTPR &operator=(const PTPR &ptpr);
 

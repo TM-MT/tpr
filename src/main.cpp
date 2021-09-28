@@ -1,26 +1,28 @@
+#include "main.hpp"
+
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <initializer_list>
 
 #include "PerfMonitor.h"
-#include "main.hpp"
-#include "lib.hpp"
 #include "cr.hpp"
+#include "lib.hpp"
 #include "pcr.hpp"
-#include "tpr.hpp"
-#include "ptpr.hpp"
 #include "pm.hpp"
+#include "ptpr.hpp"
+#include "tpr.hpp"
 
 pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 
-
 int main() {
     int n = 1024;
-    struct TRIDIAG_SYSTEM *sys = (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
+    struct TRIDIAG_SYSTEM *sys =
+        (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
 
     assign(sys);
-    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
     {
         CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
         cr.solve();
@@ -30,7 +32,7 @@ int main() {
     printf("\n");
 
     assign(sys);
-    #pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
     {
         PCR pcr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
         pcr.solve();
@@ -46,7 +48,8 @@ int main() {
     for (int s = 4; s <= n; s *= 2) {
         std::cerr << "TPR s=" << s << "\n";
         assign(sys);
-        #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy( \
+    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
         {
             TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
             pmcpp::pm.start(tpr_label);
@@ -64,7 +67,8 @@ int main() {
     for (int s = 4; s <= n; s *= 2) {
         std::cerr << "PTPR s=" << s << "\n";
         assign(sys);
-        #pragma acc data copy(sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy( \
+    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
         {
             PTPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
             pmcpp::pm.start(tpr_label);
@@ -81,9 +85,7 @@ int main() {
 
     clean(sys);
     free(sys);
-
 }
-
 
 int setup(struct TRIDIAG_SYSTEM *sys, int n) {
     sys->a = (real *)malloc(n * sizeof(real));
@@ -98,21 +100,19 @@ int setup(struct TRIDIAG_SYSTEM *sys, int n) {
 int assign(struct TRIDIAG_SYSTEM *sys) {
     int n = sys->n;
     for (int i = 0; i < n; i++) {
-        sys->a[i] = -1.0/6.0;
-        sys->c[i] = -1.0/6.0;
+        sys->a[i] = -1.0 / 6.0;
+        sys->c[i] = -1.0 / 6.0;
         sys->diag[i] = 1.0;
-        sys->rhs[i] = 1.0 * (i+1);
+        sys->rhs[i] = 1.0 * (i + 1);
     }
     sys->a[0] = 0.0;
-    sys->c[n-1] = 0.0;
+    sys->c[n - 1] = 0.0;
 
     return 0;
 }
 
-
-
 int clean(struct TRIDIAG_SYSTEM *sys) {
-    for (auto p: { sys->a, sys->diag, sys->c, sys->rhs }) {
+    for (auto p : {sys->a, sys->diag, sys->c, sys->rhs}) {
         free(p);
     }
 
@@ -124,9 +124,8 @@ int clean(struct TRIDIAG_SYSTEM *sys) {
     return 0;
 }
 
-
 bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
-    for (auto p: { sys->a, sys->diag, sys->c, sys->rhs }) {
+    for (auto p : {sys->a, sys->diag, sys->c, sys->rhs}) {
         if (p == nullptr) {
             return false;
         }

@@ -1,8 +1,7 @@
 #pragma once
-#include <iostream>
 #include <cassert>
 #include <cmath>
-
+#include <iostream>
 
 // precision
 // same def as cz
@@ -13,10 +12,9 @@ using real = double;
  * - デフォルトでは、REAL_TYPE=float
  * - コンパイル時オプション-D_REAL_IS_DOUBLE_を付与することで
  *   REAL_TYPE=doubleになる
-*/
+ */
 using real = float;
 #endif
-
 
 // pure function
 #ifdef __GNUC__
@@ -25,22 +23,18 @@ using real = float;
 #define pure_function
 #endif
 
-
-#if (defined __amd64__) || (defined __amd64) || (defined __x86_64__) || (defined __x86_64)
+#if (defined __amd64__) || (defined __amd64) || (defined __x86_64__) || \
+    (defined __x86_64)
 #define ILOG2_USE_x86_ASM
 #pragma message("USING x86 ASM")
 #endif
 
-
-class Solver
-{
-public:
+class Solver {
+   public:
     void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs);
     int solve();
     int get_ans(real *x);
 };
-
-
 
 template <typename T>
 T max(T a, T b) {
@@ -67,7 +61,6 @@ static inline uint32_t ilog2(const uint32_t x) pure_function;
 #pragma acc routine seq
 static int pow2(int k) pure_function;
 
-
 static void print_array(real *array, int n) {
     for (int i = 0; i < n; i++) {
         std::cout << array[i] << ", ";
@@ -77,13 +70,12 @@ static void print_array(real *array, int n) {
 
 #pragma acc routine seq
 static int fllog2(int a) {
-    #ifdef ILOG2_USE_x86_ASM
-        return (int)ilog2(static_cast<uint32_t>(a));
-    #else
-        return (int)log2((double)a);
-    #endif
+#ifdef ILOG2_USE_x86_ASM
+    return (int)ilog2(static_cast<uint32_t>(a));
+#else
+    return (int)log2((double)a);
+#endif
 }
-
 
 #ifdef ILOG2_USE_x86_ASM
 /**
@@ -95,12 +87,9 @@ static int fllog2(int a) {
  * @return floor(log_2(x))
  */
 static inline uint32_t ilog2(const uint32_t x) {
-  uint32_t y;
-  asm ( "\tbsr %1, %0\n"
-      : "=r"(y)
-      : "r" (x)
-  );
-  return y;
+    uint32_t y;
+    asm("\tbsr %1, %0\n" : "=r"(y) : "r"(x));
+    return y;
 }
 #endif
 
