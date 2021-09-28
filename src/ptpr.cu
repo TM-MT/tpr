@@ -155,6 +155,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n
 
     tb.sync();
 
+    // tpr_st3_ker use shared memory
     eq.a = sha;
     eq.c = shc;
     eq.rhs = shrhs;
@@ -165,7 +166,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n
 
 
 /**
- * @brief      TPR Stage 1
+ * @brief      PTPR Stage 1
  *
  * @param          tb      cg::thread_block
  * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in shared memory
@@ -230,7 +231,7 @@ __device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Para
 
 
 /**
- * @brief      TPR Intermediate stage 1
+ * @brief      PTPR Intermediate stage 1
  * 
  * Update E_{st} by E_{ed}
  *
@@ -278,7 +279,7 @@ __device__ void PTPR_CU::tpr_inter(cg::thread_block &tb, Equation eq, float3 &bk
 
 
 /**
- * @brief      TPR Intermediate stage GLOBAL
+ * @brief      PTPR Intermediate stage GLOBAL
  *
  * Update E_{st-1} by E_{st}
  * 
@@ -337,7 +338,7 @@ __device__ void PTPR_CU::tpr_st2_copyback(cg::thread_block &tb, float *rhs, floa
 
 
 /**
- * @brief      TPR Stage 3
+ * @brief      PTPR Stage 3
  *
  * @param          tb      cg::thread_block
  * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in shared memory
