@@ -25,7 +25,9 @@ extern __shared__ float array[];
  * @param[in]  s     { parameter_description }
  */
 __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
+    cg::grid_group tg = cg::this_grid();
     cg::thread_block tb = cg::this_thread_block();
+    assert(tg.is_valid());
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
@@ -545,6 +547,16 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 
 
 void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
+    int dev = 0;
+    int supportsCoopLaunch = 0;
+    cudaDeviceGetAttribute(&supportsCoopLaunch, cudaDevAttrCooperativeLaunch, dev);
+    if (supportsCoopLaunch != 1) {
+        printf("Cooperative launch not supported on dev %d.\n", dev);
+        exit(EXIT_FAILURE);
+    }
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, dev);
+
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -567,8 +579,15 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     cudaDeviceSynchronize();
 
     // launch
-    tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
-
+    // tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
+    void *kernel_args[] = { &d_a, &d_c, &d_r, &d_x, &n, &s };
+    dim3 dim_grid(n / s, 1, 1);
+    dim3 dim_block(s, 1, 1);
+    size_t shmem_size = 4 * s * sizeof(float);
+    CU_CHECK(
+        cudaLaunchCooperativeKernel((void*)tpr_ker, dim_grid, dim_block, kernel_args, shmem_size)
+        );
+    
     cudaDeviceSynchronize();
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
