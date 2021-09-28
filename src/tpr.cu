@@ -50,11 +50,11 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
         bkup.z = rhs[idx];
     }
 
-    tpr_inter(tb, eq, NULL, params);
+    tpr_inter(tb, eq, params);
 
     tb.sync();
 
-    tpr_inter_global(tb, eq, NULL, params);
+    tpr_inter_global(tb, eq, params);
 
     tb.sync();
 
@@ -219,7 +219,7 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq, TPR_Param
 
 // TPR Intermidiate stage 1
 // Update E_{st} by E_{ed}
-__device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params){
+__device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq, TPR_Params const& params){
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
@@ -242,7 +242,7 @@ __device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq, float3 *bku
 }
 
 // Update E_{st-1} by E_{st}
-__device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq, float3 *bkup, TPR_Params const& params) {
+__device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
 
