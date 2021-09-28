@@ -92,11 +92,11 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
     eq.c = c;
     eq.rhs = rhs;
 
-    tb.sync();
+    tg.sync();
 
     tpr_inter_global(tb, eq, params);
 
-    tb.sync();
+    tg.sync();
 
     // CR (TPR Stage 2)
     // CR Forward Reduction
@@ -142,7 +142,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
         }
 
-        tb.sync();
+        tg.sync();
 
         if (select_idx) {
             // copy back
@@ -151,7 +151,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
             rhs[idx] = tmp_rr;
         }
 
-        tb.sync();
+        tg.sync();
     }
 
     // CR Intermediate
@@ -163,7 +163,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
         x[idx+u] =  (rhs[idx+u] - rhs[idx]*a[idx+u]) * inv_det;
     }
 
-    tb.sync();
+    tg.sync();
 
     // CR Backward Substitution
     for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2;
@@ -186,7 +186,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
             x[idx] = rhs[idx] - a[idx] * x_u - c[idx] * x[idx+u];
         }
 
-        tb.sync();
+        tg.sync();
     }
     // CR END
 
@@ -198,7 +198,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
         shrhs[idx-st] = bkup.z;
     }
 
-    tb.sync();
+    tg.sync();
 
     // tpr_st3_ker use shared memory
     eq.a = sha;
