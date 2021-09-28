@@ -25,7 +25,9 @@ extern __shared__ float array[];
  * @param[in]  s     { parameter_description }
  */
 __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
+    cg::grid_group tg = cg::this_grid();
     cg::thread_block tb = cg::this_thread_block();
+    assert(tg.is_valid());
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
@@ -90,11 +92,11 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
     eq.c = c;
     eq.rhs = rhs;
 
-    tb.sync();
+    tg.sync();
 
     tpr_inter_global(tb, eq, params);
 
-    tb.sync();
+    tg.sync();
 
     // CR (TPR Stage 2)
     // CR Forward Reduction
@@ -140,7 +142,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
         }
 
-        tb.sync();
+        tg.sync();
 
         if (select_idx) {
             // copy back
@@ -149,7 +151,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
             rhs[idx] = tmp_rr;
         }
 
-        tb.sync();
+        tg.sync();
     }
 
     // CR Intermediate
@@ -161,7 +163,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
         x[idx+u] =  (rhs[idx+u] - rhs[idx]*a[idx+u]) * inv_det;
     }
 
-    tb.sync();
+    tg.sync();
 
     // CR Backward Substitution
     for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2;
@@ -184,7 +186,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
             x[idx] = rhs[idx] - a[idx] * x_u - c[idx] * x[idx+u];
         }
 
-        tb.sync();
+        tg.sync();
     }
     // CR END
 
@@ -196,7 +198,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
         shrhs[idx-st] = bkup.z;
     }
 
-    tb.sync();
+    tg.sync();
 
     // tpr_st3_ker use shared memory
     eq.a = sha;
@@ -543,8 +545,34 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 }
 
 
-
+/**
+ * @brief      Helper function for tpr_cu
+ * 
+ * 1. check if device support cooperative launch
+ * 2. allocate host memory for the answer
+ * 3. allocate device memory for compute
+ * 4. launch kernel `tpr_cu`
+ * 5. print the result
+ * 6. free device memory
+ * 7. free host memory for the answer
+ *
+ * @param[in]  a     { parameter_description }
+ * @param[in]  c     { parameter_description }
+ * @param[in]  rhs   The right hand side
+ * @param[in]  n     { parameter_description }
+ * @param[in]  s     { parameter_description }
+ */
 void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
+    int dev = 0;
+    int supportsCoopLaunch = 0;
+    cudaDeviceGetAttribute(&supportsCoopLaunch, cudaDevAttrCooperativeLaunch, dev);
+    if (supportsCoopLaunch != 1) {
+        printf("Cooperative launch not supported on dev %d.\n", dev);
+        exit(EXIT_FAILURE);
+    }
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, dev);
+
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -567,8 +595,15 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     cudaDeviceSynchronize();
 
     // launch
-    tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
-
+    // tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
+    void *kernel_args[] = { &d_a, &d_c, &d_r, &d_x, &n, &s };
+    dim3 dim_grid(n / s, 1, 1);
+    dim3 dim_block(s, 1, 1);
+    size_t shmem_size = 4 * s * sizeof(float);
+    CU_CHECK(
+        cudaLaunchCooperativeKernel((void*)tpr_ker, dim_grid, dim_block, kernel_args, shmem_size)
+        );
+    
     cudaDeviceSynchronize();
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));

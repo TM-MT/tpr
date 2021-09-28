@@ -25,7 +25,9 @@ extern __shared__ float array[];
  * @param[in]  s     { parameter_description }
  */
 __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n, int s) {
+    cg::grid_group tg = cg::this_grid();
     cg::thread_block tb = cg::this_thread_block();
+    assert(tg.is_valid());
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
@@ -77,9 +79,10 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n
     eq.c = c;
     eq.rhs = rhs;
 
+    tg.sync();
+
     tpr_inter_global(tb, eq, bkup_ed, params);
 
-    tb.sync();
 
     // PCR
     for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
@@ -119,7 +122,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n
             tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
         }
 
-        tb.sync();
+        tg.sync();
 
         if (idx < n && idx == ed) {
         // copy back
@@ -128,14 +131,10 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n
             rhs[idx] = tmp_rr;
         }
 
-        tb.sync();
+        tg.sync();
     }
 
-    tb.sync();
-
-
     tpr_st2_copyback(tb, rhs, x, n, s);
-    tb.sync();
 
     // stage 3
     // assert sh* has data
@@ -153,7 +152,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n
         shrhs[s-1] = bkup_ed.z;
     }
 
-    tb.sync();
+    tg.sync();
 
     // tpr_st3_ker use shared memory
     eq.a = sha;
@@ -499,12 +498,13 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 /**
  * @brief      Helper function for ptpr_cu
  * 
- * 1. allocate host memory for the answer
- * 2. allocate device memory for compute
- * 3. launch kernel `tpr_cu`
- * 4. print the result
- * 5. free device memory
- * 6. free host memory for the answer
+ * 1. check if device support cooperative launch
+ * 2. allocate host memory for the answer
+ * 3. allocate device memory for compute
+ * 4. launch kernel `PTPR_CU::tpr_cu`
+ * 5. print the result
+ * 6. free device memory
+ * 7. free host memory for the answer
  *
  * @param[in]  a     { parameter_description }
  * @param[in]  c     { parameter_description }
@@ -513,6 +513,16 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
  * @param[in]  s     { parameter_description }
  */
 void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
+    int dev = 0;
+    int supportsCoopLaunch = 0;
+    cudaDeviceGetAttribute(&supportsCoopLaunch, cudaDevAttrCooperativeLaunch, dev);
+    if (supportsCoopLaunch != 1) {
+        printf("Cooperative launch not supported on dev %d.\n", dev);
+        exit(EXIT_FAILURE);
+    }
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, dev);
+
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -535,7 +545,14 @@ void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, int n, int s) {
     cudaDeviceSynchronize();
 
     // launch
-    tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
+    // tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
+    void *kernel_args[] = { &d_a, &d_c, &d_r, &d_x, &n, &s };
+    dim3 dim_grid(n / s, 1, 1);
+    dim3 dim_block(s, 1, 1);
+    size_t shmem_size = 4 * s * sizeof(float);
+    CU_CHECK(
+        cudaLaunchCooperativeKernel((void*)tpr_ker, dim_grid, dim_block, kernel_args, shmem_size)
+        );
 
     cudaDeviceSynchronize();
 
