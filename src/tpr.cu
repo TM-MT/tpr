@@ -177,13 +177,16 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
     tb.sync();
     // stage 3
     if (idx < n) {
-        a[idx] = bkup.x;
-        c[idx] = bkup.y;
-        rhs[idx] = bkup.z;
+        sha[idx-st] = bkup.x;
+        shc[idx-st] = bkup.y;
+        shrhs[idx-st] = bkup.z;
     }
 
     tb.sync();
 
+    eq.a = sha;
+    eq.c = shc;
+    eq.rhs = shrhs;
     tpr_st3_ker(tb, eq, params);
  
     return ;
@@ -299,8 +302,13 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq, TPR_
 
 __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Params const& params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+    int i = tb.thread_index().x;
     int st = params.st;
     int n = params.n, s = params.s;
+    assert(__isShared((void*)eq.a));
+    assert(__isShared((void*)eq.c));
+    assert(__isShared((void*)eq.rhs));
+    assert(__isGlobal((void*)eq.x));
 
     for (int p = static_cast<int>(log2f(static_cast<double>(s))) - 1; p >= 0; p--) {
         int u = 1 << p;
@@ -316,7 +324,7 @@ __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq, TPR_Param
                 x_u = eq.x[lidx];
             }
 
-            eq.x[idx] = eq.rhs[idx] - eq.a[idx] * x_u - eq.c[idx] * eq.x[idx+u];
+            eq.x[idx] = eq.rhs[i] - eq.a[i] * x_u - eq.c[i] * eq.x[idx+u];
         }
         tb.sync();
     }
