@@ -545,7 +545,23 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
 }
 
 
-
+/**
+ * @brief      Helper function for tpr_cu
+ * 
+ * 1. check if device support cooperative launch
+ * 2. allocate host memory for the answer
+ * 3. allocate device memory for compute
+ * 4. launch kernel `tpr_cu`
+ * 5. print the result
+ * 6. free device memory
+ * 7. free host memory for the answer
+ *
+ * @param[in]  a     { parameter_description }
+ * @param[in]  c     { parameter_description }
+ * @param[in]  rhs   The right hand side
+ * @param[in]  n     { parameter_description }
+ * @param[in]  s     { parameter_description }
+ */
 void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     int dev = 0;
     int supportsCoopLaunch = 0;
