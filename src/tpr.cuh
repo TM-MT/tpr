@@ -5,6 +5,7 @@
 
 #include <array>
 #include <tuple>
+#include <vector>
 
 #define EPS 1e-3
 
@@ -32,19 +33,15 @@ class TPR_ANS {
     int n;
     int s;
     float *x;
+    std::vector<float> data;
+
     TPR_ANS(int n) {
         this->n = n;
-        this->x = (float *)malloc(n * sizeof(float));
+        this->data.resize(n);
+        this->x = this->data.data();
     }
 
-    ~TPR_ANS() {
-        free(this->x);
-        this->x = nullptr;
-    }
-
-    TPR_ANS(const TPR_ANS &ans) {
-        x = (float *)malloc(this->n * sizeof(float));
-    }
+    ~TPR_ANS() {}
 
     bool operator==(const TPR_ANS &ans) {
         assert(this->n == ans.n);
