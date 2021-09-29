@@ -19,11 +19,7 @@ else()
     project(tpr C CXX)
 endif()
 
-set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_DEBUG_POSTFIX d)
-
-
+# set OpenMP flags before add googletest
 if (with_ACC)
     message(STATUS "Using OpenACC")
     # For OpenACC
@@ -45,6 +41,16 @@ else()
     endif()
 endif()
 
+if (ENABLE_TEST)
+    enable_testing()
+    add_subdirectory(googletest)
+    add_subdirectory(test)
+endif()
+
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_DEBUG_POSTFIX d)
+
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -64,9 +70,3 @@ if (TPR_PROJECT)
     set(Random_BuildTests "no")
 endif()
 add_subdirectory(src)
-
-if (ENABLE_TEST)
-    enable_testing()
-    add_subdirectory(googletest)
-    add_subdirectory(test)
-endif()
