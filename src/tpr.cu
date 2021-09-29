@@ -573,21 +573,21 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     CU_CHECK(cudaMalloc((void **)&d_r, size));
     CU_CHECK(cudaMalloc((void **)&d_x, size));
 
-    std::cerr << "TPR: s=" << s << "\n";
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
 
-    // launch
-    // tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
+    // launch configuration
     void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &n, &s};
     auto config = tpr_launch_config(n, s, dev);
     auto dim_grid = std::get<0>(config);
     auto dim_block = std::get<1>(config);
     auto shmem_size = std::get<2>(config);
 
+    std::cerr << "TPR: s=" << s << "\n";
+    // launch
     CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
                                          kernel_args, shmem_size));
 
