@@ -478,17 +478,33 @@ __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
     }
 
 int main() {
-    int n = 1024;
+    int n = 8192;
     struct TRIDIAG_SYSTEM *sys =
         (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    for (int s = 128; s <= n; s *= 2) {
+    TPR_ANS ans1(n), ans2(n);
+    for (int s = 128; s <= std::min(n, 1024); s *= 2) {
         assign(sys);
-        tpr_cu(sys->a, sys->c, sys->rhs, n, s);
+        ans1.s = s;
+        tpr_cu(sys->a, sys->c, sys->rhs, ans1.x, n, s);
+
+        if (s > 128 && ans1 != ans2) {
+            std::cout << "TPR(" << ans1.n << "," << ans1.s << ") and TPR("
+                      << ans2.n << "," << ans2.s << ") has different answer.\n";
+            std::cout << "TPR(" << ans1.n << "," << ans1.s << ")\n";
+            ans1.display(std::cout);
+            std::cout << "TPR(" << ans2.n << "," << ans2.s << ")\n";
+            ans2.display(std::cout);
+        }
+        ans2 = ans1;
     }
 
     assign(sys);
-    cr_cu(sys->a, sys->c, sys->rhs, n);
+    if (n <= 1024) {
+        // currently CR works in thread,
+        cr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
+        ans1.display(std::cout);
+    }
 
     clean(sys);
     free(sys);
@@ -544,36 +560,21 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
  * @brief      Helper function for tpr_cu
  *
  * 1. check if device support cooperative launch
- * 2. allocate host memory for the answer
- * 3. allocate device memory for compute
- * 4. launch kernel `tpr_cu`
- * 5. print the result
+ * 2. allocate device memory for compute
+ * 3. launch kernel `tpr_cu`
+ * 4. copy the answer from device to host
  * 6. free device memory
- * 7. free host memory for the answer
  *
  * @param[in]  a     { parameter_description }
  * @param[in]  c     { parameter_description }
  * @param[in]  rhs   The right hand side
+ * @param[out] x     x[0:n] for the answer
  * @param[in]  n     { parameter_description }
  * @param[in]  s     { parameter_description }
  */
-void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
+void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     int dev = 0;
-    int supportsCoopLaunch = 0;
-    cudaDeviceGetAttribute(&supportsCoopLaunch, cudaDevAttrCooperativeLaunch,
-                           dev);
-    if (supportsCoopLaunch != 1) {
-        printf("Cooperative launch not supported on dev %d.\n", dev);
-        exit(EXIT_FAILURE);
-    }
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, dev);
-
     int size = n * sizeof(float);
-    // Host
-    float *x;
-
-    x = (float *)malloc(size);
 
     // Device
     float *d_a, *d_c, *d_r;  // device copies of a, c, rhs
@@ -583,19 +584,22 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     CU_CHECK(cudaMalloc((void **)&d_r, size));
     CU_CHECK(cudaMalloc((void **)&d_x, size));
 
-    std::cerr << "TPR: s=" << s << "\n";
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
 
-    // launch
-    // tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
+    // launch configuration
     void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &n, &s};
-    dim3 dim_grid(n / s, 1, 1);
-    dim3 dim_block(s, 1, 1);
-    size_t shmem_size = 4 * s * sizeof(float);
+    auto config = tpr_launch_config(n, s, dev);
+    // auto [dim_grid, dim_block, shmem_size] = rhs; not supported
+    auto dim_grid = std::get<0>(config);
+    auto dim_block = std::get<1>(config);
+    auto shmem_size = std::get<2>(config);
+
+    std::cerr << "TPR: s=" << s << "\n";
+    // launch
     CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
                                          kernel_args, shmem_size));
 
@@ -603,25 +607,79 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
-    for (int i = 0; i < n; i++) {
-        std::cout << x[i] << ", ";
-    }
-    std::cout << "\n";
-
     CU_CHECK(cudaFree(d_a));
     CU_CHECK(cudaFree(d_c));
     CU_CHECK(cudaFree(d_r));
     CU_CHECK(cudaFree(d_x));
-    free(x);
     return;
 }
 
-void TPR_CU::cr_cu(float *a, float *c, float *rhs, int n) {
-    int size = n * sizeof(float);
-    // Host
-    float *x;
+/**
+ * @brief launch configuration for tpr_ker
+ * @details calculate suitable dimension and shared memory size for tpr_ker
+ *
+ * @param[in]  n     size of the equation
+ * @param[in]  s     TPR parameter
+ * @param[in]  dev   cuda device id
+ * @return     [dim_grid, dim_block, shared_memory_size]
+ */
+std::tuple<dim3, dim3, size_t> TPR_CU::tpr_launch_config(int n, int s,
+                                                         int dev) {
+    // check cooperative launch support
+    int supportsCoopLaunch = 0;
+    cudaDeviceGetAttribute(&supportsCoopLaunch, cudaDevAttrCooperativeLaunch,
+                           dev);
+    if (supportsCoopLaunch != 1) {
+        printf("Cooperative launch not supported on dev %d.\n", dev);
+        exit(EXIT_FAILURE);
+    }
 
-    x = (float *)malloc(size);
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, dev);
+
+    // calculate dimension
+    auto dim = n2dim(n, s, dev);
+    auto dim_grid = dim[0];
+    auto dim_block = dim[1];
+
+    size_t shmem_size = 4 * dim_block.x * sizeof(float);
+    assert(shmem_size <= deviceProp.sharedMemPerBlock);
+
+    std::tuple<dim3, dim3, size_t> ret(dim_grid, dim_block, shmem_size);
+    return ret;
+}
+
+/**
+ * @brief Helper function for tpr_cu
+ * @details calculate dimension for cuda kernel launch.
+ *
+ * @param[in]  n     size of the equation
+ * @param[in]  s     TPR parameter
+ * @param[in]  dev   cuda device id
+ * @return     [dim_grid, dim_block]
+ */
+std::array<dim3, 2> TPR_CU::n2dim(int n, int s, int dev) {
+    assert(s > 0);
+    assert(n >= s);
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, dev);
+    auto max_tpb = deviceProp.maxThreadsPerBlock;
+
+    if (s > max_tpb) {
+        std::cerr << "TPR Parameter `s=" << s
+                  << "` exceeds max threads per block: " << max_tpb << "\n";
+        exit(EXIT_FAILURE);
+    }
+
+    dim3 dim_grid(n / s, 1, 1);  // we know `n >= s`
+    dim3 dim_block(s, 1, 1);
+    dim_grid.y = std::max(s / max_tpb, 1);
+
+    return {dim_grid, dim_block};
+}
+
+void TPR_CU::cr_cu(float *a, float *c, float *rhs, float *x, int n) {
+    int size = n * sizeof(float);
 
     // Device
     float *d_a, *d_c, *d_r, *d_x;  // device copies of a, c, rhs
@@ -642,15 +700,9 @@ void TPR_CU::cr_cu(float *a, float *c, float *rhs, int n) {
     cudaDeviceSynchronize();
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
-    for (int i = 0; i < n; i++) {
-        std::cout << x[i] << ", ";
-    }
-    std::cout << "\n";
-
     CU_CHECK(cudaFree(d_a));
     CU_CHECK(cudaFree(d_c));
     CU_CHECK(cudaFree(d_r));
     CU_CHECK(cudaFree(d_x));
-    free(x);
     return;
 }
