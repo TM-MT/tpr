@@ -32,7 +32,10 @@ class TPR_ANS {
     int n;
     int s;
     float *x;
-    TPR_ANS(int n) { this->x = (float *)malloc(n * sizeof(float)); }
+    TPR_ANS(int n) {
+        this->n = n;
+        this->x = (float *)malloc(n * sizeof(float));
+    }
 
     ~TPR_ANS() {
         free(this->x);
@@ -86,10 +89,10 @@ __device__ void tpr_inter_global(cg::thread_block &tb, TPR_CU::Equation eq,
 __device__ void tpr_st3_ker(cg::thread_block &tb, TPR_CU::Equation eq,
                             TPR_CU::TPR_Params const &params);
 __global__ void cr_ker(float *a, float *c, float *rhs, float *x, int n);
-void tpr_cu(float *a, float *c, float *rhs, int n, int s);
+void tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s);
 std::tuple<dim3, dim3, size_t> tpr_launch_config(int n, int s, int dev);
 std::array<dim3, 2> n2dim(int n, int s, int dev);
-void cr_cu(float *a, float *c, float *rhs, int n);
+void cr_cu(float *a, float *c, float *rhs, float *x, int n);
 }  // namespace TPR_CU
 
 #undef EPS

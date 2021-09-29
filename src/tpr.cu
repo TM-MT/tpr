@@ -482,15 +482,19 @@ int main() {
     struct TRIDIAG_SYSTEM *sys =
         (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    for (int s = 128; s <= 1024; s *= 2) {
+    TPR_ANS ans1(n);
+    for (int s = 128; s <= std::min(n, 1024); s *= 2) {
         assign(sys);
-        tpr_cu(sys->a, sys->c, sys->rhs, n, s);
+        ans1.s = s;
+        tpr_cu(sys->a, sys->c, sys->rhs, ans1.x, n, s);
+        ans1.display(std::cout);
     }
 
     assign(sys);
     if (n <= 1024) {
         // currently CR works in thread,
-        cr_cu(sys->a, sys->c, sys->rhs, n);
+        cr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
+        ans1.display(std::cout);
     }
 
     clean(sys);
@@ -557,16 +561,13 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
  * @param[in]  a     { parameter_description }
  * @param[in]  c     { parameter_description }
  * @param[in]  rhs   The right hand side
+ * @param[out] x     x[0:n] for the answer
  * @param[in]  n     { parameter_description }
  * @param[in]  s     { parameter_description }
  */
-void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
+void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     int dev = 0;
     int size = n * sizeof(float);
-    // Host
-    float *x;
-
-    x = (float *)malloc(size);
 
     // Device
     float *d_a, *d_c, *d_r;  // device copies of a, c, rhs
@@ -599,16 +600,10 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
-    for (int i = 0; i < n; i++) {
-        std::cout << x[i] << ", ";
-    }
-    std::cout << "\n";
-
     CU_CHECK(cudaFree(d_a));
     CU_CHECK(cudaFree(d_c));
     CU_CHECK(cudaFree(d_r));
     CU_CHECK(cudaFree(d_x));
-    free(x);
     return;
 }
 
@@ -676,12 +671,8 @@ std::array<dim3, 2> TPR_CU::n2dim(int n, int s, int dev) {
     return {dim_grid, dim_block};
 }
 
-void TPR_CU::cr_cu(float *a, float *c, float *rhs, int n) {
+void TPR_CU::cr_cu(float *a, float *c, float *rhs, float *x, int n) {
     int size = n * sizeof(float);
-    // Host
-    float *x;
-
-    x = (float *)malloc(size);
 
     // Device
     float *d_a, *d_c, *d_r, *d_x;  // device copies of a, c, rhs
@@ -702,15 +693,9 @@ void TPR_CU::cr_cu(float *a, float *c, float *rhs, int n) {
     cudaDeviceSynchronize();
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
-    for (int i = 0; i < n; i++) {
-        std::cout << x[i] << ", ";
-    }
-    std::cout << "\n";
-
     CU_CHECK(cudaFree(d_a));
     CU_CHECK(cudaFree(d_c));
     CU_CHECK(cudaFree(d_r));
     CU_CHECK(cudaFree(d_x));
-    free(x);
     return;
 }
