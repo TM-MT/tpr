@@ -559,16 +559,6 @@ bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
  */
 void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     int dev = 0;
-    int supportsCoopLaunch = 0;
-    cudaDeviceGetAttribute(&supportsCoopLaunch, cudaDevAttrCooperativeLaunch,
-                           dev);
-    if (supportsCoopLaunch != 1) {
-        printf("Cooperative launch not supported on dev %d.\n", dev);
-        exit(EXIT_FAILURE);
-    }
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, dev);
-
     int size = n * sizeof(float);
     // Host
     float *x;
@@ -593,11 +583,10 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     // launch
     // tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
     void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &n, &s};
-    auto dim = n2dim(n, s, dev);
-    auto dim_grid = dim[0];
-    auto dim_block = dim[1];
-    size_t shmem_size = 4 * dim_block.x * sizeof(float);
-    assert(shmem_size <= deviceProp.sharedMemPerBlock);
+    auto config = tpr_launch_config(n, s, dev);
+    auto dim_grid = std::get<0>(config);
+    auto dim_block = std::get<1>(config);
+    auto shmem_size = std::get<2>(config);
 
     CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
                                          kernel_args, shmem_size));
@@ -617,6 +606,41 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     CU_CHECK(cudaFree(d_x));
     free(x);
     return;
+}
+
+/**
+ * @brief launch configuration for tpr_ker
+ * @details calculate suitable dimension and shared memory size for tpr_ker
+ *
+ * @param[in]  n     size of the equation
+ * @param[in]  s     TPR parameter
+ * @param[in]  dev   cuda device id
+ * @return     [dim_grid, dim_block, shared_memory_size]
+ */
+std::tuple<dim3, dim3, size_t> TPR_CU::tpr_launch_config(int n, int s,
+                                                         int dev) {
+    // check cooperative launch support
+    int supportsCoopLaunch = 0;
+    cudaDeviceGetAttribute(&supportsCoopLaunch, cudaDevAttrCooperativeLaunch,
+                           dev);
+    if (supportsCoopLaunch != 1) {
+        printf("Cooperative launch not supported on dev %d.\n", dev);
+        exit(EXIT_FAILURE);
+    }
+
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, dev);
+
+    // calculate dimension
+    auto dim = n2dim(n, s, dev);
+    auto dim_grid = dim[0];
+    auto dim_block = dim[1];
+
+    size_t shmem_size = 4 * dim_block.x * sizeof(float);
+    assert(shmem_size <= deviceProp.sharedMemPerBlock);
+
+    std::tuple<dim3, dim3, size_t> ret(dim_grid, dim_block, shmem_size);
+    return ret;
 }
 
 /**
