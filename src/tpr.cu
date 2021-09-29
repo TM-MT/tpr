@@ -478,17 +478,20 @@ __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
     }
 
 int main() {
-    int n = 1024;
+    int n = 8192;
     struct TRIDIAG_SYSTEM *sys =
         (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    for (int s = 128; s <= n; s *= 2) {
+    for (int s = 128; s <= 1024; s *= 2) {
         assign(sys);
         tpr_cu(sys->a, sys->c, sys->rhs, n, s);
     }
 
     assign(sys);
-    cr_cu(sys->a, sys->c, sys->rhs, n);
+    if (n <= 1024) {
+        // currently CR works in thread,
+        cr_cu(sys->a, sys->c, sys->rhs, n);
+    }
 
     clean(sys);
     free(sys);

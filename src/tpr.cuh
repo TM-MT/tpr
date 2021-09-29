@@ -6,6 +6,8 @@
 #include <array>
 #include <tuple>
 
+#define EPS 1e-3
+
 namespace cg = cooperative_groups;
 
 namespace TPR_CU {
@@ -24,6 +26,39 @@ struct TPR_Params {
     int ed;
 };
 
+// for main function use
+class TPR_ANS {
+   public:
+    int n;
+    int s;
+    float *x;
+    TPR_ANS(int n) { this->x = (float *)malloc(n * sizeof(float)); }
+
+    ~TPR_ANS() {
+        free(this->x);
+        this->x = nullptr;
+    }
+
+    TPR_ANS(const TPR_ANS &ans) {
+        x = (float *)malloc(this->n * sizeof(float));
+    }
+
+    bool operator==(const TPR_ANS &ans) {
+        assert(this->n == ans.n);
+        bool ret = true;
+
+        for (int i = 0; i < this->n; i++) {
+            ret &= fequal(this->x[i], ans.x[i]);
+        }
+
+        return true;
+    }
+
+    bool fequal(float a, float b) {
+        return fabs(a - b) <= EPS * fmax(1, fmax(fabs(a), fabs(b)));
+    }
+};
+
 __global__ void tpr_ker(float *a, float *b, float *c, float *x, int n, int s);
 __device__ void tpr_st1_ker(cg::thread_block &tb, TPR_CU::Equation eq,
                             TPR_CU::TPR_Params const &params);
@@ -39,3 +74,5 @@ std::tuple<dim3, dim3, size_t> tpr_launch_config(int n, int s, int dev);
 std::array<dim3, 2> n2dim(int n, int s, int dev);
 void cr_cu(float *a, float *c, float *rhs, int n);
 }  // namespace TPR_CU
+
+#undef EPS
