@@ -54,6 +54,23 @@ class TPR_ANS {
         return true;
     }
 
+    // operator `<<` cannot define for following reason,
+    // nvcc 11: Compile Fail
+    // `error: too many parameters for this operator function`
+    // std::ostream& operator<<(std::ostream &os, TPR_ANS const &ans) {
+    //     for (int i = 0; i < n; i++) {
+    //         os << ans.x[i] << ", ";
+    //     }
+    //     return os << "\n";
+    // }
+    void display(std::ostream &os) {
+        for (int i = 0; i < n; i++) {
+            os << this->x[i] << ", ";
+        }
+        os << "\n";
+    }
+
+   private:
     bool fequal(float a, float b) {
         return fabs(a - b) <= EPS * fmax(1, fmax(fabs(a), fabs(b)));
     }
