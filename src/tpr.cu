@@ -585,6 +585,7 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     // launch configuration
     void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &n, &s};
     auto config = tpr_launch_config(n, s, dev);
+    // auto [dim_grid, dim_block, shmem_size] = rhs; not supported
     auto dim_grid = std::get<0>(config);
     auto dim_block = std::get<1>(config);
     auto shmem_size = std::get<2>(config);
@@ -662,14 +663,15 @@ std::array<dim3, 2> TPR_CU::n2dim(int n, int s, int dev) {
     cudaGetDeviceProperties(&deviceProp, dev);
     auto max_tpb = deviceProp.maxThreadsPerBlock;
 
-    dim3 dim_grid(std::max(n / s, 1), 1, 1);
-    dim3 dim_block(std::min(s, max_tpb), 1, 1);
-    auto max_grid = deviceProp.maxGridSize;  // int[3]
-    // dim_grid.x should be less then maxGridSize.x or cannot launch
-    assert(dim_grid.x <= max_grid[0]);
+    if (s > max_tpb) {
+        std::cerr << "TPR Parameter `s=" << s
+                  << "` exceeds max threads per block: " << max_tpb << "\n";
+        exit(EXIT_FAILURE);
+    }
 
+    dim3 dim_grid(n / s, 1, 1);  // we know `n >= s`
+    dim3 dim_block(s, 1, 1);
     dim_grid.y = std::max(s / max_tpb, 1);
-    assert(dim_grid.y <= max_grid[1]);
 
     return {dim_grid, dim_block};
 }
