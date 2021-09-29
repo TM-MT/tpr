@@ -11,7 +11,7 @@ int main() {
     struct TRIDIAG_SYSTEM *sys =
         (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    TPR_CU::TPR_ANS ans1(n), ans2(n);
+    TPR_ANS ans1(n), ans2(n);
     for (int s = 128; s <= std::min(n, 1024); s *= 2) {
         assign(sys);
         ans1.s = s;
@@ -28,10 +28,29 @@ int main() {
         ans2 = ans1;
     }
 
+    for (int s = 128; s <= std::min(n, 1024); s *= 2) {
+        assign(sys);
+        ans1.s = s;
+        PTPR_CU::ptpr_cu(sys->a, sys->c, sys->rhs, ans1.x, n, s);
+
+        if (s > 128 && ans1 != ans2) {
+            std::cout << "PTPR(" << ans1.n << "," << ans1.s << ") and PTPR("
+                      << ans2.n << "," << ans2.s << ") has different answer.\n";
+            std::cout << "PTPR(" << ans1.n << "," << ans1.s << ")\n";
+            ans1.display(std::cout);
+            std::cout << "PTPR(" << ans2.n << "," << ans2.s << ")\n";
+            ans2.display(std::cout);
+        }
+        ans2 = ans1;
+    }
+
     assign(sys);
     if (n <= 1024) {
         // currently CR works in thread,
         TPR_CU::cr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
+        ans1.display(std::cout);
+
+        PTPR_CU::pcr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
         ans1.display(std::cout);
     }
 
