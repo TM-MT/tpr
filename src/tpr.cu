@@ -593,9 +593,12 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     // launch
     // tpr_ker<<<n / s, s, 4*s*sizeof(float)>>>(d_a, d_c, d_r, d_x, n, s);
     void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &n, &s};
-    dim3 dim_grid(n / s, 1, 1);
-    dim3 dim_block(s, 1, 1);
-    size_t shmem_size = 4 * s * sizeof(float);
+    auto dim = n2dim(n, s, dev);
+    auto dim_grid = dim[0];
+    auto dim_block = dim[1];
+    size_t shmem_size = 4 * dim_block.x * sizeof(float);
+    assert(shmem_size <= deviceProp.sharedMemPerBlock);
+
     CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
                                          kernel_args, shmem_size));
 
@@ -614,6 +617,34 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, int n, int s) {
     CU_CHECK(cudaFree(d_x));
     free(x);
     return;
+}
+
+/**
+ * @brief Helper function for tpr_cu
+ * @details calculate dimension for cuda kernel launch.
+ *
+ * @param[in]  n     size of the equation
+ * @param[in]  s     TPR parameter
+ * @param[in]  dev   cuda device id
+ * @return     [dim_grid, dim_block]
+ */
+std::array<dim3, 2> TPR_CU::n2dim(int n, int s, int dev) {
+    assert(s > 0);
+    assert(n >= s);
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, dev);
+    auto max_tpb = deviceProp.maxThreadsPerBlock;
+
+    dim3 dim_grid(std::max(n / s, 1), 1, 1);
+    dim3 dim_block(std::min(s, max_tpb), 1, 1);
+    auto max_grid = deviceProp.maxGridSize;  // int[3]
+    // dim_grid.x should be less then maxGridSize.x or cannot launch
+    assert(dim_grid.x <= max_grid[0]);
+
+    dim_grid.y = std::max(s / max_tpb, 1);
+    assert(dim_grid.y <= max_grid[1]);
+
+    return {dim_grid, dim_block};
 }
 
 void TPR_CU::cr_cu(float *a, float *c, float *rhs, int n) {

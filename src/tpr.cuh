@@ -3,7 +3,7 @@
 #include <cooperative_groups/memcpy_async.h>
 #include <cooperative_groups/reduce.h>
 
-// #include "lib.hpp"
+#include <array>
 
 namespace cg = cooperative_groups;
 
@@ -34,5 +34,6 @@ __device__ void tpr_st3_ker(cg::thread_block &tb, TPR_CU::Equation eq,
                             TPR_CU::TPR_Params const &params);
 __global__ void cr_ker(float *a, float *c, float *rhs, float *x, int n);
 void tpr_cu(float *a, float *c, float *rhs, int n, int s);
+std::array<dim3, 2> n2dim(int n, int s, int dev);
 void cr_cu(float *a, float *c, float *rhs, int n);
 }  // namespace TPR_CU
