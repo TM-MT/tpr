@@ -54,6 +54,8 @@ class TPR_ANS {
         return true;
     }
 
+    bool operator!=(const TPR_ANS &ans) { return !(*this == ans); }
+
     // operator `<<` cannot define for following reason,
     // nvcc 11: Compile Fail
     // `error: too many parameters for this operator function`

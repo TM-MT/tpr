@@ -482,12 +482,21 @@ int main() {
     struct TRIDIAG_SYSTEM *sys =
         (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
     setup(sys, n);
-    TPR_ANS ans1(n);
+    TPR_ANS ans1(n), ans2(n);
     for (int s = 128; s <= std::min(n, 1024); s *= 2) {
         assign(sys);
         ans1.s = s;
         tpr_cu(sys->a, sys->c, sys->rhs, ans1.x, n, s);
-        ans1.display(std::cout);
+
+        if (s > 128 && ans1 != ans2) {
+            std::cout << "TPR(" << ans1.n << "," << ans1.s << ") and TPR("
+                      << ans2.n << "," << ans2.s << ") has different answer.\n";
+            std::cout << "TPR(" << ans1.n << "," << ans1.s << ")\n";
+            ans1.display(std::cout);
+            std::cout << "TPR(" << ans2.n << "," << ans2.s << ")\n";
+            ans2.display(std::cout);
+        }
+        ans2 = ans1;
     }
 
     assign(sys);
