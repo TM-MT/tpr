@@ -1,7 +1,8 @@
 #pragma once
 
-#include "lib.hpp"
 #include <vector>
+
+#include "lib.hpp"
 
 #define EPS 1e-3
 
