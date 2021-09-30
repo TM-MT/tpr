@@ -67,11 +67,11 @@ endif()
 
 
 if (BUILD_CUDA)
-    add_executable(tpr_cu  tpr.cu tpr.cuh)
+    add_library(tpr_cu STATIC tpr.cu tpr.cuh)
     set_target_properties(tpr_cu
         PROPERTIES POSITION_INDEPENDENT_CODE ON
                     CUDA_SEPARABLE_COMPILATION ON)
-    add_executable(ptpr_cu  ptpr.cu ptpr.cuh)
+    add_library(ptpr_cu STATIC ptpr.cu ptpr.cuh)
     set_target_properties(ptpr_cu
         PROPERTIES POSITION_INDEPENDENT_CODE ON
                     CUDA_SEPARABLE_COMPILATION ON)
@@ -82,6 +82,10 @@ if (BUILD_CUDA)
 
     target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
     target_include_directories(ptpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
+
+    add_executable(cumain main.cu)
+    target_include_directories(cumain PUBLIC ${PROJECT_SOURCE_DIR}/src)
+    target_link_libraries(cumain PRIVATE tpr_cu ptpr_cu)
 endif()
 
 
