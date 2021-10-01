@@ -8,13 +8,13 @@
 #include "ptpr.cuh"
 
 #if (__CUDACC_VER_MAJOR__<=11) && (__CUDACC_VER_MINOR__ < 4)
-#pragma message("Using Legacy async copy")
-#define LEGACY_ASYNC_COPY
+#pragma message("Using Experimental Features")
+#define EXPERIMENTAL_ASYNC_COPY
 #endif
 
 
 namespace cg = cooperative_groups;
-#ifdef LEGACY_ASYNC_COPY
+#ifdef EXPERIMENTAL_ASYNC_COPY
 using namespace nvcuda::experimental;
 #endif
 
@@ -54,7 +54,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     shrhs = (float *)&array[2 * s];
 
     // make local copy on shared memory
-#ifdef LEGACY_ASYNC_COPY
+#ifdef EXPERIMENTAL_ASYNC_COPY
     pipeline pipe;
     memcpy_async(sha[idx - st], a[idx], pipe);
     memcpy_async(shc[idx - st], c[idx], pipe);
@@ -82,7 +82,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     // bkups, .x -> a, .y -> c, .z -> rhs
     float3 bkup_st, bkup_ed;
 
-#ifdef LEGACY_ASYNC_COPY
+#ifdef EXPERIMENTAL_ASYNC_COPY
      pipe.commit_and_wait();
 #else
     cg::wait(tb);
