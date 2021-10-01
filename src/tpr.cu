@@ -7,7 +7,7 @@
 #include "main.hpp"
 #include "tpr.cuh"
 
-#if (__CUDACC_VER_MAJOR__<=11) && (__CUDACC_VER_MINOR__ < 4)
+#if (__CUDACC_VER_MAJOR__ <= 11) && (__CUDACC_VER_MINOR__ < 4)
 #pragma message("Using Experimental Features")
 #define EXPERIMENTAL_ASYNC_COPY
 #endif
@@ -16,7 +16,6 @@ namespace cg = cooperative_groups;
 #ifdef EXPERIMENTAL_ASYNC_COPY
 using namespace nvcuda::experimental;
 #endif
-
 
 using namespace TPR_CU;
 
@@ -81,9 +80,9 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
     float3 bkup;
 
 #ifdef EXPERIMENTAL_ASYNC_COPY
-     pipe.commit_and_wait();
+    pipe.commit_and_wait();
 #else
-     cg::wait(tb);
+    cg::wait(tb);
 #endif
 
     // TPR Stage 1
