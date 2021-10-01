@@ -86,6 +86,9 @@ if (BUILD_CUDA)
     add_executable(cumain main.cu)
     target_include_directories(cumain PUBLIC ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(cumain PRIVATE tpr_cu ptpr_cu)
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+      set_property(TARGET cumain APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+    endif()
 endif()
 
 

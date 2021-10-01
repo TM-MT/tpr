@@ -7,7 +7,18 @@
 #include "main.hpp"
 #include "ptpr.cuh"
 
+#if (__CUDACC_VER_MAJOR__<=11) && (__CUDACC_VER_MINOR__ < 4)
+#pragma message("Using Legacy async copy")
+#define LEGACY_ASYNC_COPY
+#endif
+
+
 namespace cg = cooperative_groups;
+#ifdef LEGACY_ASYNC_COPY
+using namespace nvcuda::experimental;
+#endif
+
+
 
 using namespace PTPR_CU;
 
@@ -43,9 +54,16 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     shrhs = (float *)&array[2 * s];
 
     // make local copy on shared memory
+#ifdef LEGACY_ASYNC_COPY
+    pipeline pipe;
+    memcpy_async(sha[idx - st], a[idx], pipe);
+    memcpy_async(shc[idx - st], c[idx], pipe);
+    memcpy_async(shrhs[idx - st], rhs[idx], pipe);
+#else
     cg::memcpy_async(tb, sha, &a[st], sizeof(float) * s);
     cg::memcpy_async(tb, shc, &c[st], sizeof(float) * s);
     cg::memcpy_async(tb, shrhs, &rhs[st], sizeof(float) * s);
+#endif
 
     Equation eq;
     eq.a = sha;
@@ -64,7 +82,11 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     // bkups, .x -> a, .y -> c, .z -> rhs
     float3 bkup_st, bkup_ed;
 
+#ifdef LEGACY_ASYNC_COPY
+     pipe.commit_and_wait();
+#else
     cg::wait(tb);
+#endif
     tpr_st1_ker(tb, eq, params);
 
     tpr_inter(tb, eq, bkup_st, params);
