@@ -89,6 +89,13 @@ if (BUILD_CUDA)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
       set_property(TARGET cumain APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
+
+    # FOR BENCHMARK PROGRAM
+    add_executable(cupm
+        pm.cu
+    )
+    target_link_libraries(cupm
+        PUBLIC tpr_cu ptpr_cu effolkronium_random)
 endif()
 
 
