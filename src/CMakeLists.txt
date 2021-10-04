@@ -75,27 +75,35 @@ if (BUILD_CUDA)
     set_target_properties(ptpr_cu
         PROPERTIES POSITION_INDEPENDENT_CODE ON
                     CUDA_SEPARABLE_COMPILATION ON)
+    add_library(ref_cusp STATIC reference_cusparse.cu reference_cusparse.cuh)
+    set_target_properties(ref_cusp
+        PROPERTIES POSITION_INDEPENDENT_CODE ON
+                    CUDA_SEPARABLE_COMPILATION ON)
+    target_link_libraries(ref_cusp PRIVATE ${CUDA_cusparse_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
       set_property(TARGET tpr_cu APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
       set_property(TARGET ptpr_cu APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+      set_property(TARGET ref_cusp APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
 
     target_include_directories(tpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
     target_include_directories(ptpr_cu PUBLIC ${PROJECT_SOURCE_DIR}/src)
+    target_include_directories(ref_cusp PUBLIC ${PROJECT_SOURCE_DIR}/src)
 
     add_executable(cumain main.cu)
     target_include_directories(cumain PUBLIC ${PROJECT_SOURCE_DIR}/src)
-    target_link_libraries(cumain PRIVATE tpr_cu ptpr_cu)
+    target_link_libraries(cumain 
+        PRIVATE tpr_cu ptpr_cu ref_cusp)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
       set_property(TARGET cumain APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
 
     # FOR BENCHMARK PROGRAM
     add_executable(cupm
-        pm.cu pm.cuh tpr.cu tpr.cuh ptpr.cu ptpr.cuh
+        pm.cu pm.cuh tpr.cu tpr.cuh ptpr.cu ptpr.cuh reference_cusparse.cu reference_cusparse.cuh
     )
     target_link_libraries(cupm
-        PUBLIC effolkronium_random)
+        PUBLIC ${CUDA_cusparse_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} effolkronium_random)
     set_property(TARGET cupm PROPERTY COMPILE_DEFINITIONS TPR_PERF="ON" )
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
       set_property(TARGET cupm APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
