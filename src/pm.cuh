@@ -25,23 +25,21 @@ Solver str2Solver(std::string &solver);
 class Perf {
     std::vector<time_ms> perf_time;
 
-    public:
+   public:
     void display() {
         std::cout << "sum    [ms]: " << sum() << "\n";
         std::cout << "average[ms]: " << average() << "\n";
     }
 
     void display_all(std::string sep = "ms, ") {
-        for (std::vector<time_ms>::iterator it = this->perf_time.begin(); it != this->perf_time.end(); it++) {
+        for (std::vector<time_ms>::iterator it = this->perf_time.begin();
+             it != this->perf_time.end(); it++) {
             std::cout << *it << sep;
         }
         std::cout << "\n";
     }
 
-    time_ms sum() {
-        return static_cast<float>(sum_d());
-    }
-
+    time_ms sum() { return static_cast<float>(sum_d()); }
 
     time_ms average() {
         double s = sum_d();
@@ -49,19 +47,16 @@ class Perf {
         return s / len;
     }
 
-    void push_back(time_ms t) {
-        this->perf_time.push_back(t);
-    }
+    void push_back(time_ms t) { this->perf_time.push_back(t); }
 
    private:
     double sum_d() {
         double tmp;
-        for (auto& t: this->perf_time) {
+        for (auto &t : this->perf_time) {
             tmp += t;
         }
         return tmp;
     }
-
 };
 
 extern Perf perf_time;

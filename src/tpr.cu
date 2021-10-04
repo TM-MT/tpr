@@ -538,20 +538,20 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     auto dim_block = std::get<1>(config);
     auto shmem_size = std::get<2>(config);
 
-    #ifdef TPR_PERF
+#ifdef TPR_PERF
     {
         time_ms elapsed = 0;
         pmcpp::DeviceTimer timer;
         timer.start();
-    #endif
+#endif
         // launch
-        CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
-                                             kernel_args, shmem_size));
-    #ifdef TPR_PERF
+        CU_CHECK(cudaLaunchCooperativeKernel(
+            (void *)tpr_ker, dim_grid, dim_block, kernel_args, shmem_size));
+#ifdef TPR_PERF
         timer.stop_and_elapsed(elapsed);
         pmcpp::perf_time.push_back(elapsed);
     }
-    #endif
+#endif
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 

@@ -6,6 +6,7 @@
 #include <array>
 #include <tuple>
 #include <vector>
+
 #include "pm.cuh"
 
 namespace cg = cooperative_groups;
