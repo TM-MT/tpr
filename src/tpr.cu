@@ -548,7 +548,7 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
         CU_CHECK(cudaLaunchCooperativeKernel(
             (void *)tpr_ker, dim_grid, dim_block, kernel_args, shmem_size));
 #ifdef TPR_PERF
-        timer.stop_and_elapsed(elapsed);
+        timer.stop_and_elapsed(elapsed);  // cudaDeviceSynchronize called
         pmcpp::perf_time.push_back(elapsed);
     }
 #endif

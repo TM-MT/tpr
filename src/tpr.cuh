@@ -5,7 +5,6 @@
 
 #include <array>
 #include <tuple>
-#include <vector>
 
 #include "pm.cuh"
 
