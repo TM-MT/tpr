@@ -29,6 +29,7 @@ class Perf {
     void display() {
         std::cout << "sum    [ms]: " << sum() << "\n";
         std::cout << "average[ms]: " << average() << "\n";
+        std::cout << "variance   : " << variance() << "\n";
     }
 
     void display_all(std::string sep = "ms, ") {
@@ -41,21 +42,34 @@ class Perf {
 
     time_ms sum() { return static_cast<float>(sum_d()); }
 
-    time_ms average() {
-        double s = sum_d();
-        double len = static_cast<double>(perf_time.size());
-        return s / len;
+    time_ms average() { return static_cast<float>(average_d()); }
+
+    time_ms variance() {
+        double ave = average_d();
+        double tmp = 0.0;
+        for (auto &t : this->perf_time) {
+            tmp += (t - ave) * (t - ave);
+        }
+        double n = static_cast<double>(perf_time.size());
+        double ret = tmp / n;
+        return ret;
     }
 
     void push_back(time_ms t) { this->perf_time.push_back(t); }
 
    private:
     double sum_d() {
-        double tmp;
+        double tmp = 0.0;
         for (auto &t : this->perf_time) {
             tmp += t;
         }
         return tmp;
+    }
+
+    double average_d() {
+        double s = sum_d();
+        double len = static_cast<double>(perf_time.size());
+        return s / len;
     }
 };
 
