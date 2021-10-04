@@ -14,14 +14,7 @@
 using Random = effolkronium::random_static;
 
 namespace pmcpp {
-enum class Solver {
-    TPR,
-    PCR,
-    PTPR,
-};
-
-void to_lower(std::string &s1);
-Solver str2Solver(std::string &solver);
+std::vector<time_ms> perf_time;
 
 /**
  * @brief Command Line Args
@@ -37,9 +30,6 @@ struct Options {
     // Solver
     Solver solver;
 };
-
-void to_lower(std::string &s1);
-Solver str2Solver(std::string &solver);
 
 Solver str2Solver(std::string solver) {
     to_lower(solver);
@@ -123,6 +113,11 @@ int main(int argc, char *argv[]) {
             }
         } break;
     }
+
+    for (std::vector<time_ms>::iterator it = pmcpp::perf_time.begin(); it != pmcpp::perf_time.end(); it++) {
+        std::cout << *it << "ms, ";
+    }
+    std::cout << "\n";
 
     clean(sys);
     free(sys);

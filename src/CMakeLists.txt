@@ -92,10 +92,14 @@ if (BUILD_CUDA)
 
     # FOR BENCHMARK PROGRAM
     add_executable(cupm
-        pm.cu
+        pm.cu pm.cuh tpr.cu tpr.cuh ptpr.cu ptpr.cuh
     )
     target_link_libraries(cupm
-        PUBLIC tpr_cu ptpr_cu effolkronium_random)
+        PUBLIC effolkronium_random)
+    set_property(TARGET cupm PROPERTY COMPILE_DEFINITIONS TPR_PERF="ON" )
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+      set_property(TARGET cupm APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+    endif()
 endif()
 
 
