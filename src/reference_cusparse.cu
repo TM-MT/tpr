@@ -3,6 +3,9 @@
 #include <cuda_runtime.h>
 #include <cusparse.h>
 
+#include <iostream>
+
+#include "pm.cuh"
 #include "reference_cusparse.cuh"
 
 /**
@@ -110,11 +113,21 @@ void REFERENCE_CUSPARSE::ref_cusp(float *a, float *c, float *rhs, float *x,
 
     cudaDeviceSynchronize();
 
-    // execute
-    CUSP_CHECK(
-        cusparseSgtsv2_nopivot(cusparseH, n, 1, dl, d, du, db, n, pBuffer));
+#ifdef TPR_PERF
+    {
+        time_ms elapsed = 0;
+        pmcpp::DeviceTimer timer;
+        timer.start();
+#endif
+        // execute
+        CUSP_CHECK(
+            cusparseSgtsv2_nopivot(cusparseH, n, 1, dl, d, du, db, n, pBuffer));
 
-    cudaDeviceSynchronize();
+#ifdef TPR_PERF
+        timer.stop_and_elapsed(elapsed);  // cudaDeviceSynchronize called
+        pmcpp::perf_time.push_back(elapsed);
+    }
+#endif
 
     CU_CHECK(cudaMemcpy(x, db, size_of_mem, cudaMemcpyDeviceToHost));
 

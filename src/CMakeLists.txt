@@ -95,7 +95,7 @@ if (BUILD_CUDA)
     target_link_libraries(cumain 
         PRIVATE tpr_cu ptpr_cu ref_cusp)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
-      set_property(TARGET cumain APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        set_property(TARGET cumain APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
 
     # FOR BENCHMARK PROGRAM
@@ -106,7 +106,7 @@ if (BUILD_CUDA)
         PUBLIC ${CUDA_cusparse_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} effolkronium_random)
     set_property(TARGET cupm PROPERTY COMPILE_DEFINITIONS TPR_PERF="ON" )
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
-      set_property(TARGET cupm APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        set_property(TARGET cupm APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
 endif()
 

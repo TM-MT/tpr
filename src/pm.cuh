@@ -18,6 +18,7 @@ enum class Solver {
     TPR,
     PCR,
     PTPR,
+    cuSparse,
 };
 
 void to_lower(std::string &s1);
