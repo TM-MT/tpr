@@ -538,11 +538,22 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     auto dim_block = std::get<1>(config);
     auto shmem_size = std::get<2>(config);
 
-    // launch
-    CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
-                                         kernel_args, shmem_size));
-
-    cudaDeviceSynchronize();
+    {
+        cudaEvent_t start, stop;
+        CU_CHECK(cudaEventCreate(&start));
+        CU_CHECK(cudaEventCreate(&stop));
+        CU_CHECK(cudaEventRecord(start, cudaEventDefault));
+        // launch
+        CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
+                                             kernel_args, shmem_size));
+        CU_CHECK(cudaEventRecord(stop, cudaEventDefault));
+        cudaEventSynchronize(stop);
+        float elapsed = 0;
+        cudaEventElapsedTime(&elapsed, start, stop);
+        printf("%f ms\n", elapsed);
+        CU_CHECK(cudaEventDestroy(start));
+        CU_CHECK(cudaEventDestroy(stop));        
+    }
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
