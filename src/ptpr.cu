@@ -508,6 +508,8 @@ void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
         timer.stop_and_elapsed(elapsed);  // cudaDeviceSynchronize called
         pmcpp::perf_time.push_back(elapsed);
     }
+#else
+    cudaDeviceSynchronize();
 #endif
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
