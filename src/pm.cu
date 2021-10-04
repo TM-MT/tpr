@@ -115,10 +115,10 @@ int main(int argc, char *argv[]) {
             }
         } break;
         case pmcpp::Solver::cuSparse: {
+            REFERENCE_CUSPARSE rfs(n);
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
-                REFERENCE_CUSPARSE::ref_cusp(sys->a, sys->c, sys->rhs,
-                                             sys->diag, n);
+                rfs.solve(sys->a, sys->c, sys->rhs, sys->diag, n);
             }
         } break;
     }

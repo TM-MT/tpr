@@ -57,7 +57,8 @@ int main() {
     }
 
     assign(sys);
-    REFERENCE_CUSPARSE::ref_cusp(sys->a, sys->c, sys->rhs, ans1.x, n);
+    REFERENCE_CUSPARSE rfs(n);
+    rfs.solve(sys->a, sys->c, sys->rhs, ans1.x, n);
     ans1.display(std::cout);
 
     clean(sys);
