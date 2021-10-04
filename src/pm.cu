@@ -14,8 +14,7 @@
 using Random = effolkronium::random_static;
 
 namespace pmcpp {
-std::vector<time_ms> perf_time;
-
+Perf perf_time;
 /**
  * @brief Command Line Args
  * @details Define Command Line Arguments
@@ -114,10 +113,7 @@ int main(int argc, char *argv[]) {
         } break;
     }
 
-    for (std::vector<time_ms>::iterator it = pmcpp::perf_time.begin(); it != pmcpp::perf_time.end(); it++) {
-        std::cout << *it << "ms, ";
-    }
-    std::cout << "\n";
+    pmcpp::perf_time.display();
 
     clean(sys);
     free(sys);
