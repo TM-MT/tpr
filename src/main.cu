@@ -4,6 +4,7 @@
 
 #include "main.hpp"
 #include "ptpr.cuh"
+#include "reference_cusparse.cuh"
 #include "tpr.cuh"
 
 int main() {
@@ -44,15 +45,21 @@ int main() {
         ans2 = ans1;
     }
 
-    assign(sys);
     if (n <= 1024) {
         // currently CR works in thread,
+        assign(sys);
         TPR_CU::cr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
         ans1.display(std::cout);
 
+        assign(sys);
         PTPR_CU::pcr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
         ans1.display(std::cout);
     }
+
+    assign(sys);
+    REFERENCE_CUSPARSE rfs(n);
+    rfs.solve(sys->a, sys->c, sys->rhs, ans1.x, n);
+    ans1.display(std::cout);
 
     clean(sys);
     free(sys);

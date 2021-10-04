@@ -8,6 +8,7 @@
 #include "lib.hpp"
 #include "main.hpp"
 #include "ptpr.cuh"
+#include "reference_cusparse.cuh"
 #include "tpr.cuh"
 
 // std::mt19937 base pseudo-random
@@ -38,6 +39,8 @@ Solver str2Solver(std::string solver) {
         return Solver::TPR;
     } else if (solver.compare(std::string("ptpr")) == 0) {
         return Solver::PTPR;
+    } else if (solver.compare(std::string("cusparse")) == 0) {
+        return Solver::cuSparse;
     } else {
         std::cerr << "Solver Not Found.\n";
         abort();
@@ -109,6 +112,13 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < iter_times; i++) {
                 assign(sys);
                 PTPR_CU::pcr_cu(sys->a, sys->c, sys->rhs, sys->diag, n);
+            }
+        } break;
+        case pmcpp::Solver::cuSparse: {
+            REFERENCE_CUSPARSE rfs(n);
+            for (int i = 0; i < iter_times; i++) {
+                assign(sys);
+                rfs.solve(sys->a, sys->c, sys->rhs, sys->diag, n);
             }
         } break;
     }
