@@ -538,12 +538,20 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     auto dim_block = std::get<1>(config);
     auto shmem_size = std::get<2>(config);
 
-    std::cerr << "TPR: s=" << s << "\n";
-    // launch
-    CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
-                                         kernel_args, shmem_size));
-
-    cudaDeviceSynchronize();
+#ifdef TPR_PERF
+    {
+        time_ms elapsed = 0;
+        pmcpp::DeviceTimer timer;
+        timer.start();
+#endif
+        // launch
+        CU_CHECK(cudaLaunchCooperativeKernel(
+            (void *)tpr_ker, dim_grid, dim_block, kernel_args, shmem_size));
+#ifdef TPR_PERF
+        timer.stop_and_elapsed(elapsed);  // cudaDeviceSynchronize called
+        pmcpp::perf_time.push_back(elapsed);
+    }
+#endif
 
     CU_CHECK(cudaMemcpy(x, d_x, size, cudaMemcpyDeviceToHost));
 
@@ -628,7 +636,6 @@ void TPR_CU::cr_cu(float *a, float *c, float *rhs, float *x, int n) {
     CU_CHECK(cudaMalloc((void **)&d_r, size));
     CU_CHECK(cudaMalloc((void **)&d_x, size));
 
-    std::cerr << "CR\n";
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_r, rhs, size, cudaMemcpyHostToDevice));
