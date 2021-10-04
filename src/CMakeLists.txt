@@ -79,7 +79,7 @@ if (BUILD_CUDA)
     set_target_properties(ref_cusp
         PROPERTIES POSITION_INDEPENDENT_CODE ON
                     CUDA_SEPARABLE_COMPILATION ON)
-    target_link_libraries(ref_cusp PRIVATE ${CUDA_cusparse_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+    target_link_libraries(ref_cusp PRIVATE cusparse cublas cudart)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
       set_property(TARGET tpr_cu APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
       set_property(TARGET ptpr_cu APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
@@ -103,7 +103,7 @@ if (BUILD_CUDA)
         pm.cu pm.cuh tpr.cu tpr.cuh ptpr.cu ptpr.cuh reference_cusparse.cu reference_cusparse.cuh
     )
     target_link_libraries(cupm
-        PUBLIC ${CUDA_cusparse_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} effolkronium_random)
+        PUBLIC cusparse cublas cudart effolkronium_random)
     set_property(TARGET cupm PROPERTY COMPILE_DEFINITIONS TPR_PERF="ON" )
     if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
         set_property(TARGET cupm APPEND PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
