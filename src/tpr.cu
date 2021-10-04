@@ -540,23 +540,17 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
 
     #ifdef TPR_PERF
     {
-        cudaEvent_t start, stop;
-        CU_CHECK(cudaEventCreate(&start));
-        CU_CHECK(cudaEventCreate(&stop));
-        CU_CHECK(cudaEventRecord(start, cudaEventDefault));
+        time_ms elapsed = 0;
+        pmcpp::DeviceTimer timer;
+        timer.start();
     #endif
         // launch
         CU_CHECK(cudaLaunchCooperativeKernel((void *)tpr_ker, dim_grid, dim_block,
                                              kernel_args, shmem_size));
     #ifdef TPR_PERF
-        CU_CHECK(cudaEventRecord(stop, cudaEventDefault));
-        cudaEventSynchronize(stop);
-        float elapsed = 0;
-        cudaEventElapsedTime(&elapsed, start, stop);
+        timer.stop_and_elapsed(elapsed);
         printf("%f ms\n", elapsed);
         pmcpp::perf_time.push_back(elapsed);
-        CU_CHECK(cudaEventDestroy(start));
-        CU_CHECK(cudaEventDestroy(stop));        
     }
     #endif
 
