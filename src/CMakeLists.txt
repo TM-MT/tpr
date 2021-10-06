@@ -101,7 +101,11 @@ if(BUILD_CUDA)
         reference_cusparse.cuh)
     target_link_libraries(cupm PUBLIC cusparse cublas cudart
                                       effolkronium_random)
-    set_property(TARGET cupm PROPERTY COMPILE_DEFINITIONS TPR_PERF="ON")
+    set_target_properties(
+        cupm
+        PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
+                   POSITION_INDEPENDENT_CODE ON
+                   CUDA_SEPARABLE_COMPILATION ON)
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
         set_property(
             TARGET cupm
