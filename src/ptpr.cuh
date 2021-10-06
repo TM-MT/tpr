@@ -38,7 +38,7 @@ __device__ void tpr_inter_global(cg::thread_block &tb, PTPR_CU::Equation eq,
 __device__ void tpr_st2_copyback(cg::thread_block &tb, float *x, float *pbuffer,
                                  TPR_Params const &params);
 __device__ void tpr_st2_ker(cg::thread_block &tb, PTPR_CU::Equation eq,
-                            PTPR_CU::TPR_Params const &params, float *pbuffer);
+                            PTPR_CU::TPR_Params const &params);
 __device__ void tpr_st3_ker(cg::thread_block &tb, PTPR_CU::Equation eq,
                             PTPR_CU::TPR_Params const &params);
 __global__ void pcr_ker(float *a, float *c, float *rhs, int n);

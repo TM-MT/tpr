@@ -43,6 +43,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
+    int m = n / s;
 
     // local copy
     // sha[0:s], shc[0:s], shrhs[0:s]
@@ -103,12 +104,53 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     tg.sync();
 
     tpr_inter_global(tb, eq, params, pbuffer);
-    tg.sync();
-    tpr_st2_ker(tb, eq, params, pbuffer);
-    tg.sync();
-    tpr_st2_copyback(tb, eq.x, pbuffer, params);
+
     tg.sync();
 
+    if (blockIdx.x == 0) {
+        assert(m <= s);
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        // memcpy_async(sha[idx - st], a[idx], pipe);
+        // memcpy_async(shc[idx - st], c[idx], pipe);
+        // memcpy_async(shrhs[idx - st], rhs[idx], pipe);
+#else
+        cg::memcpy_async(tb, sha, &pbuffer[0], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &pbuffer[m], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &pbuffer[2 * m], sizeof(float) * m);
+#endif
+
+        eq.a = sha;
+        eq.c = shc;
+        eq.rhs = shrhs;
+
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        pipe.commit_and_wait();
+#else
+        cg::wait(tb);
+#endif
+        tpr_st2_ker(tb, eq, params);
+
+        if (idx < m) {
+            int dst = (idx + 1) * s - 1;
+            assert(dst < n);
+            x[dst] = shrhs[idx];
+        }
+
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        // memcpy_async(sha[idx - st], a[idx], pipe);
+        // memcpy_async(shc[idx - st], c[idx], pipe);
+        // memcpy_async(shrhs[idx - st], rhs[idx], pipe);
+        // pipe.commit_and_wait();
+#else
+        // we only modified first `m` elements.
+        cg::memcpy_async(tb, sha, &a[st], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &c[st], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &rhs[st], sizeof(float) * m);
+        cg::wait(tb);
+#endif
+    }
+    // tpr_st2_copyback(tb, eq.x, pbuffer, params);
+    tg.sync();
     // stage 3
     // assert sh* has data
     if (idx < n && idx == st) {
@@ -124,6 +166,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     eq.a = sha;
     eq.c = shc;
     eq.rhs = shrhs;
+
     tpr_st3_ker(tb, eq, params);
 
     return;
@@ -288,17 +331,14 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
  *
  * @param         tb       cg::thread_block
  * @param[in,out] eq       Equation. `eq.a, eq.c, eq.rhs` should be address in
- *                         GLOBAL memory
+ *                         shared memory, length of `m`
  * @param[in]     params   The parameters of PTPR
- * @param         pbuffer  The pbuffer
  */
 __device__ void PTPR_CU::tpr_st2_ker(cg::thread_block &tb, Equation eq,
-                                     TPR_Params const &params, float *pbuffer) {
+                                     TPR_Params const &params) {
     int m = params.n / params.s;
-    float *a = &pbuffer[0], *c = &pbuffer[m], *rhs = &pbuffer[2 * m];
-
     // PCR
-    pcr_thread_block(tb, a, c, rhs, m);
+    pcr_thread_block(tb, eq.a, eq.c, eq.rhs, m);
 }
 
 /**
@@ -336,19 +376,17 @@ __device__ void PTPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
                                      TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int i = tb.thread_index().x;
-    int st = params.st;
-    int ed = params.ed;
-    int n = params.n, s = params.s;
+    int s = params.s;
     assert(__isShared((void *)eq.a));
     assert(__isShared((void *)eq.c));
     assert(__isShared((void *)eq.rhs));
     assert(__isGlobal((void *)eq.x));
 
-    if (idx < n) {
-        int lidx = max(0, st - 1);
+    if (idx < params.n) {
+        int lidx = max(0, params.st - 1);
 
         float key = 1.0 / eq.c[s - 1] *
-                    (eq.rhs[s - 1] - eq.a[s - 1] * eq.x[lidx] - eq.x[ed]);
+                    (eq.rhs[s - 1] - eq.a[s - 1] * eq.x[lidx] - eq.x[params.ed]);
         if (eq.c[s - 1] == 0.0) {
             key = 0.0;
         }
