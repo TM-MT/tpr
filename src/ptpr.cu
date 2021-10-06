@@ -75,7 +75,6 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     params.st = st;
     params.ed = ed;
 
-    float tmp_aa, tmp_cc, tmp_rr;
     // bkups, .x -> a, .y -> c, .z -> rhs
     float3 bkup_st, bkup_ed;
 
@@ -104,53 +103,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 
     tpr_inter_global(tb, eq, bkup_ed, params);
 
-    // PCR
-    for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
-         p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
-        if (idx < n && idx == ed) {
-            // reduction
-            int u = 1 << (p - 1);  // offset
-            int lidx = idx - u;
-            float akl, ckl, rkl;
-            if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
-            } else {
-                akl = a[lidx];
-                ckl = c[lidx];
-                rkl = rhs[lidx];
-            }
-            int ridx = idx + u;
-            float akr, ckr, rkr;
-            if (ridx >= n) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
-            } else {
-                akr = a[ridx];
-                ckr = c[ridx];
-                rkr = rhs[ridx];
-            }
-
-            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
-
-            tmp_aa = -inv_diag_k * akl * a[idx];
-            tmp_cc = -inv_diag_k * ckr * c[idx];
-            tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
-        }
-
-        tg.sync();
-
-        if (idx < n && idx == ed) {
-            // copy back
-            a[idx] = tmp_aa;
-            c[idx] = tmp_cc;
-            rhs[idx] = tmp_rr;
-        }
-
-        tg.sync();
-    }
+    tpr_st2_ker(tg, eq, params);
 
     tpr_st2_copyback(tb, rhs, x, n, s);
 
@@ -333,6 +286,71 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
         bkup.x = eq.a[idx];
         bkup.y = eq.c[idx];
         bkup.z = eq.rhs[idx];
+    }
+}
+
+/**
+ * @brief      TPR Stage 2
+ *
+ * call PCR
+ *
+ * @param          tg      cg::grid_group
+ * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
+ * GLOBAL memory
+ * @param[in]      params  The parameters of PTPR
+ */
+__device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, Equation eq,
+                                     TPR_Params const &params) {
+    float tmp_aa, tmp_cc, tmp_rr;
+    int idx = params.idx, n = params.n, s = params.s, ed = params.ed;
+    float *a = eq.a, *c = eq.c, *rhs = eq.rhs;
+
+    // PCR
+    for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
+         p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
+        if (idx < n && idx == ed) {
+            // reduction
+            int u = 1 << (p - 1);  // offset
+            int lidx = idx - u;
+            float akl, ckl, rkl;
+            if (lidx < 0) {
+                akl = -1.0;
+                ckl = 0.0;
+                rkl = 0.0;
+            } else {
+                akl = a[lidx];
+                ckl = c[lidx];
+                rkl = rhs[lidx];
+            }
+            int ridx = idx + u;
+            float akr, ckr, rkr;
+            if (ridx >= n) {
+                akr = 0.0;
+                ckr = -1.0;
+                rkr = 0.0;
+            } else {
+                akr = a[ridx];
+                ckr = c[ridx];
+                rkr = rhs[ridx];
+            }
+
+            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
+
+            tmp_aa = -inv_diag_k * akl * a[idx];
+            tmp_cc = -inv_diag_k * ckr * c[idx];
+            tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
+        }
+
+        tg.sync();
+
+        if (idx < n && idx == ed) {
+            // copy back
+            a[idx] = tmp_aa;
+            c[idx] = tmp_cc;
+            rhs[idx] = tmp_rr;
+        }
+
+        tg.sync();
     }
 }
 
