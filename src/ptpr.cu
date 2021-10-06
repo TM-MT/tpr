@@ -43,7 +43,6 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
-    int m = n / s;
 
     // local copy
     // sha[0:s], shc[0:s], shrhs[0:s]
@@ -73,6 +72,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     TPR_Params params;
     params.n = n;
     params.s = s;
+    params.m = n / s;
     params.idx = idx;
     params.st = st;
     params.ed = ed;
@@ -103,53 +103,8 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 
     tg.sync();
 
-    tpr_inter_global(tb, eq, params, pbuffer);
+    tpr_st2_ker(tg, tb, eq, params, pbuffer);
 
-    tg.sync();
-
-    if (blockIdx.x == 0) {
-        assert(m <= s);
-#ifdef EXPERIMENTAL_ASYNC_COPY
-        // memcpy_async(sha[idx - st], a[idx], pipe);
-        // memcpy_async(shc[idx - st], c[idx], pipe);
-        // memcpy_async(shrhs[idx - st], rhs[idx], pipe);
-#else
-        cg::memcpy_async(tb, sha, &pbuffer[0], sizeof(float) * m);
-        cg::memcpy_async(tb, shc, &pbuffer[m], sizeof(float) * m);
-        cg::memcpy_async(tb, shrhs, &pbuffer[2 * m], sizeof(float) * m);
-#endif
-
-        eq.a = sha;
-        eq.c = shc;
-        eq.rhs = shrhs;
-
-#ifdef EXPERIMENTAL_ASYNC_COPY
-        pipe.commit_and_wait();
-#else
-        cg::wait(tb);
-#endif
-        tpr_st2_ker(tb, eq, params);
-
-        if (idx < m) {
-            int dst = (idx + 1) * s - 1;
-            assert(dst < n);
-            x[dst] = shrhs[idx];
-        }
-
-#ifdef EXPERIMENTAL_ASYNC_COPY
-        // memcpy_async(sha[idx - st], a[idx], pipe);
-        // memcpy_async(shc[idx - st], c[idx], pipe);
-        // memcpy_async(shrhs[idx - st], rhs[idx], pipe);
-        // pipe.commit_and_wait();
-#else
-        // we only modified first `m` elements.
-        cg::memcpy_async(tb, sha, &a[st], sizeof(float) * m);
-        cg::memcpy_async(tb, shc, &c[st], sizeof(float) * m);
-        cg::memcpy_async(tb, shrhs, &rhs[st], sizeof(float) * m);
-        cg::wait(tb);
-#endif
-    }
-    // tpr_st2_copyback(tb, eq.x, pbuffer, params);
     tg.sync();
     // stage 3
     // assert sh* has data
@@ -329,16 +284,64 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
  *
  *                call PCR
  *
+ * @param         tg       cg::grid_group
  * @param         tb       cg::thread_block
  * @param[in,out] eq       Equation. `eq.a, eq.c, eq.rhs` should be address in
- *                         shared memory, length of `m`
+ *                         GLOBAL memory, length of `n`
  * @param[in]     params   The parameters of PTPR
+ * @param         pbuffer  The pbuffer
  */
-__device__ void PTPR_CU::tpr_st2_ker(cg::thread_block &tb, Equation eq,
-                                     TPR_Params const &params) {
-    int m = params.n / params.s;
-    // PCR
-    pcr_thread_block(tb, eq.a, eq.c, eq.rhs, m);
+__device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb, Equation eq,
+                                     TPR_Params const &params, float *pbuffer) {
+    tpr_inter_global(tb, eq, params, pbuffer);
+
+    tg.sync();
+
+    if (blockIdx.x == 0) {
+        int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+        int m = params.m;
+        int s = params.s;
+        assert(m <= s);
+
+        __shared__ float *sha, *shc, *shrhs;
+        sha = (float *)array;
+        shc = (float *)&array[s];
+        shrhs = (float *)&array[2 * s];
+
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        // memcpy_async(sha[idx - st], a[idx], pipe);
+        // memcpy_async(shc[idx - st], c[idx], pipe);
+        // memcpy_async(shrhs[idx - st], rhs[idx], pipe);
+        // pipe.commit_and_wait();
+#else
+        cg::memcpy_async(tb, sha, &pbuffer[0], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &pbuffer[m], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &pbuffer[2 * m], sizeof(float) * m);
+        cg::wait(tb);
+#endif
+
+        pcr_thread_block(tb, sha, shc, shrhs, m);
+
+        if (idx < m) {
+            int dst = (idx + 1) * s - 1;
+            assert(dst < params.n);
+            eq.x[dst] = shrhs[idx];
+        }
+
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        // memcpy_async(sha[idx - st], a[idx], pipe);
+        // memcpy_async(shc[idx - st], c[idx], pipe);
+        // memcpy_async(shrhs[idx - st], rhs[idx], pipe);
+        // pipe.commit_and_wait();
+#else
+        // we only modified first `m` elements.
+        cg::memcpy_async(tb, sha, &eq.a[params.st], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &eq.c[params.st], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &eq.rhs[params.st], sizeof(float) * m);
+        cg::wait(tb);
+#endif
+    }
+    // tpr_st2_copyback(tb, eq.x, pbuffer, params);
 }
 
 /**
