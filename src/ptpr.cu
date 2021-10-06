@@ -493,8 +493,6 @@ void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     auto dim_block = std::get<1>(config);
     auto shmem_size = std::get<2>(config);
 
-    printf("(grid, block) = (%d, %d)\n", dim_grid.x, dim_block.x);
-
 #ifdef TPR_PERF
     {
         time_ms elapsed = 0;
