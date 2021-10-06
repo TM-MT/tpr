@@ -291,8 +291,9 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
  * @param[in]     params   The parameters of PTPR
  * @param         pbuffer  The pbuffer
  */
-__device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb, Equation eq,
-                                     TPR_Params const &params, float *pbuffer) {
+__device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
+                                     Equation eq, TPR_Params const &params,
+                                     float *pbuffer) {
     tpr_inter_global(tb, eq, params, pbuffer);
 
     tg.sync();
@@ -394,8 +395,9 @@ __device__ void PTPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
     if (idx < params.n) {
         int lidx = max(0, params.st - 1);
 
-        float key = 1.0 / eq.c[s - 1] *
-                    (eq.rhs[s - 1] - eq.a[s - 1] * eq.x[lidx] - eq.x[params.ed]);
+        float key =
+            1.0 / eq.c[s - 1] *
+            (eq.rhs[s - 1] - eq.a[s - 1] * eq.x[lidx] - eq.x[params.ed]);
         if (eq.c[s - 1] == 0.0) {
             key = 0.0;
         }
@@ -514,6 +516,8 @@ void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     auto dim_grid = std::get<0>(config);
     auto dim_block = std::get<1>(config);
     auto shmem_size = std::get<2>(config);
+
+    printf("(grid, block) = (%d, %d)\n", dim_grid.x, dim_block.x);
 
 #ifdef TPR_PERF
     {
