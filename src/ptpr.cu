@@ -248,14 +248,13 @@ __device__ void PTPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
 /**
  * @brief      PTPR Intermediate stage GLOBAL
  *
- * Update E_{st-1} by E_{st}
+ *             Update E_{st-1} by E_{st}
  *
- * @param          tb      cg::thread_block
- * @param[in]      eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * GLOBAL memory
- * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c,
- * bkup->z: rhs
- * @param[in]      params  The parameters of PTPR
+ * @param      tb       cg::thread_block
+ * @param[in]  eq       Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                      GLOBAL memory
+ * @param[in]  params   The parameters of PTPR
+ * @param[out] pbuffer  The pbuffer
  */
 __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
                                           TPR_Params const &params,
@@ -283,14 +282,15 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
 }
 
 /**
- * @brief      TPR Stage 2
+ * @brief         TPR Stage 2
  *
- * call PCR
+ *                call PCR
  *
- * @param          tg      cg::grid_group
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * GLOBAL memory
- * @param[in]      params  The parameters of PTPR
+ * @param         tb       cg::thread_block
+ * @param[in,out] eq       Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                         GLOBAL memory
+ * @param[in]     params   The parameters of PTPR
+ * @param         pbuffer  The pbuffer
  */
 __device__ void PTPR_CU::tpr_st2_ker(cg::thread_block &tb, Equation eq,
                                      TPR_Params const &params, float *pbuffer) {
