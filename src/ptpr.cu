@@ -348,30 +348,6 @@ __device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
         cg::wait(tb);
 #endif
     }
-    // tpr_st2_copyback(tb, eq.x, pbuffer, params);
-}
-
-/**
- * @brief      copy the answer from stage 2 PCR
- *
- * @note       assert { rhs[i] | i \in [0, n), i % (s-1) == 0 } has the answer
- *
- * @param      tb       cg::thread_block
- * @param[out] x        The answer array. Address in GLOBAL memory.
- * @param      pbuffer  The pbuffer
- * @param      params   The parameters
- */
-__device__ void PTPR_CU::tpr_st2_copyback(cg::thread_block &tb, float *x,
-                                          float *pbuffer,
-                                          TPR_Params const &params) {
-    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-
-    if (idx < params.n && idx == params.ed) {
-        int m = params.n / params.s;
-        int srcidx = 2 * m + idx / params.s;  // rhs[ed]
-        assert(srcidx < 3 * m);
-        x[idx] = pbuffer[srcidx];
-    }
 }
 
 /**
