@@ -41,7 +41,6 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     assert(tg.is_valid());
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
-    int ed = st + s - 1;
 
     // local copy
     // sha[0:s], shc[0:s], shrhs[0:s]
@@ -74,7 +73,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     params.m = n / s;
     params.idx = idx;
     params.st = st;
-    params.ed = ed;
+    params.ed = st + s - 1;
 
     // bkups, .x -> a, .y -> c, .z -> rhs
     float3 bkup;
@@ -148,7 +147,7 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
                                     TPR_Params const &params) {
     int idx = params.idx;
     int i = idx - params.st;
-    int n = params.n, s = params.s;
+    int s = params.s;
     float tmp_aa, tmp_cc, tmp_rr;
     float *sha = eq.a, *shc = eq.c, *shrhs = eq.rhs;
     assert(__isShared((void *)sha));
@@ -158,7 +157,8 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
         int u = 1 << (p - 1);  // offset
         int p2k = 1 << p;
-        bool select_idx = idx < n && ((i % p2k == 0) || ((i + 1) % p2k == 0));
+        bool select_idx =
+            idx < params.n && ((i % p2k == 0) || ((i + 1) % p2k == 0));
 
         if (select_idx) {
             // reduction
@@ -220,7 +220,6 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
 __device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
                                   TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-    float tmp_aa, tmp_cc, tmp_rr;
     assert(__isShared((void *)eq.a));
     assert(__isShared((void *)eq.c));
     assert(__isShared((void *)eq.rhs));
@@ -233,13 +232,9 @@ __device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
 
         float inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-        tmp_aa = inv_diag_k * ak;
-        tmp_cc = -inv_diag_k * ckr * ck;
-        tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
-
-        eq.a[k] = tmp_aa;
-        eq.c[k] = tmp_cc;
-        eq.rhs[k] = tmp_rr;
+        eq.a[k] = inv_diag_k * ak;
+        eq.c[k] = -inv_diag_k * ckr * ck;
+        eq.rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
     }
 }
 
@@ -259,9 +254,9 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
                                          float *pbuffer) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
-    int dst = idx / params.s;
 
     if ((idx < params.n - 1) && (idx == ed)) {
+        int dst = idx / params.s;
         int k = idx, kr = idx + 1;  // (k, kr) = (st-1, st)
         float ak = eq.a[k], akr = eq.a[kr];
         float ck = eq.c[k], ckr = eq.c[kr];
@@ -286,21 +281,58 @@ __device__ void TPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
 
     tg.sync();
 
-    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-    float *a = eq.a, *c = eq.c, *rhs = eq.rhs, *x = eq.x;
-    int n = params.n, s = params.s;
+    if (blockIdx.x == 0) {
+        int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+        int s = params.s, m = params.m;
+        assert(m <= s);
 
-    cr_thread_block(tb, &pbuffer[0], &pbuffer[params.m], &pbuffer[2 * params.m],
-                    &pbuffer[3 * params.m], params.m);
+        __shared__ float *sha, *shc, *shrhs, *shx;
+        sha = (float *)array;
+        shc = (float *)&array[s];
+        shrhs = (float *)&array[2 * s];
+        shx = (float *)&array[3 * s];
 
-    tb.sync();
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        if (idx < m) {
+            pipeline pipe;
+            memcpy_async(sha[idx - params.st], pbuffer[idx], pipe);
+            memcpy_async(shc[idx - params.st], pbuffer[m + idx], pipe);
+            memcpy_async(shrhs[idx - params.st], pbuffer[2 * m + idx], pipe);
+            memcpy_async(shx[idx - params.st], pbuffer[3 * m + idx], pipe);
+            pipe.commit_and_wait();
+        }
+#else
+        cg::memcpy_async(tb, sha, &pbuffer[0], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &pbuffer[m], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &pbuffer[2 * m], sizeof(float) * m);
+        cg::memcpy_async(tb, shx, &pbuffer[3 * m], sizeof(float) * m);
+        cg::wait(tb);  // following `pcr_thread_block()` needs sh*
+#endif
 
-    if (idx < params.m) {
-        int dst = (idx + 1) * s - 1;
-        assert(dst < params.n);
-        eq.x[dst] = pbuffer[3 * params.m + idx];
+        cr_thread_block(tb, sha, shc, shrhs, shx, m);
+
+        if (idx < m) {
+            int dst = (idx + 1) * s - 1;
+            assert(dst < params.n);
+            eq.x[dst] = shx[idx];
+        }
+
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        if (idx < m) {
+            pipeline pipe;
+            memcpy_async(sha[idx - params.st], eq.a[idx], pipe);
+            memcpy_async(shc[idx - params.st], eq.c[idx], pipe);
+            memcpy_async(shrhs[idx - params.st], eq.rhs[idx], pipe);
+            pipe.commit_and_wait();
+        }
+#else
+        // we only modified first `m` elements.
+        cg::memcpy_async(tb, sha, &eq.a[params.st], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &eq.c[params.st], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &eq.rhs[params.st], sizeof(float) * m);
+        cg::wait(tb);
+#endif
     }
-    tg.sync();
 }
 
 /**
@@ -315,19 +347,17 @@ __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
                                     TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int i = tb.thread_index().x;
-    int st = params.st;
-    int n = params.n, s = params.s;
     assert(__isShared((void *)eq.a));
     assert(__isShared((void *)eq.c));
     assert(__isShared((void *)eq.rhs));
     assert(__isGlobal((void *)eq.x));
 
-    for (int p = static_cast<int>(log2f(static_cast<double>(s))) - 1; p >= 0;
-         p--) {
+    for (int p = static_cast<int>(log2f(static_cast<double>(params.s))) - 1;
+         p >= 0; p--) {
         int u = 1 << p;
 
-        if (idx < n && ((idx - st - u + 1) % (2 * u) == 0) &&
-            ((idx - st - u + 1) >= 0)) {
+        if (idx < params.n && ((idx - params.st - u + 1) % (2 * u) == 0) &&
+            ((idx - params.st - u + 1) >= 0)) {
             int lidx = idx - u;
             float x_u;
             if (lidx < 0) {
