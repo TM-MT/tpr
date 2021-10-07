@@ -109,7 +109,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 
     // from st2_ker
 #ifdef EXPERIMENTAL_ASYNC_COPY
-    if (blockIdx.x == 0 && idx < m) {
+    if (blockIdx.x == 0 && idx < params.m) {
         pipe.commit_and_wait();
     }
 #else
