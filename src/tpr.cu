@@ -34,8 +34,8 @@ extern __shared__ float array[];
  * @param[in]  n     { parameter_description }
  * @param[in]  s     { parameter_description }
  */
-__global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
-                                int s) {
+__global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
+                                float *pbuffer, int n, int s) {
     cg::grid_group tg = cg::this_grid();
     cg::thread_block tb = cg::this_thread_block();
     assert(tg.is_valid());
@@ -71,6 +71,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
     TPR_Params params;
     params.n = n;
     params.s = s;
+    params.m = n / s;
     params.idx = idx;
     params.st = st;
     params.ed = ed;
@@ -518,11 +519,12 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
 
     // Device
     float *d_a, *d_c, *d_r;  // device copies of a, c, rhs
-    float *d_x;
+    float *d_x, *d_pbuffer;
     CU_CHECK(cudaMalloc((void **)&d_a, size));
     CU_CHECK(cudaMalloc((void **)&d_c, size));
     CU_CHECK(cudaMalloc((void **)&d_r, size));
     CU_CHECK(cudaMalloc((void **)&d_x, size));
+    CU_CHECK(cudaMalloc((void **)&d_pbuffer, 3 * n / s * sizeof(float)));
 
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
@@ -531,7 +533,7 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     cudaDeviceSynchronize();
 
     // launch configuration
-    void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &n, &s};
+    void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &d_pbuffer, &n, &s};
     auto config = tpr_launch_config(n, s, dev);
     // auto [dim_grid, dim_block, shmem_size] = rhs; not supported
     auto dim_grid = std::get<0>(config);

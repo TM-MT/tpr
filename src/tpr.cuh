@@ -21,12 +21,14 @@ struct Equation {
 struct TPR_Params {
     int n;
     int s;
+    int m;
     int idx;
     int st;
     int ed;
 };
 
-__global__ void tpr_ker(float *a, float *b, float *c, float *x, int n, int s);
+__global__ void tpr_ker(float *a, float *b, float *c, float *x, float *pbuffer,
+                        int n, int s);
 __device__ void tpr_st1_ker(cg::thread_block &tb, TPR_CU::Equation eq,
                             TPR_CU::TPR_Params const &params);
 __device__ void tpr_inter(cg::thread_block &tb, TPR_CU::Equation eq,
