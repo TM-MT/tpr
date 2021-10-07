@@ -158,34 +158,39 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
     assert(__isShared((void *)eq.rhs));
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
-        int u = 1 << (p - 1);  // offset
         int p2k = 1 << p;
         bool select_idx =
             idx < params.n && ((i % p2k == 0) || ((i + 1) % p2k == 0));
 
         if (select_idx) {
+            int u = 1 << (p - 1);  // offset
+
             // reduction
-            int lidx = i - u;
             float akl, ckl, rkl;
-            if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
-            } else {
-                akl = eq.a[lidx];
-                ckl = eq.c[lidx];
-                rkl = eq.rhs[lidx];
+            {
+                int lidx = i - u;
+                if (lidx < 0) {
+                    akl = -1.0;
+                    ckl = 0.0;
+                    rkl = 0.0;
+                } else {
+                    akl = eq.a[lidx];
+                    ckl = eq.c[lidx];
+                    rkl = eq.rhs[lidx];
+                }
             }
-            int ridx = i + u;
             float akr, ckr, rkr;
-            if (ridx >= s) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
-            } else {
-                akr = eq.a[ridx];
-                ckr = eq.c[ridx];
-                rkr = eq.rhs[ridx];
+            {
+                int ridx = i + u;
+                if (ridx >= s) {
+                    akr = 0.0;
+                    ckr = -1.0;
+                    rkr = 0.0;
+                } else {
+                    akr = eq.a[ridx];
+                    ckr = eq.c[ridx];
+                    rkr = eq.rhs[ridx];
+                }
             }
 
             float inv_diag_k = 1.0 / (1.0 - ckl * eq.a[i] - akr * eq.c[i]);
@@ -256,7 +261,7 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation &eq,
     assert(__isGlobal((void *)eq.a));
     assert(__isGlobal((void *)eq.c));
     assert(__isGlobal((void *)eq.rhs));
-    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+    int idx = params.idx;
     int ed = params.ed;
 
     if ((idx < params.n - 1) && (idx == ed)) {  // Update E_{st-1} by E_{st}
@@ -411,10 +416,10 @@ __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
 __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
                                         float *c, float *rhs, float *x, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp_aa, tmp_cc, tmp_rr;
 
     for (int p = 0; p < static_cast<int>(log2f(static_cast<double>(n))) - 1;
          p++) {
+        float tmp_aa, tmp_cc, tmp_rr;
         int u = 1 << p;  // offset
         int ux = 1 << (p + 1);
         bool condition =
@@ -422,27 +427,31 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
 
         // reduction
         if (condition) {
-            int lidx = idx - u;
             float akl, ckl, rkl;
-            if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
-            } else {
-                akl = a[lidx];
-                ckl = c[lidx];
-                rkl = rhs[lidx];
+            {
+                int lidx = idx - u;
+                if (lidx < 0) {
+                    akl = -1.0;
+                    ckl = 0.0;
+                    rkl = 0.0;
+                } else {
+                    akl = a[lidx];
+                    ckl = c[lidx];
+                    rkl = rhs[lidx];
+                }
             }
-            int ridx = idx + u;
             float akr, ckr, rkr;
-            if (ridx >= n) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
-            } else {
-                akr = a[ridx];
-                ckr = c[ridx];
-                rkr = rhs[ridx];
+            {
+                int ridx = idx + u;
+                if (ridx >= n) {
+                    akr = 0.0;
+                    ckr = -1.0;
+                    rkr = 0.0;
+                } else {
+                    akr = a[ridx];
+                    ckr = c[ridx];
+                    rkr = rhs[ridx];
+                }
             }
 
             float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
