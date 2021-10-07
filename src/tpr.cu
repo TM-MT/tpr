@@ -27,21 +27,21 @@ extern __shared__ float array[];
 /**
  * @brief      TPR main kernel
  *
- * @param      a     { parameter_description }
- * @param      c     { parameter_description }
- * @param      rhs   The right hand side
- * @param      x     { parameter_description }
- * @param[in]  n     { parameter_description }
- * @param[in]  s     { parameter_description }
+ * @param      a        { parameter_description }
+ * @param      c        { parameter_description }
+ * @param      rhs      The right hand side
+ * @param      x        { parameter_description }
+ * @param      pbuffer  Additional memory for Stage 2 use. pbuffer[0:4 * n / s]
+ * @param[in]  n        { parameter_description }
+ * @param[in]  s        { parameter_description }
  */
-__global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
-                                int s) {
+__global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
+                                float *pbuffer, int n, int s) {
     cg::grid_group tg = cg::this_grid();
     cg::thread_block tb = cg::this_thread_block();
     assert(tg.is_valid());
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
-    int ed = st + s - 1;
 
     // local copy
     // sha[0:s], shc[0:s], shrhs[0:s]
@@ -71,12 +71,12 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
     TPR_Params params;
     params.n = n;
     params.s = s;
+    params.m = n / s;
     params.idx = idx;
     params.st = st;
-    params.ed = ed;
+    params.ed = st + s - 1;
 
-    float tmp_aa, tmp_cc, tmp_rr;
-    // bkups, .x -> a, .y -> c, .z -> rhs
+    // bkups for stage 3 use, .x -> a, .y -> c, .z -> rhs
     float3 bkup;
 
 #ifdef EXPERIMENTAL_ASYNC_COPY
@@ -99,13 +99,14 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
         bkup.y = shc[idx - st];
         bkup.z = shrhs[idx - st];
     }
+
     tb.sync();
 
     tpr_inter(tb, eq, params);
 
     // copy back
-    // since `tpr_inter_global` and stage 2 are global operations,
-    // eq.* should hold address in global memory
+    // since stage 2 are global operations, eq.* should hold address in global
+    // memory
     a[idx] = sha[idx - st];
     c[idx] = shc[idx - st];
     rhs[idx] = shrhs[idx - st];
@@ -113,98 +114,23 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
     eq.c = c;
     eq.rhs = rhs;
 
+    // make sure stage 1 operations have done.
     tg.sync();
 
-    tpr_inter_global(tb, eq, params);
-
-    tg.sync();
-
-    // CR (TPR Stage 2)
-    // CR Forward Reduction
-    for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
-         p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
-        int u = 1 << (p - 1);  // offset
-        int ux = 1 << (p + 1);
-        bool select_idx =
-            (idx < n) && ((idx - ux + 1) % ux == 0) && ((idx - ux + 1) >= 0);
-
-        if (select_idx) {
-            // reduction
-            int lidx = idx - u;
-            float akl, ckl, rkl;
-            if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
-            } else {
-                akl = a[lidx];
-                ckl = c[lidx];
-                rkl = rhs[lidx];
-            }
-            int ridx = idx + u;
-            float akr, ckr, rkr;
-            if (ridx >= n) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
-            } else {
-                akr = a[ridx];
-                ckr = c[ridx];
-                rkr = rhs[ridx];
-            }
-
-            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
-
-            tmp_aa = -inv_diag_k * akl * a[idx];
-            tmp_cc = -inv_diag_k * ckr * c[idx];
-            tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
-        }
-
-        tg.sync();
-
-        if (select_idx) {
-            // copy back
-            a[idx] = tmp_aa;
-            c[idx] = tmp_cc;
-            rhs[idx] = tmp_rr;
-        }
-
-        tg.sync();
-    }
-
-    // CR Intermediate
-    if ((n > 1) && (idx == n / 2 - 1)) {
-        int u = n / 2;
-        float inv_det = 1.0 / (1.0 - c[idx] * a[idx + u]);
-
-        x[idx] = (rhs[idx] - c[idx] * rhs[idx + u]) * inv_det;
-        x[idx + u] = (rhs[idx + u] - rhs[idx] * a[idx + u]) * inv_det;
-    }
+    tpr_st2_ker(tg, tb, eq, params, pbuffer);
 
     tg.sync();
 
-    // CR Backward Substitution
-    for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2;
-         p >= static_cast<int>(log2f(static_cast<double>(s))); p--) {
-        int u = 1 << p;
-        int ux = 1 << (p + 1);
-
-        if ((idx < n) && ((idx - u + 1) % ux == 0) && (idx - u + 1 >= 0)) {
-            int lidx = idx - u;
-            float x_u;
-            if (lidx < 0) {
-                x_u = 0.0;
-            } else {
-                x_u = x[lidx];
-            }
-            x[idx] = rhs[idx] - a[idx] * x_u - c[idx] * x[idx + u];
-        }
-
-        tg.sync();
+#ifdef EXPERIMENTAL_ASYNC_COPY
+    if (blockIdx.x == 0 && idx < params.m) {
+        pipe.commit_and_wait();
     }
-    // CR END
+#else
+    if (blockIdx.x == 0) {
+        cg::wait(tb);
+    }
+#endif
 
-    tb.sync();
     // TPR stage 3
     if (idx < n) {
         sha[idx - st] = bkup.x;
@@ -212,7 +138,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
         shrhs[idx - st] = bkup.z;
     }
 
-    tg.sync();
+    tb.sync();
 
     // tpr_st3_ker use shared memory
     eq.a = sha;
@@ -224,68 +150,73 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x, int n,
 }
 
 /**
- * @brief      TPR Stage 1
+ * @brief         TPR Stage 1
  *
- * @param          tb      cg::thread_block
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * shared memory
- * @param[in]      params  The parameters of TPR
+ * @param         tb      cg::thread_block
+ * @param[in,out] eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                        shared memory
+ * @param[in]     params  The parameters of TPR
  */
-__device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
+__device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
                                     TPR_Params const &params) {
     int idx = params.idx;
     int i = idx - params.st;
-    int n = params.n, s = params.s;
+    int s = params.s;
     float tmp_aa, tmp_cc, tmp_rr;
-    float *sha = eq.a, *shc = eq.c, *shrhs = eq.rhs;
-    assert(__isShared((void *)sha));
-    assert(__isShared((void *)shc));
-    assert(__isShared((void *)shrhs));
+    assert(__isShared((void *)eq.a));
+    assert(__isShared((void *)eq.c));
+    assert(__isShared((void *)eq.rhs));
 
     for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
-        int u = 1 << (p - 1);  // offset
         int p2k = 1 << p;
-        bool select_idx = idx < n && ((i % p2k == 0) || ((i + 1) % p2k == 0));
+        bool select_idx =
+            idx < params.n && ((i % p2k == 0) || ((i + 1) % p2k == 0));
 
         if (select_idx) {
+            int u = 1 << (p - 1);  // offset
+
             // reduction
-            int lidx = i - u;
             float akl, ckl, rkl;
-            if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
-            } else {
-                akl = sha[lidx];
-                ckl = shc[lidx];
-                rkl = shrhs[lidx];
+            {
+                int lidx = i - u;
+                if (lidx < 0) {
+                    akl = -1.0;
+                    ckl = 0.0;
+                    rkl = 0.0;
+                } else {
+                    akl = eq.a[lidx];
+                    ckl = eq.c[lidx];
+                    rkl = eq.rhs[lidx];
+                }
             }
-            int ridx = i + u;
             float akr, ckr, rkr;
-            if (ridx >= s) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
-            } else {
-                akr = sha[ridx];
-                ckr = shc[ridx];
-                rkr = shrhs[ridx];
+            {
+                int ridx = i + u;
+                if (ridx >= s) {
+                    akr = 0.0;
+                    ckr = -1.0;
+                    rkr = 0.0;
+                } else {
+                    akr = eq.a[ridx];
+                    ckr = eq.c[ridx];
+                    rkr = eq.rhs[ridx];
+                }
             }
 
-            float inv_diag_k = 1.0 / (1.0 - ckl * sha[i] - akr * shc[i]);
+            float inv_diag_k = 1.0 / (1.0 - ckl * eq.a[i] - akr * eq.c[i]);
 
-            tmp_aa = -inv_diag_k * akl * sha[i];
-            tmp_cc = -inv_diag_k * ckr * shc[i];
-            tmp_rr = inv_diag_k * (shrhs[i] - rkl * sha[i] - rkr * shc[i]);
+            tmp_aa = -inv_diag_k * akl * eq.a[i];
+            tmp_cc = -inv_diag_k * ckr * eq.c[i];
+            tmp_rr = inv_diag_k * (eq.rhs[i] - rkl * eq.a[i] - rkr * eq.c[i]);
         }
 
         tb.sync();
 
         if (select_idx) {
             // copy back
-            sha[i] = tmp_aa;
-            shc[i] = tmp_cc;
-            shrhs[i] = tmp_rr;
+            eq.a[i] = tmp_aa;
+            eq.c[i] = tmp_cc;
+            eq.rhs[i] = tmp_rr;
         }
 
         tb.sync();
@@ -293,21 +224,18 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
 }
 
 /**
- * @brief      TPR Intermediate stage 1
+ * @brief         TPR Intermediate stage 1
  *
- * Update E_{st} by E_{ed}
+ *                Update E_{st} by E_{ed}
  *
- * @param          tb      cg::thread_block
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * shared memory
- * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c,
- * bkup->z: rhs
- * @param[in]      params  The parameters of TPR
+ * @param         tb      cg::thread_block
+ * @param[in,out] eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                        shared memory
+ * @param[in]     params  The parameters of TPR
  */
-__device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
+__device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation &eq,
                                   TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-    float tmp_aa, tmp_cc, tmp_rr;
     assert(__isShared((void *)eq.a));
     assert(__isShared((void *)eq.c));
     assert(__isShared((void *)eq.rhs));
@@ -320,40 +248,6 @@ __device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
 
         float inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-        tmp_aa = inv_diag_k * ak;
-        tmp_cc = -inv_diag_k * ckr * ck;
-        tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
-
-        eq.a[k] = tmp_aa;
-        eq.c[k] = tmp_cc;
-        eq.rhs[k] = tmp_rr;
-    }
-}
-
-/**
- * @brief      TPR Intermediate stage GLOBAL
- *
- * Update E_{st-1} by E_{st}
- *
- * @param          tb      cg::thread_block
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * GLOBAL memory
- * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c,
- * bkup->z: rhs
- * @param[in]      params  The parameters of TPR
- */
-__device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
-                                         TPR_Params const &params) {
-    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-    int ed = params.ed;
-
-    if ((idx < params.n - 1) && (idx == ed)) {
-        int k = idx, kr = idx + 1;  // (k, kr) = (st-1, st)
-        float ak = eq.a[k], akr = eq.a[kr];
-        float ck = eq.c[k], ckr = eq.c[kr];
-        float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
-        float inv_diag_k = 1.0 / (1.0 - akr * ck);
-
         eq.a[k] = inv_diag_k * ak;
         eq.c[k] = -inv_diag_k * ckr * ck;
         eq.rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
@@ -361,30 +255,138 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
 }
 
 /**
- * @brief      TPR Stage 3
+ * @brief         TPR Intermediate stage GLOBAL
  *
- * @param          tb      cg::thread_block
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * shared memory
- * @param[in]      params  The parameters of TPR
+ *                Update E_{st-1} by E_{st}
+ *
+ * @param         tb       cg::thread_block
+ * @param[in,out] eq       Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                         GLOBAL memory
+ * @param[in]     params   The parameters of TPR
+ * @param         pbuffer  Additional memory for stage 2 use.
  */
-__device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
+__device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation &eq,
+                                         TPR_Params const &params,
+                                         float *pbuffer) {
+    assert(__isGlobal((void *)eq.a));
+    assert(__isGlobal((void *)eq.c));
+    assert(__isGlobal((void *)eq.rhs));
+    int idx = params.idx;
+    int ed = params.ed;
+
+    if ((idx < params.n - 1) && (idx == ed)) {  // Update E_{st-1} by E_{st}
+        int dst = idx / params.s;
+        int k = idx, kr = idx + 1;  // (k, kr) = (st-1, st)
+        float ak = eq.a[k], akr = eq.a[kr];
+        float ck = eq.c[k], ckr = eq.c[kr];
+        float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
+        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+        pbuffer[dst] = inv_diag_k * ak;                    // a[k]
+        pbuffer[params.m + dst] = -inv_diag_k * ckr * ck;  // c[k]
+        pbuffer[2 * params.m + dst] =
+            inv_diag_k * (rhsk - rhskr * ck);  // rhs[k]
+    } else if (idx == params.n - 1) {          // copy E_{n-1} to pbuffer
+        pbuffer[params.m - 1] = eq.a[idx];
+        pbuffer[2 * params.m - 1] = eq.c[idx];
+        pbuffer[3 * params.m - 1] = eq.rhs[idx];
+    }
+}
+
+/**
+ * @brief      TPR Stage 2
+ *
+ *             Call CR
+ *
+ * @param      tg       cg::grid_group
+ * @param      tb       cg::thread_group
+ * @param[in]  eq       Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                      GLOBAL memory
+ * @param[in]  params   The parameters of TPR
+ * @param      pbuffer  Additional global memory for stage 2
+ */
+__device__ void TPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
+                                    Equation &eq, TPR_Params &params,
+                                    float *pbuffer) {
+    tpr_inter_global(tb, eq, params, pbuffer);
+
+    tg.sync();
+
+    if (blockIdx.x == 0) {
+        int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+        int s = params.s, m = params.m;
+        assert(m <= s);
+
+        __shared__ float *sha, *shc, *shrhs, *shx;
+        sha = (float *)array;
+        shc = (float *)&array[s];
+        shrhs = (float *)&array[2 * s];
+        shx = (float *)&array[3 * s];
+
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        pipeline pipe;
+        if (idx < m) {
+            memcpy_async(sha[idx - params.st], pbuffer[idx], pipe);
+            memcpy_async(shc[idx - params.st], pbuffer[m + idx], pipe);
+            memcpy_async(shrhs[idx - params.st], pbuffer[2 * m + idx], pipe);
+            memcpy_async(shx[idx - params.st], pbuffer[3 * m + idx], pipe);
+            pipe.commit_and_wait();
+        }
+#else
+        cg::memcpy_async(tb, sha, &pbuffer[0], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &pbuffer[m], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &pbuffer[2 * m], sizeof(float) * m);
+        cg::memcpy_async(tb, shx, &pbuffer[3 * m], sizeof(float) * m);
+        cg::wait(tb);  // following `cr_thread_block()` needs sh*
+#endif
+
+        cr_thread_block(tb, sha, shc, shrhs, shx, m);
+
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        if (idx < m) {
+            memcpy_async(sha[idx - params.st], eq.a[idx], pipe);
+            memcpy_async(shc[idx - params.st], eq.c[idx], pipe);
+            memcpy_async(shrhs[idx - params.st], eq.rhs[idx], pipe);
+        }
+#else
+        // we only modified first `m` elements.
+        cg::memcpy_async(tb, sha, &eq.a[params.st], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &eq.c[params.st], sizeof(float) * m);
+        cg::memcpy_async(tb, shrhs, &eq.rhs[params.st], sizeof(float) * m);
+#endif
+        // copy back
+        if (idx < m) {
+            int dst = (idx + 1) * s - 1;
+            assert(dst < params.n);
+            eq.x[dst] = shx[idx];
+        }
+    }
+}
+
+/**
+ * @brief         TPR Stage 3
+ *
+ * @param         tb      cg::thread_block
+ * @param[in,out] eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                        shared memory, `eq.x` should be address in GLOBAL
+ *                        memory
+ * @param[in]     params  The parameters of TPR
+ */
+__device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation &eq,
                                     TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int i = tb.thread_index().x;
-    int st = params.st;
-    int n = params.n, s = params.s;
     assert(__isShared((void *)eq.a));
     assert(__isShared((void *)eq.c));
     assert(__isShared((void *)eq.rhs));
     assert(__isGlobal((void *)eq.x));
 
-    for (int p = static_cast<int>(log2f(static_cast<double>(s))) - 1; p >= 0;
-         p--) {
+    for (int p = static_cast<int>(log2f(static_cast<double>(params.s))) - 1;
+         p >= 0; p--) {
         int u = 1 << p;
 
-        if (idx < n && ((idx - st - u + 1) % (2 * u) == 0) &&
-            ((idx - st - u + 1) >= 0)) {
+        if (idx < params.n && ((idx - params.st - u + 1) % (2 * u) == 0) &&
+            ((idx - params.st - u + 1) >= 0)) {
             int lidx = idx - u;
             float x_u;
             if (lidx < 0) {
@@ -402,11 +404,28 @@ __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
 
 __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
                                int n) {
+    cg::thread_block tb = cg::this_thread_block();
+    cr_thread_block(tb, a, c, rhs, x, n);
+}
+
+/**
+ * @brief      CR
+ * @note       Only works in a block.
+ *
+ * @param      tb    cg::thread_block
+ * @param      a     { parameter_description }
+ * @param      c     { parameter_description }
+ * @param      rhs   The right hand side
+ * @param      x     { parameter_description }
+ * @param[in]  n     The size of the equation
+ */
+__device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
+                                        float *c, float *rhs, float *x, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    float tmp_aa, tmp_cc, tmp_rr;
 
     for (int p = 0; p < static_cast<int>(log2f(static_cast<double>(n))) - 1;
          p++) {
+        float tmp_aa, tmp_cc, tmp_rr;
         int u = 1 << p;  // offset
         int ux = 1 << (p + 1);
         bool condition =
@@ -414,27 +433,31 @@ __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
 
         // reduction
         if (condition) {
-            int lidx = idx - u;
             float akl, ckl, rkl;
-            if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
-            } else {
-                akl = a[lidx];
-                ckl = c[lidx];
-                rkl = rhs[lidx];
+            {
+                int lidx = idx - u;
+                if (lidx < 0) {
+                    akl = -1.0;
+                    ckl = 0.0;
+                    rkl = 0.0;
+                } else {
+                    akl = a[lidx];
+                    ckl = c[lidx];
+                    rkl = rhs[lidx];
+                }
             }
-            int ridx = idx + u;
             float akr, ckr, rkr;
-            if (ridx >= n) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
-            } else {
-                akr = a[ridx];
-                ckr = c[ridx];
-                rkr = rhs[ridx];
+            {
+                int ridx = idx + u;
+                if (ridx >= n) {
+                    akr = 0.0;
+                    ckr = -1.0;
+                    rkr = 0.0;
+                } else {
+                    akr = a[ridx];
+                    ckr = c[ridx];
+                    rkr = rhs[ridx];
+                }
             }
 
             float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
@@ -461,6 +484,8 @@ __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
 
         x[idx] = (rhs[idx] - c[idx] * rhs[idx + u]) * inv_det;
         x[idx + u] = (rhs[idx + u] - rhs[idx] * a[idx + u]) * inv_det;
+    } else if (n == 1) {
+        x[0] = rhs[0];
     }
 
     __syncthreads();
@@ -513,16 +538,22 @@ __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
  * @param[in]  s     { parameter_description }
  */
 void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
+    if (n / s > s) {
+        fprintf(stderr, "Not supported parameters given. (n, s)=(%d, %d)\n", n,
+                s);
+        return;
+    }
     int dev = 0;
     int size = n * sizeof(float);
 
     // Device
     float *d_a, *d_c, *d_r;  // device copies of a, c, rhs
-    float *d_x;
+    float *d_x, *d_pbuffer;
     CU_CHECK(cudaMalloc((void **)&d_a, size));
     CU_CHECK(cudaMalloc((void **)&d_c, size));
     CU_CHECK(cudaMalloc((void **)&d_r, size));
     CU_CHECK(cudaMalloc((void **)&d_x, size));
+    CU_CHECK(cudaMalloc((void **)&d_pbuffer, 4 * n / s * sizeof(float)));
 
     CU_CHECK(cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d_c, c, size, cudaMemcpyHostToDevice));
@@ -531,7 +562,7 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     cudaDeviceSynchronize();
 
     // launch configuration
-    void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &n, &s};
+    void *kernel_args[] = {&d_a, &d_c, &d_r, &d_x, &d_pbuffer, &n, &s};
     auto config = tpr_launch_config(n, s, dev);
     // auto [dim_grid, dim_block, shmem_size] = rhs; not supported
     auto dim_grid = std::get<0>(config);
@@ -561,6 +592,7 @@ void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     CU_CHECK(cudaFree(d_c));
     CU_CHECK(cudaFree(d_r));
     CU_CHECK(cudaFree(d_x));
+    CU_CHECK(cudaFree(d_pbuffer));
     return;
 }
 
