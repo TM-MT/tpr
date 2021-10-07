@@ -322,7 +322,7 @@ __device__ void TPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
         cg::memcpy_async(tb, shc, &pbuffer[m], sizeof(float) * m);
         cg::memcpy_async(tb, shrhs, &pbuffer[2 * m], sizeof(float) * m);
         cg::memcpy_async(tb, shx, &pbuffer[3 * m], sizeof(float) * m);
-        cg::wait(tb);  // following `pcr_thread_block()` needs sh*
+        cg::wait(tb);  // following `cr_thread_block()` needs sh*
 #endif
 
         cr_thread_block(tb, sha, shc, shrhs, shx, m);
