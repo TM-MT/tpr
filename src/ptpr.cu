@@ -106,6 +106,18 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     tpr_st2_ker(tg, tb, eq, params, pbuffer);
 
     tg.sync();
+
+    // from st2_ker
+#ifdef EXPERIMENTAL_ASYNC_COPY
+    if (blockIdx.x == 0 && idx < m) {
+        pipe.commit_and_wait();
+    }
+#else
+    if (blockIdx.x == 0) {
+        cg::wait(tb);
+    }
+#endif
+
     // stage 3
     // assert sh* has data
     if (idx < n && idx == st) {
@@ -321,7 +333,7 @@ __device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
         cg::memcpy_async(tb, sha, &pbuffer[0], sizeof(float) * m);
         cg::memcpy_async(tb, shc, &pbuffer[m], sizeof(float) * m);
         cg::memcpy_async(tb, shrhs, &pbuffer[2 * m], sizeof(float) * m);
-        cg::wait(tb);
+        cg::wait(tb);  // following `pcr_thread_block()` needs sh*
 #endif
 
         pcr_thread_block(tb, sha, shc, shrhs, m);
@@ -338,14 +350,12 @@ __device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
             memcpy_async(sha[idx - params.st], eq.a[idx], pipe);
             memcpy_async(shc[idx - params.st], eq.c[idx], pipe);
             memcpy_async(shrhs[idx - params.st], eq.rhs[idx], pipe);
-            pipe.commit_and_wait();
         }
 #else
         // we only modified first `m` elements.
         cg::memcpy_async(tb, sha, &eq.a[params.st], sizeof(float) * m);
         cg::memcpy_async(tb, shc, &eq.c[params.st], sizeof(float) * m);
         cg::memcpy_async(tb, shrhs, &eq.rhs[params.st], sizeof(float) * m);
-        cg::wait(tb);
 #endif
     }
 }
