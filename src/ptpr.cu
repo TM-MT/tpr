@@ -322,8 +322,8 @@ __device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
         shrhs = (float *)&array[2 * s];
 
 #ifdef EXPERIMENTAL_ASYNC_COPY
+        pipeline pipe;
         if (idx < m) {
-            pipeline pipe;
             memcpy_async(sha[idx - params.st], pbuffer[idx], pipe);
             memcpy_async(shc[idx - params.st], pbuffer[m + idx], pipe);
             memcpy_async(shrhs[idx - params.st], pbuffer[2 * m + idx], pipe);
@@ -338,6 +338,19 @@ __device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
 
         pcr_thread_block(tb, sha, shc, shrhs, m);
 
+        // copy back data in shared memory
+        // `shrhs` has the answer, so one should not overwrite `shrhs`
+#ifdef EXPERIMENTAL_ASYNC_COPY
+        if (idx < m) {
+            memcpy_async(sha[idx - params.st], eq.a[idx], pipe);
+            memcpy_async(shc[idx - params.st], eq.c[idx], pipe);
+        }
+#else
+        // we only modified first `m` elements.
+        cg::memcpy_async(tb, sha, &eq.a[params.st], sizeof(float) * m);
+        cg::memcpy_async(tb, shc, &eq.c[params.st], sizeof(float) * m);
+#endif
+
         if (idx < m) {
             int dst = (idx + 1) * s - 1;
             assert(dst < params.n);
@@ -346,15 +359,9 @@ __device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
 
 #ifdef EXPERIMENTAL_ASYNC_COPY
         if (idx < m) {
-            pipeline pipe;
-            memcpy_async(sha[idx - params.st], eq.a[idx], pipe);
-            memcpy_async(shc[idx - params.st], eq.c[idx], pipe);
             memcpy_async(shrhs[idx - params.st], eq.rhs[idx], pipe);
         }
 #else
-        // we only modified first `m` elements.
-        cg::memcpy_async(tb, sha, &eq.a[params.st], sizeof(float) * m);
-        cg::memcpy_async(tb, shc, &eq.c[params.st], sizeof(float) * m);
         cg::memcpy_async(tb, shrhs, &eq.rhs[params.st], sizeof(float) * m);
 #endif
     }

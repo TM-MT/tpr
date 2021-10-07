@@ -121,6 +121,16 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 
     tg.sync();
 
+#ifdef EXPERIMENTAL_ASYNC_COPY
+    if (blockIdx.x == 0 && idx < params.m) {
+        pipe.commit_and_wait();
+    }
+#else
+    if (blockIdx.x == 0) {
+        cg::wait(tb);
+    }
+#endif
+
     // TPR stage 3
     if (idx < n) {
         sha[idx - st] = bkup.x;
@@ -314,8 +324,8 @@ __device__ void TPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
         shx = (float *)&array[3 * s];
 
 #ifdef EXPERIMENTAL_ASYNC_COPY
+        pipeline pipe;
         if (idx < m) {
-            pipeline pipe;
             memcpy_async(sha[idx - params.st], pbuffer[idx], pipe);
             memcpy_async(shc[idx - params.st], pbuffer[m + idx], pipe);
             memcpy_async(shrhs[idx - params.st], pbuffer[2 * m + idx], pipe);
@@ -332,28 +342,24 @@ __device__ void TPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
 
         cr_thread_block(tb, sha, shc, shrhs, shx, m);
 
-        // copy back
-        if (idx < m) {
-            int dst = (idx + 1) * s - 1;
-            assert(dst < params.n);
-            eq.x[dst] = shx[idx];
-        }
-
 #ifdef EXPERIMENTAL_ASYNC_COPY
         if (idx < m) {
-            pipeline pipe;
             memcpy_async(sha[idx - params.st], eq.a[idx], pipe);
             memcpy_async(shc[idx - params.st], eq.c[idx], pipe);
             memcpy_async(shrhs[idx - params.st], eq.rhs[idx], pipe);
-            pipe.commit_and_wait();
         }
 #else
         // we only modified first `m` elements.
         cg::memcpy_async(tb, sha, &eq.a[params.st], sizeof(float) * m);
         cg::memcpy_async(tb, shc, &eq.c[params.st], sizeof(float) * m);
         cg::memcpy_async(tb, shrhs, &eq.rhs[params.st], sizeof(float) * m);
-        cg::wait(tb);
 #endif
+        // copy back
+        if (idx < m) {
+            int dst = (idx + 1) * s - 1;
+            assert(dst < params.n);
+            eq.x[dst] = shx[idx];
+        }
     }
 }
 
