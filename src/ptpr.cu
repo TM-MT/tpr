@@ -398,6 +398,16 @@ __global__ void PTPR_CU::pcr_ker(float *a, float *c, float *rhs, int n) {
     pcr_thread_block(tb, a, c, rhs, n);
 }
 
+/**
+ * @brief      PCR
+ * @note       Only works in a block.
+ *
+ * @param      tb    cg::thread_block
+ * @param      a     { parameter_description }
+ * @param      c     { parameter_description }
+ * @param      rhs   The right hand side
+ * @param[in]  n     The size of the equation
+ */
 __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
                                           float *c, float *rhs, int n) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
