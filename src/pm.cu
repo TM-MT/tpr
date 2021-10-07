@@ -7,6 +7,7 @@
 #include "effolkronium/random.hpp"
 #include "lib.hpp"
 #include "main.hpp"
+#include "pm.cuh"
 #include "ptpr.cuh"
 #include "reference_cusparse.cuh"
 #include "tpr.cuh"

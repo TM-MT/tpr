@@ -6,8 +6,6 @@
 #include <array>
 #include <tuple>
 
-#include "pm.cuh"
-
 namespace cg = cooperative_groups;
 
 namespace TPR_CU {

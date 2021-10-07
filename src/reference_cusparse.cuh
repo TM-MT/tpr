@@ -6,8 +6,6 @@
 
 #include <iostream>
 
-#include "pm.cuh"
-
 /**
  * @brief      check `cudaError_t`
  *

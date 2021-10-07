@@ -7,6 +7,10 @@
 #include "main.hpp"
 #include "tpr.cuh"
 
+#ifdef TPR_PERF
+#include "pm.cuh"
+#endif
+
 #if (__CUDACC_VER_MAJOR__ <= 11) && (__CUDACC_VER_MINOR__ < 4)
 #pragma message("Using Experimental Features")
 #define EXPERIMENTAL_ASYNC_COPY

@@ -1,5 +1,40 @@
 #include "reference_cusparse.cuh"
 
+#ifdef TPR_PERF
+#include "pm.cuh"
+#endif
+
+/**
+ * @brief      check `cudaError_t`
+ *
+ * @param      expr  The expression
+ */
+#define CU_CHECK(expr)                                                     \
+    {                                                                      \
+        cudaError_t t = expr;                                              \
+        if (t != cudaSuccess) {                                            \
+            fprintf(stderr, "[Error] %s (error code: %d) at %s line %d\n", \
+                    cudaGetErrorString(t), t, __FILE__, __LINE__);         \
+            exit(EXIT_FAILURE);                                            \
+        }                                                                  \
+    }
+
+/**
+ * @brief      check `cusparseStatus_t`
+ *
+ * @param      expr  The expression
+ */
+#define CUSP_CHECK(expr)                                                     \
+    {                                                                        \
+        cusparseStatus_t t = expr;                                           \
+        if (t != CUSPARSE_STATUS_SUCCESS) {                                  \
+            fprintf(stderr,                                                  \
+                    "[CUSPARSE][Error] %s (error code: %d) at %s line %d\n", \
+                    cusparseGetErrorString(t), t, __FILE__, __LINE__);       \
+            exit(EXIT_FAILURE);                                              \
+        }                                                                    \
+    }
+
 /**
  * @brief      Helper function for cusparse::cusparseSgtsv2_nopivot (CR+PCR)
  *
