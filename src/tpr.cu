@@ -76,7 +76,6 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     params.st = st;
     params.ed = ed;
 
-    float tmp_aa, tmp_cc, tmp_rr;
     // bkups, .x -> a, .y -> c, .z -> rhs
     float3 bkup;
 
@@ -120,90 +119,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 
     tg.sync();
 
-    // CR (TPR Stage 2)
-    // CR Forward Reduction
-    for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
-         p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
-        int u = 1 << (p - 1);  // offset
-        int ux = 1 << (p + 1);
-        bool select_idx =
-            (idx < n) && ((idx - ux + 1) % ux == 0) && ((idx - ux + 1) >= 0);
-
-        if (select_idx) {
-            // reduction
-            int lidx = idx - u;
-            float akl, ckl, rkl;
-            if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
-            } else {
-                akl = a[lidx];
-                ckl = c[lidx];
-                rkl = rhs[lidx];
-            }
-            int ridx = idx + u;
-            float akr, ckr, rkr;
-            if (ridx >= n) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
-            } else {
-                akr = a[ridx];
-                ckr = c[ridx];
-                rkr = rhs[ridx];
-            }
-
-            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
-
-            tmp_aa = -inv_diag_k * akl * a[idx];
-            tmp_cc = -inv_diag_k * ckr * c[idx];
-            tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
-        }
-
-        tg.sync();
-
-        if (select_idx) {
-            // copy back
-            a[idx] = tmp_aa;
-            c[idx] = tmp_cc;
-            rhs[idx] = tmp_rr;
-        }
-
-        tg.sync();
-    }
-
-    // CR Intermediate
-    if ((n > 1) && (idx == n / 2 - 1)) {
-        int u = n / 2;
-        float inv_det = 1.0 / (1.0 - c[idx] * a[idx + u]);
-
-        x[idx] = (rhs[idx] - c[idx] * rhs[idx + u]) * inv_det;
-        x[idx + u] = (rhs[idx + u] - rhs[idx] * a[idx + u]) * inv_det;
-    }
-
-    tg.sync();
-
-    // CR Backward Substitution
-    for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2;
-         p >= static_cast<int>(log2f(static_cast<double>(s))); p--) {
-        int u = 1 << p;
-        int ux = 1 << (p + 1);
-
-        if ((idx < n) && ((idx - u + 1) % ux == 0) && (idx - u + 1 >= 0)) {
-            int lidx = idx - u;
-            float x_u;
-            if (lidx < 0) {
-                x_u = 0.0;
-            } else {
-                x_u = x[lidx];
-            }
-            x[idx] = rhs[idx] - a[idx] * x_u - c[idx] * x[idx + u];
-        }
-
-        tg.sync();
-    }
-    // CR END
+    tpr_st2_ker(tg, tb, eq, params, pbuffer);
 
     tb.sync();
     // TPR stage 3
@@ -359,6 +275,99 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
         eq.c[k] = -inv_diag_k * ckr * ck;
         eq.rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
     }
+}
+
+__device__ void TPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
+                                    Equation &eq, TPR_Params &params,
+                                    float *pbuffer) {
+    int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
+    float *a = eq.a, *c = eq.c, *rhs = eq.rhs, *x = eq.x;
+    float tmp_aa, tmp_cc, tmp_rr;
+    int n = params.n, s = params.s;
+    // CR (TPR Stage 2)
+    // CR Forward Reduction
+    for (int p = static_cast<int>(log2f(static_cast<double>(s))) + 1;
+         p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
+        int u = 1 << (p - 1);  // offset
+        int ux = 1 << (p + 1);
+        bool select_idx =
+            (idx < n) && ((idx - ux + 1) % ux == 0) && ((idx - ux + 1) >= 0);
+
+        if (select_idx) {
+            // reduction
+            int lidx = idx - u;
+            float akl, ckl, rkl;
+            if (lidx < 0) {
+                akl = -1.0;
+                ckl = 0.0;
+                rkl = 0.0;
+            } else {
+                akl = a[lidx];
+                ckl = c[lidx];
+                rkl = rhs[lidx];
+            }
+            int ridx = idx + u;
+            float akr, ckr, rkr;
+            if (ridx >= n) {
+                akr = 0.0;
+                ckr = -1.0;
+                rkr = 0.0;
+            } else {
+                akr = a[ridx];
+                ckr = c[ridx];
+                rkr = rhs[ridx];
+            }
+
+            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
+
+            tmp_aa = -inv_diag_k * akl * a[idx];
+            tmp_cc = -inv_diag_k * ckr * c[idx];
+            tmp_rr = inv_diag_k * (rhs[idx] - rkl * a[idx] - rkr * c[idx]);
+        }
+
+        tg.sync();
+
+        if (select_idx) {
+            // copy back
+            a[idx] = tmp_aa;
+            c[idx] = tmp_cc;
+            rhs[idx] = tmp_rr;
+        }
+
+        tg.sync();
+    }
+
+    // CR Intermediate
+    if ((n > 1) && (idx == n / 2 - 1)) {
+        int u = n / 2;
+        float inv_det = 1.0 / (1.0 - c[idx] * a[idx + u]);
+
+        x[idx] = (rhs[idx] - c[idx] * rhs[idx + u]) * inv_det;
+        x[idx + u] = (rhs[idx + u] - rhs[idx] * a[idx + u]) * inv_det;
+    }
+
+    tg.sync();
+
+    // CR Backward Substitution
+    for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2;
+         p >= static_cast<int>(log2f(static_cast<double>(s))); p--) {
+        int u = 1 << p;
+        int ux = 1 << (p + 1);
+
+        if ((idx < n) && ((idx - u + 1) % ux == 0) && (idx - u + 1 >= 0)) {
+            int lidx = idx - u;
+            float x_u;
+            if (lidx < 0) {
+                x_u = 0.0;
+            } else {
+                x_u = x[lidx];
+            }
+            x[idx] = rhs[idx] - a[idx] * x_u - c[idx] * x[idx + u];
+        }
+
+        tg.sync();
+    }
+    // CR END
 }
 
 /**

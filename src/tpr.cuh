@@ -35,6 +35,9 @@ __device__ void tpr_inter(cg::thread_block &tb, TPR_CU::Equation eq,
                           TPR_CU::TPR_Params const &params);
 __device__ void tpr_inter_global(cg::thread_block &tb, TPR_CU::Equation eq,
                                  TPR_CU::TPR_Params const &params);
+__device__ void tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
+                            TPR_CU::Equation &eq, TPR_CU::TPR_Params &params,
+                            float *pbuffer);
 __device__ void tpr_st3_ker(cg::thread_block &tb, TPR_CU::Equation eq,
                             TPR_CU::TPR_Params const &params);
 __global__ void cr_ker(float *a, float *c, float *rhs, float *x, int n);
