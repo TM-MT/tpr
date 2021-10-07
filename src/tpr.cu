@@ -538,6 +538,11 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
  * @param[in]  s     { parameter_description }
  */
 void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
+    if (n / s > s) {
+        fprintf(stderr, "Not supported parameters given. (n, s)=(%d, %d)\n", n,
+                s);
+        return;
+    }
     int dev = 0;
     int size = n * sizeof(float);
 
