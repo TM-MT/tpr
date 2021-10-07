@@ -272,7 +272,6 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
     int dst = idx / params.s;
-    int m = params.n / params.s;
 
     if (idx < params.n - 1 && idx == ed) {
         int k = idx, kr = idx + 1;  // (k, kr) = (st-1, st)
@@ -281,13 +280,14 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
         float inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-        pbuffer[dst] = inv_diag_k * ak;                           // a[k]
-        pbuffer[m + dst] = -inv_diag_k * ckr * ck;                // c[k]
-        pbuffer[2 * m + dst] = inv_diag_k * (rhsk - rhskr * ck);  // rhs[k]
+        pbuffer[dst] = inv_diag_k * ak;                    // a[k]
+        pbuffer[params.m + dst] = -inv_diag_k * ckr * ck;  // c[k]
+        pbuffer[2 * params.m + dst] =
+            inv_diag_k * (rhsk - rhskr * ck);  // rhs[k]
     } else if (idx == params.n - 1) {
-        pbuffer[m - 1] = eq.a[idx];
-        pbuffer[2 * m - 1] = eq.c[idx];
-        pbuffer[3 * m - 1] = eq.rhs[idx];
+        pbuffer[params.m - 1] = eq.a[idx];
+        pbuffer[2 * params.m - 1] = eq.c[idx];
+        pbuffer[3 * params.m - 1] = eq.rhs[idx];
     }
 }
 
