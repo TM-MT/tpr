@@ -105,7 +105,8 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     tpr_inter(tb, eq, params);
 
     // copy back
-    // since stage 2 are global operations, eq.* should hold address in global memory
+    // since stage 2 are global operations, eq.* should hold address in global
+    // memory
     a[idx] = sha[idx - st];
     c[idx] = shc[idx - st];
     rhs[idx] = shrhs[idx - st];
@@ -146,7 +147,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
  *                        shared memory
  * @param[in]     params  The parameters of TPR
  */
-__device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
+__device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
                                     TPR_Params const &params) {
     int idx = params.idx;
     int i = idx - params.st;
@@ -217,7 +218,7 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
  *                        shared memory
  * @param[in]     params  The parameters of TPR
  */
-__device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
+__device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation &eq,
                                   TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     assert(__isShared((void *)eq.a));
@@ -249,7 +250,7 @@ __device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
  * @param[in]     params   The parameters of TPR
  * @param         pbuffer  Additional memory for stage 2 use.
  */
-__device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
+__device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation &eq,
                                          TPR_Params const &params,
                                          float *pbuffer) {
     assert(__isGlobal((void *)eq.a));
@@ -258,7 +259,7 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int ed = params.ed;
 
-    if ((idx < params.n - 1) && (idx == ed)) { // Update E_{st-1} by E_{st}
+    if ((idx < params.n - 1) && (idx == ed)) {  // Update E_{st-1} by E_{st}
         int dst = idx / params.s;
         int k = idx, kr = idx + 1;  // (k, kr) = (st-1, st)
         float ak = eq.a[k], akr = eq.a[kr];
@@ -270,7 +271,7 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
         pbuffer[params.m + dst] = -inv_diag_k * ckr * ck;  // c[k]
         pbuffer[2 * params.m + dst] =
             inv_diag_k * (rhsk - rhskr * ck);  // rhs[k]
-    } else if (idx == params.n - 1) { // copy E_{n-1} to pbuffer
+    } else if (idx == params.n - 1) {          // copy E_{n-1} to pbuffer
         pbuffer[params.m - 1] = eq.a[idx];
         pbuffer[2 * params.m - 1] = eq.c[idx];
         pbuffer[3 * params.m - 1] = eq.rhs[idx];
@@ -360,7 +361,7 @@ __device__ void TPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
  *                        memory
  * @param[in]     params  The parameters of TPR
  */
-__device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
+__device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation &eq,
                                     TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     int i = tb.thread_index().x;
