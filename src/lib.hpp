@@ -26,7 +26,6 @@ using real = float;
 #if (defined __amd64__) || (defined __amd64) || (defined __x86_64__) || \
     (defined __x86_64)
 #define ILOG2_USE_x86_ASM
-#pragma message("USING x86 ASM")
 #endif
 
 class Solver {
