@@ -146,6 +146,13 @@ if(TPR_PROJECT)
     if(BUILD_CUDA)
         target_link_libraries(tpr_main PRIVATE tpr_cu ptpr_cu)
         target_include_directories(tpr_main PRIVATE ${CUDA_INCLUDE_DIRS})
+
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+            set_property(
+                TARGET tpr_main
+                APPEND
+                PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        endif()
     endif()
 
     # PMlib
