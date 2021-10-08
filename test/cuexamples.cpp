@@ -1,17 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "PerfMonitor.h"
-#include "cr.hpp"
-#include "lib.hpp"
 #include "main.hpp"
-#include "pcr.hpp"
-#include "pm.hpp"
-#include "ptpr.hpp"
-#include "tpr.hpp"
+#include "ptpr.cuh"
+#include "tpr.cuh"
 
-pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
-
-class Examples : public ::testing::Test {
+class CuExamples : public ::testing::Test {
    public:
     struct TRIDIAG_SYSTEM *sys = nullptr;
     const static int n = 1024;
@@ -56,60 +49,36 @@ class Examples : public ::testing::Test {
     }
 };
 
-TEST_F(Examples, CRTest) {
-#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
-    {
-        CR cr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-        cr.solve();
-        cr.get_ans(sys->diag);
-    }
+TEST_F(CuExamples, CRTest) {
+    TPR_CU::cr_cu(sys->a, sys->c, sys->rhs, sys->diag, n);
     array_float_eq(ans_array, sys->diag);
     array_float_maxsqsum(ans_array, sys->diag, 1e-3);
 }
 
-TEST_F(Examples, PCRTest) {
-#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
-    {
-        PCR pcr(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
-        pcr.solve();
-        pcr.get_ans(sys->diag);
-    }
+TEST_F(CuExamples, PCRTest) {
+    PTPR_CU::pcr_cu(sys->a, sys->c, sys->rhs, sys->diag, n);
     array_float_eq(ans_array, sys->diag);
     array_float_maxsqsum(ans_array, sys->diag, 1e-3);
 }
 
-TEST_F(Examples, TPRTest) {
-    for (int s = 4; s <= n; s *= 2) {
+TEST_F(CuExamples, TPRTest) {
+    for (int s = 64; s <= 1024; s *= 2) {
         assign(sys);
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
-        {
-            TPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
-            t.solve();
-            t.get_ans(sys->diag);
-        }
+        TPR_CU::tpr_cu(sys->a, sys->c, sys->rhs, sys->diag, n, s);
         print_array(sys->diag, n);
-        printf("\n");
+        array_float_eq(ans_array, sys->diag);
+        array_float_maxsqsum(ans_array, sys->diag, 1e-3);
     }
-    array_float_eq(ans_array, sys->diag);
-    array_float_maxsqsum(ans_array, sys->diag, 1e-3);
 }
 
-TEST_F(Examples, PTPRTest) {
-    for (int s = 4; s <= n; s *= 2) {
+TEST_F(CuExamples, PTPRTest) {
+    for (int s = 64; s <= 1024; s *= 2) {
         assign(sys);
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
-        {
-            PTPR t(sys->a, sys->diag, sys->c, sys->rhs, sys->n, s);
-            t.solve();
-            t.get_ans(sys->diag);
-        }
+        PTPR_CU::ptpr_cu(sys->a, sys->c, sys->rhs, sys->diag, n, s);
         print_array(sys->diag, n);
-        printf("\n");
+        array_float_eq(ans_array, sys->diag);
+        array_float_maxsqsum(ans_array, sys->diag, 1e-3);
     }
-    array_float_eq(ans_array, sys->diag);
-    array_float_maxsqsum(ans_array, sys->diag, 1e-3);
 }
 
 int setup(struct TRIDIAG_SYSTEM *sys, int n) {
