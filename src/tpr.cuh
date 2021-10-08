@@ -1,4 +1,5 @@
 #pragma once
+#ifdef __NVCC__
 #include <cooperative_groups.h>
 #include <cooperative_groups/memcpy_async.h>
 #include <cooperative_groups/reduce.h>
@@ -42,8 +43,11 @@ __device__ void tpr_st3_ker(cg::thread_block &tb, TPR_CU::Equation &eq,
 __global__ void cr_ker(float *a, float *c, float *rhs, float *x, int n);
 __device__ void cr_thread_block(cg::thread_block &tb, float *a, float *c,
                                 float *rhs, float *x, int n);
-void tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s);
 std::tuple<dim3, dim3, size_t> tpr_launch_config(int n, int s, int dev);
 std::array<dim3, 2> n2dim(int n, int s, int dev);
+}  // namespace TPR_CU
+#endif
+namespace TPR_CU {
+void tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s);
 void cr_cu(float *a, float *c, float *rhs, float *x, int n);
 }  // namespace TPR_CU

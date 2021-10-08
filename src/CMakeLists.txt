@@ -1,5 +1,20 @@
+# GLOBAL PROPERTIES
 if(TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
+endif()
+
+if(REAL_TYPE STREQUAL "double")
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
+endif()
+
+if(BUILD_CUDA)
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS BUILD_CUDA)
 endif()
 
 # CR
@@ -119,8 +134,6 @@ if(TPR_PROJECT)
     # tpr_main
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_executable(tpr_main main.cpp ${BACKWARD_ENABLE})
-        set_target_properties(tpr_main PROPERTIES DEBUG_POSTFIX
-                                                  ${CMAKE_DEBUG_POSTFIX})
         target_include_directories(
             tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src/backward-cpp)
         add_backward(tpr_main)
@@ -135,6 +148,11 @@ if(TPR_PROJECT)
         TARGET tpr_main
         PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" COMPILE_DEFINITIONS
                  enable_OPENMP="ON" COMPILE_DEFINITIONS TPR_PERF="off")
+
+    if(BUILD_CUDA)
+        target_link_libraries(tpr_main PRIVATE tpr_cu ptpr_cu)
+        target_include_directories(tpr_main PRIVATE ${CUDA_INCLUDE_DIRS})
+    endif()
 
     # PMlib
     set(pmlib_srcdir ${PROJECT_SOURCE_DIR}/PMlib/src)
@@ -197,11 +215,4 @@ if(TPR_PROJECT)
         tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/src
                       ${PROJECT_SOURCE_DIR}/PMlib/include)
     set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON")
-endif()
-
-if(REAL_TYPE STREQUAL "double")
-    set_property(
-        DIRECTORY ${PROJECT_SOURCE_DIR}/src
-        APPEND
-        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
 endif()
