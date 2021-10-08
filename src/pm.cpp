@@ -12,6 +12,7 @@
 #include "main.hpp"
 #include "pcr.hpp"
 #include "ptpr.hpp"
+#include "system.hpp"
 #include "tpr.hpp"
 
 // std::mt19937 base pseudo-random
@@ -92,10 +93,7 @@ int main(int argc, char *argv[]) {
         solver = in.solver;
     }
 
-    struct TRIDIAG_SYSTEM *sys =
-        (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
-    setup(sys, n);
-    assign(sys);
+    trisys::ExampleFixedInput input(n);
 
     pmcpp::pm.initialize(100);
 
@@ -109,16 +107,18 @@ int main(int argc, char *argv[]) {
 
             // Measureing TPR reusable implementation
             {
-                TPR t(sys->n, s);
+                TPR t(input.sys.n, s);
                 for (int i = 0; i < iter_times; i++) {
-                    assign(sys);
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+                    input.assign();
+#pragma acc data copy(                                                  \
+    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
+    [:n], input.sys.n)
                     {
-                        t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
+                        t.set_tridiagonal_system(input.sys.a, input.sys.c,
+                                                 input.sys.rhs);
                         pmcpp::pm.start(tpr_all_label);
                         int flop_count = t.solve();
-                        flop_count += t.get_ans(sys->diag);
+                        flop_count += t.get_ans(input.sys.diag);
                         pmcpp::pm.stop(tpr_all_label, flop_count);
                     }
                 }
@@ -130,16 +130,18 @@ int main(int argc, char *argv[]) {
 
             // Measureing TPR reusable implementation
             {
-                PTPR t(sys->n, s);
+                PTPR t(input.sys.n, s);
                 for (int i = 0; i < iter_times; i++) {
-                    assign(sys);
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+                    input.assign();
+#pragma acc data copy(                                                  \
+    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
+    [:n], input.sys.n)
                     {
-                        t.set_tridiagonal_system(sys->a, sys->c, sys->rhs);
+                        t.set_tridiagonal_system(input.sys.a, input.sys.c,
+                                                 input.sys.rhs);
                         pmcpp::pm.start(tpr_all_label);
                         int flop_count = t.solve();
-                        flop_count += t.get_ans(sys->diag);
+                        flop_count += t.get_ans(input.sys.diag);
                         pmcpp::pm.stop(tpr_all_label, flop_count);
                     }
                 }
@@ -149,15 +151,17 @@ int main(int argc, char *argv[]) {
             auto pcr_label = std::string("PCR");
             pmcpp::pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
-                assign(sys);
+                input.assign();
 
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy(                                                  \
+    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
+    [:n], input.sys.n)
                 {
-                    PCR p(sys->a, sys->diag, sys->c, sys->rhs, sys->n);
+                    PCR p(input.sys.a, input.sys.diag, input.sys.c,
+                          input.sys.rhs, input.sys.n);
                     pmcpp::pm.start(pcr_label);
                     int flop_count = p.solve();
-                    flop_count += p.get_ans(sys->diag);
+                    flop_count += p.get_ans(input.sys.diag);
                     pmcpp::pm.stop(pcr_label, flop_count);
                 }
             }
@@ -166,54 +170,4 @@ int main(int argc, char *argv[]) {
 
     pmcpp::pm.print(stdout, std::string(""), std::string(), 1);
     pmcpp::pm.printDetail(stdout, 0, 1);
-
-    clean(sys);
-    free(sys);
-}
-
-int setup(struct TRIDIAG_SYSTEM *sys, int n) {
-    sys->a = (real *)malloc(n * sizeof(real));
-    sys->diag = (real *)malloc(n * sizeof(real));
-    sys->c = (real *)malloc(n * sizeof(real));
-    sys->rhs = (real *)malloc(n * sizeof(real));
-    sys->n = n;
-
-    return sys_null_check(sys);
-}
-
-int assign(struct TRIDIAG_SYSTEM *sys) {
-    int n = sys->n;
-    for (int i = 0; i < n; i++) {
-        sys->a[i] = -1.0 / 6.0;
-        sys->c[i] = -1.0 / 6.0;
-        sys->diag[i] = 1.0;
-        sys->rhs[i] = Random::get(-1., 1.);  // U(-1, 1)
-    }
-    sys->a[0] = 0.0;
-    sys->c[n - 1] = 0.0;
-    return 0;
-}
-
-int clean(struct TRIDIAG_SYSTEM *sys) {
-    for (auto p : {sys->a, sys->diag, sys->c, sys->rhs}) {
-        if (p != nullptr) {
-            free(p);
-        }
-    }
-
-    sys->a = nullptr;
-    sys->diag = nullptr;
-    sys->c = nullptr;
-    sys->rhs = nullptr;
-
-    return 0;
-}
-
-bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
-    for (auto p : {sys->a, sys->diag, sys->c, sys->rhs}) {
-        if (p == nullptr) {
-            return false;
-        }
-    }
-    return true;
 }

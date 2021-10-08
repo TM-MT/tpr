@@ -207,7 +207,7 @@ if(TPR_PROJECT)
 
     # FOR BENCHMARK PROGRAM
     add_executable(tpr_pm pm.cpp)
-    target_link_libraries(tpr_pm PUBLIC tpr ptpr libpcr pmlib
+    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib
                                         effolkronium_random)
     if(${OPT_PAPI})
         target_link_libraries(tpr_pm PUBLIC papi_ext "${PAPI_STATIC_LIB}")
