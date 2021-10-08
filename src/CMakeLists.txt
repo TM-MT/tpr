@@ -131,6 +131,9 @@ endif()
 
 # build sample main and benchmark program
 if(TPR_PROJECT)
+    # Tridiagonal system
+    add_library(trisys system.cpp system.hpp lib.hpp)
+
     # tpr_main
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_executable(tpr_main main.cpp ${BACKWARD_ENABLE})
@@ -140,7 +143,7 @@ if(TPR_PROJECT)
     else() # Release etc.
         add_executable(tpr_main main.cpp)
     endif()
-    target_link_libraries(tpr_main PUBLIC libcr libpcr tpr ptpr pmlib)
+    target_link_libraries(tpr_main PUBLIC trisys libcr libpcr tpr ptpr pmlib)
     target_include_directories(
         tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src
                         ${PROJECT_SOURCE_DIR}/PMlib/include)
