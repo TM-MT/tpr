@@ -1,4 +1,4 @@
-# GLOBAL PROPERTIES
+# PROJECT GLOBAL PROPERTIES
 if(TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
 endif()
@@ -17,20 +17,24 @@ if(BUILD_CUDA)
         PROPERTY COMPILE_DEFINITIONS BUILD_CUDA)
 endif()
 
+set(PROJECT_INC_DIR
+    "${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/PMlib/include")
+set_property(
+    DIRECTORY ${PROJECT_SOURCE_DIR}/src
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" COMPILE_DEFINITIONS
+             enable_OPENMP="ON")
+# END PROJECT GLOBAL PROPERTIES
+
 # CR
-add_library(libcr cr.cpp)
-target_include_directories(libcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+add_library(libcr cr.cpp cr.hpp lib.hpp)
 
 # PCR
-add_library(libpcr pcr.cpp)
-
-target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+add_library(libpcr pcr.cpp pcr.hpp lib.hpp)
 
 # TPR_PERF
 add_library(tpr_perf tpr_perf.cpp tpr_perf.hpp)
-target_include_directories(tpr_perf PRIVATE ${PROJECT_SOURCE_DIR}/PMlib/include)
-set_property(TARGET tpr_perf PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
-                                      COMPILE_DEFINITIONS enable_OPENMP="ON")
+target_include_directories(tpr_perf PRIVATE ${PROJECT_INC_DIR})
 target_link_libraries(tpr_perf PRIVATE pmlib)
 if(TPR_PERF)
     set_property(
@@ -41,21 +45,13 @@ endif()
 
 # TPR
 add_library(tpr tpr.cpp)
-
-target_include_directories(tpr PUBLIC ${PROJECT_SOURCE_DIR}/src
-                                      ${PROJECT_SOURCE_DIR}/PMlib/include)
+target_include_directories(tpr PUBLIC ${PROJECT_INC_DIR})
 target_link_libraries(tpr PUBLIC pmlib libcr tpr_perf)
-set_property(TARGET tpr PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
-                                 COMPILE_DEFINITIONS enable_OPENMP="ON")
 
 # PTPR
 add_library(ptpr ptpr.cpp)
-
-target_include_directories(ptpr PUBLIC ${PROJECT_SOURCE_DIR}/src
-                                       ${PROJECT_SOURCE_DIR}/PMlib/include)
+target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
 target_link_libraries(ptpr PUBLIC pmlib libpcr tpr_perf)
-set_property(TARGET ptpr PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
-                                  COMPILE_DEFINITIONS enable_OPENMP="ON")
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
@@ -144,13 +140,8 @@ if(TPR_PROJECT)
         add_executable(tpr_main main.cpp)
     endif()
     target_link_libraries(tpr_main PUBLIC trisys libcr libpcr tpr ptpr pmlib)
-    target_include_directories(
-        tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src
-                        ${PROJECT_SOURCE_DIR}/PMlib/include)
-    set_property(
-        TARGET tpr_main
-        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" COMPILE_DEFINITIONS
-                 enable_OPENMP="ON" COMPILE_DEFINITIONS TPR_PERF="off")
+    target_include_directories(tpr_main PUBLIC ${PROJECT_INC_DIR})
+    set_property(TARGET tpr_main PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
 
     if(BUILD_CUDA)
         target_link_libraries(tpr_main PRIVATE tpr_cu ptpr_cu)
