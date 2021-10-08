@@ -2,9 +2,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream>
 
 #include <initializer_list>
+#include <iostream>
 
 #include "PerfMonitor.h"
 #include "cr.hpp"
@@ -16,10 +16,8 @@
 
 #ifdef BUILD_CUDA
 #include "ptpr.cuh"
-#include "reference_cusparse.cuh"
 #include "tpr.cuh"
 #endif
-
 
 pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 
@@ -88,7 +86,7 @@ int main() {
         printf("\n");
     }
 
-    #ifdef BUILD_CUDA
+#ifdef BUILD_CUDA
     {
         // CUDA program examples
         TPR_ANS ans1(n), ans2(n);
@@ -100,7 +98,8 @@ int main() {
             // check the answer
             if (s > 128 && ans1 != ans2) {
                 std::cout << "TPR(" << ans1.n << "," << ans1.s << ") and TPR("
-                          << ans2.n << "," << ans2.s << ") has different answer.\n";
+                          << ans2.n << "," << ans2.s
+                          << ") has different answer.\n";
                 std::cout << "TPR(" << ans1.n << "," << ans1.s << ")\n";
                 ans1.display(std::cout);
                 std::cout << "TPR(" << ans2.n << "," << ans2.s << ")\n";
@@ -108,7 +107,6 @@ int main() {
             }
             ans2 = ans1;
         }
-
 
         for (int s = 128; s <= std::min(n, 1024); s *= 2) {
             assign(sys);
@@ -118,7 +116,8 @@ int main() {
             // check the answer
             if (s > 128 && ans1 != ans2) {
                 std::cout << "PTPR(" << ans1.n << "," << ans1.s << ") and PTPR("
-                          << ans2.n << "," << ans2.s << ") has different answer.\n";
+                          << ans2.n << "," << ans2.s
+                          << ") has different answer.\n";
                 std::cout << "PTPR(" << ans1.n << "," << ans1.s << ")\n";
                 ans1.display(std::cout);
                 std::cout << "PTPR(" << ans2.n << "," << ans2.s << ")\n";
@@ -127,7 +126,7 @@ int main() {
             ans2 = ans1;
         }
     }
-#endif    
+#endif
 
     pmcpp::pm.print(stderr, std::string(""), std::string(), 1);
     pmcpp::pm.printDetail(stderr, 0, 1);
