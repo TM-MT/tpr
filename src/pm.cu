@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <algorithm>
 #include <initializer_list>
 #include <string>
 
-#include "effolkronium/random.hpp"
 #include "lib.hpp"
 #include "main.hpp"
 #include "pm.cuh"
@@ -12,9 +12,6 @@
 #include "reference_cusparse.cuh"
 #include "system.hpp"
 #include "tpr.cuh"
-
-// std::mt19937 base pseudo-random
-using Random = effolkronium::random_static;
 
 namespace pmcpp {
 Perf perf_time;
@@ -89,7 +86,7 @@ int main(int argc, char *argv[]) {
         solver = in.solver;
     }
 
-    trisys::ExampleFixedInput input(n);
+    trisys::ExampleRandomRHSInput input(n);
 
     // 1. setup the system by calling assign()
     // 2. set the system

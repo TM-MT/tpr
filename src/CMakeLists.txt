@@ -114,8 +114,7 @@ if(BUILD_CUDA)
         ptpr.cuh
         reference_cusparse.cu
         reference_cusparse.cuh)
-    target_link_libraries(cupm PUBLIC cusparse cublas cudart
-                                      effolkronium_random trisys)
+    target_link_libraries(cupm PUBLIC cusparse cublas cudart trisys)
     set_target_properties(
         cupm
         PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
@@ -133,6 +132,7 @@ endif()
 if(TPR_PROJECT)
     # Tridiagonal system
     add_library(trisys system.cpp system.hpp lib.hpp)
+    target_link_libraries(trisys PRIVATE effolkronium_random)
 
     # tpr_main
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")

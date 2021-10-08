@@ -26,9 +26,18 @@ class ExampleInput {
 };
 
 /**
- * @brief      固定入力のサンプル
+ * @brief      Fixed Input Sample
  */
 class ExampleFixedInput : public ExampleInput {
+   public:
+    using ExampleInput::ExampleInput;
+    int assign() override;
+};
+
+/**
+ * @brief      Random RHS(U(-1, 1)) Input
+ */
+class ExampleRandomRHSInput : public ExampleInput {
    public:
     using ExampleInput::ExampleInput;
     int assign() override;
