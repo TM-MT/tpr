@@ -115,7 +115,7 @@ if(BUILD_CUDA)
         reference_cusparse.cu
         reference_cusparse.cuh)
     target_link_libraries(cupm PUBLIC cusparse cublas cudart
-                                      effolkronium_random)
+                                      effolkronium_random trisys)
     set_target_properties(
         cupm
         PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
