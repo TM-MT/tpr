@@ -15,7 +15,7 @@ pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 class Examples : public ::testing::Test {
    public:
     const static int n = 1024;
-    trisys::ExampleInput *input = nullptr;
+    trisys::ExampleFixedInput *input = nullptr;
 
     real ans_array[n] = {
 #include "ans1024.txt"
@@ -53,7 +53,8 @@ class Examples : public ::testing::Test {
 };
 
 TEST_F(Examples, CRTest) {
-#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy( \
+    input->sys.a[:n], input->sys.c[:n], input->sys.rhs[:n], input->sys.n)
     {
         CR cr(input->sys.a, input->sys.diag, input->sys.c, input->sys.rhs, n);
         cr.solve();
@@ -64,7 +65,8 @@ TEST_F(Examples, CRTest) {
 }
 
 TEST_F(Examples, PCRTest) {
-#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy( \
+    input->sys.a[:n], input->sys.c[:n], input->sys.rhs[:n], input->sys.n)
     {
         PCR pcr(input->sys.a, input->sys.diag, input->sys.c, input->sys.rhs,
                 input->sys.n);
@@ -78,8 +80,9 @@ TEST_F(Examples, PCRTest) {
 TEST_F(Examples, TPRTest) {
     for (int s = 4; s <= n; s *= 2) {
         input->assign();
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy(                                                      \
+    input->sys.a[:n], input->sys.diag[:n], input->sys.c[:n], input->sys.rhs \
+    [:n], input->sys.n)
         {
             TPR t(input->sys.a, input->sys.diag, input->sys.c, input->sys.rhs,
                   input->sys.n, s);
@@ -96,8 +99,9 @@ TEST_F(Examples, TPRTest) {
 TEST_F(Examples, PTPRTest) {
     for (int s = 4; s <= n; s *= 2) {
         input->assign();
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy(                                                      \
+    input->sys.a[:n], input->sys.diag[:n], input->sys.c[:n], input->sys.rhs \
+    [:n], input->sys.n)
         {
             PTPR t(input->sys.a, input->sys.diag, input->sys.c, input->sys.rhs,
                    input->sys.n, s);

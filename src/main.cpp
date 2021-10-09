@@ -28,7 +28,8 @@ int main() {
     trisys::ExampleFixedInput input(n);
 
     input.assign();
-#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy( \
+    input.sys.a[:n], input.sys.c[:n], input.sys.rhs[:n], input.sys.n)
     {
         CR cr(input.sys.a, input.sys.diag, input.sys.c, input.sys.rhs,
               input.sys.n);
@@ -39,7 +40,8 @@ int main() {
     printf("\n");
 
     input.assign();
-#pragma acc data copy(sys->a[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy( \
+    input.sys.a[:n], input.sys.c[:n], input.sys.rhs[:n], input.sys.n)
     {
         PCR pcr(input.sys.a, input.sys.diag, input.sys.c, input.sys.rhs,
                 input.sys.n);
@@ -56,8 +58,9 @@ int main() {
     for (int s = 4; s <= n; s *= 2) {
         std::cerr << "TPR s=" << s << "\n";
         input.assign();
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy(                                                  \
+    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
+    [:n], input.sys.n)
         {
             TPR t(input.sys.a, input.sys.diag, input.sys.c, input.sys.rhs,
                   input.sys.n, s);
@@ -76,8 +79,9 @@ int main() {
     for (int s = 4; s <= n; s *= 2) {
         std::cerr << "PTPR s=" << s << "\n";
         input.assign();
-#pragma acc data copy( \
-    sys->a[:n], sys->diag[:n], sys->c[:n], sys->rhs[:n], sys->n)
+#pragma acc data copy(                                                  \
+    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
+    [:n], input.sys.n)
         {
             PTPR t(input.sys.a, input.sys.diag, input.sys.c, input.sys.rhs,
                    input.sys.n, s);
