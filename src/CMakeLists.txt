@@ -193,7 +193,7 @@ if(TPR_PROJECT)
             ptpr.cuh
             reference_cusparse.cu
             reference_cusparse.cuh)
-        target_link_libraries(tpr_pm PUBLIC cusparse cublas cudart trisys)
+        target_link_libraries(tpr_pm PUBLIC cusparse cublas cudart)
         set_target_properties(
             tpr_pm
             PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
@@ -202,8 +202,8 @@ if(TPR_PROJECT)
     else()
         add_executable(tpr_pm pm.cpp)
     endif()
-    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib
-                                        effolkronium_random)
+    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib)
+
     if(${OPT_PAPI})
         target_link_libraries(tpr_pm PUBLIC papi_ext "${PAPI_STATIC_LIB}")
         target_include_directories(tpr_pm PUBLIC ${PAPI_DIR}/include)
@@ -212,5 +212,8 @@ if(TPR_PROJECT)
     target_include_directories(
         tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/src
                       ${PROJECT_SOURCE_DIR}/PMlib/include)
-    set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON")
+    set_property(
+        TARGET tpr_pm
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON")
 endif()

@@ -13,9 +13,11 @@
 #include "pcr.hpp"
 #include "ptpr.hpp"
 
+using time_ms = float;
+
 namespace pmcpp {
 enum class Solver {
-    TPR,
+    TPR = 0,
     PCR,
     PTPR,
 #ifdef BUILD_CUDA
@@ -28,8 +30,8 @@ extern pm_lib::PerfMonitor pm;
 
 void to_lower(std::string &s1);
 Solver str2Solver(std::string &solver);
+bool use_pmlib(Solver &solver);
 
-using time_ms = float;
 class Perf {
     std::vector<time_ms> perf_time;
 

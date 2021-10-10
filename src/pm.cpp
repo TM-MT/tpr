@@ -16,6 +16,7 @@
 #include "tpr.hpp"
 
 #ifdef BUILD_CUDA
+#include "pm.cuh"
 #include "ptpr.cuh"
 #include "reference_cusparse.cuh"
 #include "system.hpp"
@@ -24,6 +25,8 @@
 
 namespace pmcpp {
 Perf perf_time;
+pm_lib::PerfMonitor pm = pm_lib::PerfMonitor();
+
 /**
  * @brief Command Line Args
  * @details Define Command Line Arguments
@@ -64,6 +67,11 @@ Solver str2Solver(std::string solver) {
     }
 }
 
+bool use_pmlib(Solver &solver) {
+    // TPR, PCR, PTPR takes 0, 1, 2 respectively
+    return static_cast<int>(solver) < 3;
+}
+
 void to_lower(std::string &s1) {
     transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
 }
@@ -91,8 +99,6 @@ Options parse(int argc, char *argv[]) {
     return ret;
 }
 }  // namespace pmcpp
-
-pm_lib::PerfMonitor pmcpp::pm = pm_lib::PerfMonitor();
 
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
@@ -205,6 +211,10 @@ int main(int argc, char *argv[]) {
 #endif
     }
 
-    pmcpp::pm.print(stdout, std::string(""), std::string(), 1);
-    pmcpp::pm.printDetail(stdout, 0, 1);
+    if (pmcpp::use_pmlib(solver)) {
+        pmcpp::pm.print(stdout, std::string(""), std::string(), 1);
+        pmcpp::pm.printDetail(stdout, 0, 1);
+    } else {
+        pmcpp::perf_time.display();
+    }
 }
