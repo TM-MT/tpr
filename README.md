@@ -26,8 +26,9 @@ $ cmake -D CMAKE_BUILD_TYPE=Release ..
 $ make
 # run sample code
 $ ./src/tpr_main
-# run with PMlib Reporting
-$ ./src/tpr_pm
+# run benchmark program
+# ./src/tpr_pm N S iter_time Solver
+$ ./src/tpr_pm 2048 512 1000 PTPR
 
 # Use GPU with OpenACC
 $ export CC=nvc CXX=nvc++
