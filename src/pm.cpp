@@ -42,6 +42,13 @@ struct Options {
     Solver solver;
 };
 
+/**
+ * @brief      Convert string representation to pmcpp::Solver
+ *
+ * @param[in]  solver  The solver name in string
+ *
+ * @return     pmcpp::Solver or abort if not found
+ */
 Solver str2Solver(std::string solver) {
     to_lower(solver);
     if (solver.compare(std::string("pcr")) == 0) {
@@ -67,6 +74,13 @@ Solver str2Solver(std::string solver) {
     }
 }
 
+/**
+ * @brief      Use PMlib or not.
+ *
+ * @param      solver  The solver
+ *
+ * @return     True if using PMlib
+ */
 bool use_pmlib(Solver &solver) {
     // TPR, PCR, PTPR takes 0, 1, 2 respectively
     return static_cast<int>(solver) < 3;
@@ -211,6 +225,7 @@ int main(int argc, char *argv[]) {
 #endif
     }
 
+    // CPU programs are measured by pmlib
     if (pmcpp::use_pmlib(solver)) {
         pmcpp::pm.print(stdout, std::string(""), std::string(), 1);
         pmcpp::pm.printDetail(stdout, 0, 1);
