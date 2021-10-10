@@ -1,4 +1,5 @@
 #pragma once
+#ifdef __NVCC__
 #include <cublasLt.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
@@ -19,3 +20,11 @@ class REFERENCE_CUSPARSE {
     ~REFERENCE_CUSPARSE();
     void solve(float *a, float *c, float *rhs, float *x, int n);
 };
+#else
+class REFERENCE_CUSPARSE {
+   public:
+    REFERENCE_CUSPARSE(int n);
+    ~REFERENCE_CUSPARSE();
+    void solve(float *a, float *c, float *rhs, float *x, int n);
+};
+#endif

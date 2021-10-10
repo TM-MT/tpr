@@ -98,30 +98,6 @@ if(BUILD_CUDA)
             APPEND
             PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
-
-    # FOR BENCHMARK PROGRAM
-    add_executable(
-        cupm
-        pm.cu
-        pm.cuh
-        tpr.cu
-        tpr.cuh
-        ptpr.cu
-        ptpr.cuh
-        reference_cusparse.cu
-        reference_cusparse.cuh)
-    target_link_libraries(cupm PUBLIC cusparse cublas cudart trisys)
-    set_target_properties(
-        cupm
-        PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
-                   POSITION_INDEPENDENT_CODE ON
-                   CUDA_SEPARABLE_COMPILATION ON)
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
-        set_property(
-            TARGET cupm
-            APPEND
-            PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
-    endif()
 endif()
 
 # build sample main and benchmark program
@@ -204,9 +180,30 @@ if(TPR_PROJECT)
     endif()
 
     # FOR BENCHMARK PROGRAM
-    add_executable(tpr_pm pm.cpp)
-    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib
-                                        effolkronium_random)
+    if(${BUILD_CUDA})
+        add_executable(
+            tpr_pm
+            pm.cpp
+            pm.cu
+            pm.cuh
+            # followings are required to build with TPR_PERF=ON
+            tpr.cu
+            tpr.cuh
+            ptpr.cu
+            ptpr.cuh
+            reference_cusparse.cu
+            reference_cusparse.cuh)
+        target_link_libraries(tpr_pm PUBLIC cusparse cublas cudart)
+        set_target_properties(
+            tpr_pm
+            PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
+                       POSITION_INDEPENDENT_CODE ON
+                       CUDA_SEPARABLE_COMPILATION ON)
+    else()
+        add_executable(tpr_pm pm.cpp)
+    endif()
+    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib)
+
     if(${OPT_PAPI})
         target_link_libraries(tpr_pm PUBLIC papi_ext "${PAPI_STATIC_LIB}")
         target_include_directories(tpr_pm PUBLIC ${PAPI_DIR}/include)
@@ -215,5 +212,8 @@ if(TPR_PROJECT)
     target_include_directories(
         tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/src
                       ${PROJECT_SOURCE_DIR}/PMlib/include)
-    set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON")
+    set_property(
+        TARGET tpr_pm
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON")
 endif()
