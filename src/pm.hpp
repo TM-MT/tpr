@@ -18,6 +18,11 @@ enum class Solver {
     TPR,
     PCR,
     PTPR,
+#ifdef BUILD_CUDA
+    CUTPR,
+    CUPTPR,
+    CUSPARSE,
+#endif
 };
 extern pm_lib::PerfMonitor pm;
 
@@ -78,13 +83,5 @@ class Perf {
 
 extern Perf perf_time;
 
-class DeviceTimer {
-   public:
-    DeviceTimer();
-    ~DeviceTimer();
-    void start();
-    void stop();
-    void get_elapsed_time(time_ms &elapsed);
-    void stop_and_elapsed(time_ms &elapsed);
-};
+class DeviceTimer;
 }  // namespace pmcpp

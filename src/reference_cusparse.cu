@@ -1,7 +1,7 @@
 #include "reference_cusparse.cuh"
 
 #ifdef TPR_PERF
-#include "pm.cuh"
+#include "pm.hpp"
 #endif
 
 /**

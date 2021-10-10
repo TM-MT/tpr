@@ -8,7 +8,7 @@
 #include "tpr.cuh"
 
 #ifdef TPR_PERF
-#include "pm.cuh"
+#include "pm.hpp"
 #endif
 
 #if (__CUDACC_VER_MAJOR__ <= 11) && (__CUDACC_VER_MINOR__ < 4)

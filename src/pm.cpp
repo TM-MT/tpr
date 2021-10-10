@@ -15,7 +15,15 @@
 #include "system.hpp"
 #include "tpr.hpp"
 
+#ifdef BUILD_CUDA
+#include "ptpr.cuh"
+#include "reference_cusparse.cuh"
+#include "system.hpp"
+#include "tpr.cuh"
+#endif
+
 namespace pmcpp {
+Perf perf_time;
 /**
  * @brief Command Line Args
  * @details Define Command Line Arguments
@@ -31,9 +39,6 @@ struct Options {
     Solver solver;
 };
 
-void to_lower(std::string &s1);
-Solver str2Solver(std::string &solver);
-
 Solver str2Solver(std::string solver) {
     to_lower(solver);
     if (solver.compare(std::string("pcr")) == 0) {
@@ -42,7 +47,18 @@ Solver str2Solver(std::string solver) {
         return Solver::TPR;
     } else if (solver.compare(std::string("ptpr")) == 0) {
         return Solver::PTPR;
-    } else {
+    }
+#ifdef BUILD_CUDA
+    // only available options on `BUILD_CUDA`
+    else if (solver.compare(std::string("cutpr")) == 0) {
+        return Solver::CUTPR;
+    } else if (solver.compare(std::string("cuptpr")) == 0) {
+        return Solver::CUPTPR;
+    } else if (solver.compare(std::string("cusparse")) == 0) {
+        return Solver::CUSPARSE;
+    }
+#endif
+    else {
         std::cerr << "Solver Not Found.\n";
         abort();
     }
@@ -163,6 +179,30 @@ int main(int argc, char *argv[]) {
                 }
             }
         } break;
+#ifdef BUILD_CUDA
+        case pmcpp::Solver::CUTPR: {
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
+                TPR_CU::tpr_cu(input.sys.a, input.sys.c, input.sys.rhs,
+                               input.sys.diag, n, s);
+            }
+        } break;
+        case pmcpp::Solver::CUPTPR: {
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
+                PTPR_CU::ptpr_cu(input.sys.a, input.sys.c, input.sys.rhs,
+                                 input.sys.diag, n, s);
+            }
+        } break;
+        case pmcpp::Solver::CUSPARSE: {
+            REFERENCE_CUSPARSE rfs(n);
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
+                rfs.solve(input.sys.a, input.sys.c, input.sys.rhs,
+                          input.sys.diag, n);
+            }
+        } break;
+#endif
     }
 
     pmcpp::pm.print(stdout, std::string(""), std::string(), 1);
