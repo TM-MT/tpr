@@ -138,22 +138,19 @@ int main(int argc, char *argv[]) {
             auto tpr_all_label = std::string("TPR_").append(std::to_string(s));
             pmcpp::pm.setProperties(tpr_all_label, pmcpp::pm.CALC);
 
-            // Measureing TPR reusable implementation
-            {
-                TPR t(input.sys.n, s);
-                for (int i = 0; i < iter_times; i++) {
-                    input.assign();
+            TPR t(input.sys.n, s);
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
 #pragma acc data copy(                                                  \
     input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
     [:n], input.sys.n)
-                    {
-                        t.set_tridiagonal_system(input.sys.a, input.sys.c,
-                                                 input.sys.rhs);
-                        pmcpp::pm.start(tpr_all_label);
-                        int flop_count = t.solve();
-                        flop_count += t.get_ans(input.sys.diag);
-                        pmcpp::pm.stop(tpr_all_label, flop_count);
-                    }
+                {
+                    t.set_tridiagonal_system(input.sys.a, input.sys.c,
+                                             input.sys.rhs);
+                    pmcpp::pm.start(tpr_all_label);
+                    int flop_count = t.solve();
+                    flop_count += t.get_ans(input.sys.diag);
+                    pmcpp::pm.stop(tpr_all_label, flop_count);
                 }
             }
         } break;
@@ -161,22 +158,19 @@ int main(int argc, char *argv[]) {
             auto tpr_all_label = std::string("PTPR_").append(std::to_string(s));
             pmcpp::pm.setProperties(tpr_all_label, pmcpp::pm.CALC);
 
-            // Measureing TPR reusable implementation
-            {
-                PTPR t(input.sys.n, s);
-                for (int i = 0; i < iter_times; i++) {
-                    input.assign();
+            PTPR t(input.sys.n, s);
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
 #pragma acc data copy(                                                  \
     input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
     [:n], input.sys.n)
-                    {
-                        t.set_tridiagonal_system(input.sys.a, input.sys.c,
-                                                 input.sys.rhs);
-                        pmcpp::pm.start(tpr_all_label);
-                        int flop_count = t.solve();
-                        flop_count += t.get_ans(input.sys.diag);
-                        pmcpp::pm.stop(tpr_all_label, flop_count);
-                    }
+                {
+                    t.set_tridiagonal_system(input.sys.a, input.sys.c,
+                                             input.sys.rhs);
+                    pmcpp::pm.start(tpr_all_label);
+                    int flop_count = t.solve();
+                    flop_count += t.get_ans(input.sys.diag);
+                    pmcpp::pm.stop(tpr_all_label, flop_count);
                 }
             }
         } break;
