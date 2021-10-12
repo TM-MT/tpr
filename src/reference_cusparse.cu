@@ -50,6 +50,15 @@
         }                                                                  \
     }
 
+/**
+ * @brief      Constructor of REFERENCE_CUSPARSE
+ *
+ *             Preparation for cuSPARSE routine call
+ * 1. create cuspase/cublas handle and bind a stream
+ * 2. allocate device memory
+ *
+ * @param[in]  n     The order of A
+ */
 REFERENCE_CUSPARSE::REFERENCE_CUSPARSE(int n) {
     diag = (float *)malloc(n * sizeof(float));
     for (int i = 0; i < n; i++) {
@@ -92,11 +101,17 @@ REFERENCE_CUSPARSE::~REFERENCE_CUSPARSE() {
 /**
  * @brief      Helper function for cusparse::cusparseSgtsv2_nopivot (CR+PCR)
  *
- * @param      a     { parameter_description }
- * @param      c     { parameter_description }
- * @param      rhs   The right hand side
- * @param      x     { parameter_description }
- * @param[in]  n     { parameter_description }
+ *             Solve A*x = B by `cusparseSgtsv2_nopivot`, where A is an n-by-n
+ *             tridiagonal matrix, B is the right-hand-side vector of legth n
+ *
+ * @note       Only works in a block.
+ *
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x     x[0:n] for the solution
+ * @param[in]  n     The order of A. `n` should be power of 2
  */
 void REFERENCE_CUSPARSE::solve(float *a, float *c, float *rhs, float *x,
                                int n) {

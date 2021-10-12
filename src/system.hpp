@@ -17,6 +17,9 @@ class TRIDIAG_SYSTEM {
     bool null_check();
 };
 
+/**
+ * @brief      The base class for sample input
+ */
 class ExampleInput {
    public:
     struct TRIDIAG_SYSTEM sys;

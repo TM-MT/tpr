@@ -1,3 +1,9 @@
+/**
+ * @brief      Example main function for cuda program call
+ *
+ * @author     TM-MT
+ * @date       2021
+ */
 #include <stdlib.h>
 
 #include <iostream>

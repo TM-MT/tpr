@@ -31,13 +31,15 @@ extern __shared__ float array[];
 /**
  * @brief      PTPR main kernel
  *
- * @param      a        { parameter_description }
- * @param      c        { parameter_description }
- * @param      rhs      The right hand side
- * @param      x        { parameter_description }
+ * @param[in]  a        a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c        c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                      0.0
+ * @param[in]  rhs      rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x        x[0:n] for the solution
  * @param      pbuffer  Additional memory for Stage 2 use. pbuffer[0:3 * n / s]
- * @param[in]  n        { parameter_description }
- * @param[in]  s        { parameter_description }
+ * @param[in]  n        The order of A. `n` should be power of 2
+ * @param[in]  s        The parameter of PCR-like TPR. Each block handles `s`
+ *                      equations.
  */
 __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
                                  float *pbuffer, int n, int s) {
@@ -144,12 +146,15 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 }
 
 /**
- * @brief      PTPR Stage 1
+ * @brief         PTPR Stage 1
  *
- * @param          tb      cg::thread_block
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * shared memory
- * @param[in]      params  The parameters of PTPR
+ *                PCR-like TPR Stage 1 On each block,
+ * 1. apply PCR
+ *
+ * @param         tb      cg::thread_block
+ * @param[in,out] eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                        shared memory
+ * @param[in]     params  The parameters of PTPR
  */
 __device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
                                      TPR_Params const &params) {
@@ -210,16 +215,16 @@ __device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
 }
 
 /**
- * @brief      PTPR Intermediate stage 1
+ * @brief         PTPR Intermediate stage 1
  *
- * Update E_{st} by E_{ed}
+ *                Update E_{st} by E_{ed}
  *
- * @param          tb      cg::thread_block
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * shared memory
- * @param[out]     bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c,
- * bkup->z: rhs
- * @param[in]      params  The parameters of PTPR
+ * @param         tb      cg::thread_block
+ * @param[in,out] eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                        shared memory
+ * @param[out]    bkup    The bkup for stage 3 use. bkup->x: a, bkup->y: c,
+ *                        bkup->z: rhs
+ * @param[in]     params  The parameters of PTPR
  */
 __device__ void PTPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
                                    float3 &bkup, TPR_Params const &params) {
@@ -298,7 +303,11 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
 /**
  * @brief         TPR Stage 2
  *
- *                call PCR
+ *                PCR-like TPR Stage 2
+ *                1. call `tpr_inter_gloabl`
+ *                2. set up for PCR call
+ *                3. call PCR
+ *                4. copy back the solution
  *
  * @param         tg       cg::grid_group
  * @param         tb       cg::thread_block
@@ -372,12 +381,12 @@ __device__ void PTPR_CU::tpr_st2_ker(cg::grid_group &tg, cg::thread_block &tb,
 }
 
 /**
- * @brief      PTPR Stage 3
+ * @brief         PTPR Stage 3
  *
- * @param          tb      cg::thread_block
- * @param[in,out]  eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
- * shared memory
- * @param[in]      params  The parameters of PTPR
+ * @param         tb      cg::thread_block
+ * @param[in,out] eq      Equation. `eq.a, eq.c, eq.rhs` should be address in
+ *                        shared memory
+ * @param[in]     params  The parameters of PTPR
  */
 __device__ void PTPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
                                      TPR_Params const &params) {
@@ -404,20 +413,40 @@ __device__ void PTPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
     return;
 }
 
+/**
+ * @brief         PCR
+ *
+ *                Solve A*x = B, where A is an n-by-n tridiagonal matrix, B is
+ *                the right-hand-side vector of legth n
+ *
+ * @note          assert the diagonal elements of A are 1.0
+ * @note          Currently only works in a block.
+ *
+ * @param[in]     a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]     c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                      0.0
+ * @param[in]     rhs   rhs[0:n] The right-hand-side of the equation. On exit,
+ *                      it holds the solution.
+ * @param[in,out] n     The order of A. `n` should be power of 2
+ * @param      tb    cg::thread_block
+ */
 __global__ void PTPR_CU::pcr_ker(float *a, float *c, float *rhs, int n) {
     cg::thread_block tb = cg::this_thread_block();
     pcr_thread_block(tb, a, c, rhs, n);
 }
 
 /**
- * @brief      PCR
- * @note       Only works in a block.
+ * @brief         PCR
+ * @note          assert the diagonal elements of A are 1.0
+ * @note          Only works in a block.
  *
- * @param      tb    cg::thread_block
- * @param      a     { parameter_description }
- * @param      c     { parameter_description }
- * @param      rhs   The right hand side
- * @param[in]  n     The size of the equation
+ * @param         tb    cg::thread_block
+ * @param[in]     a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]     c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                      0.0
+ * @param[in,out] rhs   rhs[0:n] The right-hand-side of the equation. On exit,
+ *                      it holds the solution.
+ * @param[in]     n     The order of A. `n` should be power of 2
  */
 __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
                                           float *c, float *rhs, int n) {
@@ -484,18 +513,25 @@ __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
 /**
  * @brief      Helper function for ptpr_cu
  *
+ *             Solve A*x = B, where A is an n-by-n tridiagonal matrix, B is the
+ *             right-hand-side vector of legth n
+ *
+ * @note       assert the diagonal elements of A are 1.0
+ *
  * 1. check if device support cooperative launch
  * 2. allocate device memory for compute
  * 3. launch kernel `PTPR_CU::tpr_cu`
  * 4. copy the answer from device to host
  * 5. free device memory
  *
- * @param[in]  a     { parameter_description }
- * @param[in]  c     { parameter_description }
- * @param[in]  rhs   The right hand side
- * @param[out] x     x[0:n] for the answer
- * @param[in]  n     { parameter_description }
- * @param[in]  s     { parameter_description }
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x     x[0:n] for the solution
+ * @param[in]  n     The order of A. `n` should be power of 2
+ * @param[in]  s     The parameter of PCR-like TPR. Each block handles `s`
+ *                   equations.
  */
 void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     if (n / s > s) {

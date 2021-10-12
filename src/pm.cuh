@@ -13,6 +13,20 @@
     }
 
 namespace pmcpp {
+
+/**
+ * @brief      Timer for CUDA Programs
+ *
+ *             Example:
+ * @code{.cpp}
+ * time_ms elapsed = 0;
+ * pmcpp::DeviceTimer timer;
+ * timer.start();
+ * // Run kernel
+ * timer.stop_and_elapsed(elapsed);
+ * pmcpp::perf_time.push_back(elapsed);
+ * @endcode
+ */
 class DeviceTimer {
     cudaEvent_t ev_start, ev_stop;
 
