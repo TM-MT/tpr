@@ -1,3 +1,9 @@
+/**
+ * @brief      Benchmark program for TPR etc.
+ *
+ * @author     TM-MT
+ * @date       2021
+ */
 #include "pm.hpp"
 
 #include <stdio.h>
