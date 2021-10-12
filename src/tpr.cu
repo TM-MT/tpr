@@ -29,15 +29,16 @@ using namespace TPR_CU;
 extern __shared__ float array[];
 
 /**
- * @brief      TPR main kernel
+ * @brief      TPR main kernel of TPR
  *
- * @param      a        { parameter_description }
- * @param      c        { parameter_description }
- * @param      rhs      The right hand side
- * @param      x        { parameter_description }
+ * @param[in]  a        a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c        c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                      0.0
+ * @param[in]  rhs      rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x        x[0:n] for the solution
  * @param      pbuffer  Additional memory for Stage 2 use. pbuffer[0:4 * n / s]
- * @param[in]  n        { parameter_description }
- * @param[in]  s        { parameter_description }
+ * @param[in]  n        The order of A. `n` should be power of 2
+ * @param[in]  s        The parameter of TPR. Each block handles `s` equations.
  */
 __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
                                 float *pbuffer, int n, int s) {
@@ -406,6 +407,22 @@ __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation &eq,
     return;
 }
 
+/**
+ * @brief      CR
+ *
+ *             Solve A*x = B by CR, where A is an n-by-n tridiagonal matrix, B
+ *             is the right-hand-side vector of legth n
+ *
+ * @note       Only works in a block.
+ *
+ * @param      tb    cg::thread_block
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x     x[0:n] for the solution
+ * @param[in]  n     The order of A. `n` should be power of 2
+ */
 __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
                                int n) {
     cg::thread_block tb = cg::this_thread_block();
@@ -414,14 +431,19 @@ __global__ void TPR_CU::cr_ker(float *a, float *c, float *rhs, float *x,
 
 /**
  * @brief      CR
+ *
+ *             Solve A*x = B by CR, where A is an n-by-n tridiagonal matrix, B
+ *             is the right-hand-side vector of legth n
+ *
  * @note       Only works in a block.
  *
  * @param      tb    cg::thread_block
- * @param      a     { parameter_description }
- * @param      c     { parameter_description }
- * @param      rhs   The right hand side
- * @param      x     { parameter_description }
- * @param[in]  n     The size of the equation
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x     x[0:n] for the solution
+ * @param[in]  n     The order of A. `n` should be power of 2
  */
 __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
                                         float *c, float *rhs, float *x, int n) {
@@ -528,18 +550,24 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
 /**
  * @brief      Helper function for tpr_cu
  *
+ *             Solve A*x = B by TPR, where A is an n-by-n tridiagonal matrix, B
+ *             is the right-hand-side vector of legth n
+ *
+ * @note       assert the diagonal elements of A are 1.0
+ *
  * 1. check if device support cooperative launch
  * 2. allocate device memory for compute
- * 3. launch kernel `tpr_cu`
+ * 3. launch kernel `TPR_CU::tpr_ker`
  * 4. copy the answer from device to host
- * 6. free device memory
+ * 5. free device memory
  *
- * @param[in]  a     { parameter_description }
- * @param[in]  c     { parameter_description }
- * @param[in]  rhs   The right hand side
- * @param[out] x     x[0:n] for the answer
- * @param[in]  n     { parameter_description }
- * @param[in]  s     { parameter_description }
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x     x[0:n] for the solution
+ * @param[in]  n     The order of A. `n` should be power of 2
+ * @param[in]  s     The parameter of TPR. Each block handles `s` equations.
  */
 void TPR_CU::tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     if (n / s > s) {
