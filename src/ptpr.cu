@@ -483,6 +483,10 @@ __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
 
 /**
  * @brief      Helper function for ptpr_cu
+ * 
+ * Solve A*x = B, where A is an n-by-n tridiagonal matrix, B is the right-hand-side vector of legth n
+ * 
+ * @note assert the diagonal elements of A are 1.0
  *
  * 1. check if device support cooperative launch
  * 2. allocate device memory for compute
@@ -490,12 +494,12 @@ __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
  * 4. copy the answer from device to host
  * 5. free device memory
  *
- * @param[in]  a     { parameter_description }
- * @param[in]  c     { parameter_description }
- * @param[in]  rhs   The right hand side
- * @param[out] x     x[0:n] for the answer
- * @param[in]  n     { parameter_description }
- * @param[in]  s     { parameter_description }
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] == 0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x     x[0:n] for the solution
+ * @param[in]  n     The order of A. `n` should be power of 2
+ * @param[in]  s     The parameter of PCR-like TPR. Each block handles `s` equations.
  */
 void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
     if (n / s > s) {
