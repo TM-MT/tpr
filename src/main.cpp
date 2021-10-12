@@ -1,3 +1,9 @@
+/**
+ * @brief      Example main function
+ *
+ * @author     TM-MT
+ * @date       2021
+ */
 #include "main.hpp"
 
 #include <stdio.h>
