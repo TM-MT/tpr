@@ -198,12 +198,12 @@ if(TPR_PROJECT)
             PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
                        POSITION_INDEPENDENT_CODE ON
                        CUDA_SEPARABLE_COMPILATION ON)
-         if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
-             set_property(
-                 TARGET tpr_pm
-                 APPEND
-                 PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
-         endif()
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+            set_property(
+                TARGET tpr_pm
+                APPEND
+                PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        endif()
 
     else()
         add_executable(tpr_pm pm.cpp)
