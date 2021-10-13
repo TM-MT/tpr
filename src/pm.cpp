@@ -230,6 +230,9 @@ int main(int argc, char *argv[]) {
         pmcpp::pm.print(stdout, std::string(""), std::string(), 1);
         pmcpp::pm.printDetail(stdout, 0, 1);
     } else {
-        pmcpp::perf_time.display();
+        for (int i = 0; i < iter_times; i++) {
+            std::cout << n << "," << s << "," << argv[4] << ","
+                      << pmcpp::perf_time.perf_time[i] << "\n";
+        }
     }
 }

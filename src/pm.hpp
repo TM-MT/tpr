@@ -33,9 +33,9 @@ Solver str2Solver(std::string &solver);
 bool use_pmlib(Solver &solver);
 
 class Perf {
+   public:
     std::vector<time_ms> perf_time;
 
-   public:
     void display() {
         std::cout << "sum    [ms]: " << sum() << "\n";
         std::cout << "average[ms]: " << average() << "\n";
