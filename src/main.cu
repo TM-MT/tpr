@@ -16,7 +16,7 @@
 
 int main() {
     int n = 8192;
-    trisys::ExampleInput input = trisys::ExampleFixedInput(n);
+    trisys::ExampleFixedInput input(n);
 
     TPR_ANS ans1(n), ans2(n);
     for (int s = 128; s <= std::min(n, 1024); s *= 2) {
