@@ -1,9 +1,6 @@
 #pragma once
 #include <array>
 
-#include "PerfMonitor.h"
-#include "pm.hpp"
-
 /**
  * Helper Functions for Performance Monitoring TPR
  */

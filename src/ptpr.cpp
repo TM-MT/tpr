@@ -21,19 +21,20 @@ using namespace PTPR_Helpers;
 using namespace tprperf;
 
 /**
- * @brief set Tridiagonal System for PTPR
+ * @brief      set Tridiagonal System for PTPR
  *
- * USAGE
- * ```
- * PTPR t(n, s);
- * t.set_tridiagonal_system(a, c, rhs);
- * t.solve();
- * t.get_ans(x);
- * ```
+ *             USAGE
+ * @code{.cpp}
+ *             PTPR t(n, s);
+ *             t.set_tridiagonal_system(a, c, rhs);
+ *             t.solve();
+ *             t.get_ans(x);
+ * @endcode
  *
- * @param a
- * @param c
- * @param rhs
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
  */
 void PTPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->a = a;
@@ -46,13 +47,13 @@ void PTPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 }
 
 /**
- * @brief Initializer for PTPR()
- * @details Call this function first to set up for PTPR
+ * @brief      Initializer for PTPR()
+ * @details    Call this function first to set up for PTPR
  *
- * @note This function should call once.
+ * @note       This function should call once.
  *
- * @param n size of given system
- * @param s size of a slice. `s` should be power of 2
+ * @param      n     size of given system. `n` should be power of 2
+ * @param      s     size of a slice. `s` should be power of 2
  */
 void PTPR::init(int n, int s) {
     auto format = std::string("PTPR_n_");
@@ -112,8 +113,9 @@ void PTPR::init(int n, int s) {
 }
 
 /**
- * @brief solve
- * @return num of float operation
+ * @brief      solve
+ *
+ * @return     num of float operation
  */
 int PTPR::solve() {
     int fp_st1 = m * (14 * s * fllog2(s));
@@ -230,8 +232,7 @@ void PTPR::tpr_stage1() {
 }
 
 /**
- * @brief PTPR STAGE 2
- *
+ * @brief      PTPR STAGE 2
  */
 void PTPR::tpr_stage2() {
 #ifdef _OPENACC
@@ -414,8 +415,11 @@ EquationInfo PTPR::update_lower_no_check(int kl, int k) {
 }
 
 /**
- * @brief get the answer
- * @return num of float operation
+ * @brief      get the answer
+ *
+ * @param      x     x[0:n] for the solution.
+ *
+ * @return     num of float operation
  */
 int PTPR::get_ans(real *x) {
 #pragma acc kernels loop present(this, this->x[:n], x[:n])

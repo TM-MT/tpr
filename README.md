@@ -7,9 +7,11 @@
  - g++ >= 9.0.0
  - PAPI == papi-5-7-0-t, if using HWPC
 
-#### Requirements for GPU Run
+#### Requirements for GPU with OpenACC
  - nvc++ >= 20.11-0
- - cuda 11.0
+
+#### Requirements for GPU with CUDA
+ - cuda >= 11.0
 
 ## Clone & Build & Run
 
@@ -17,23 +19,25 @@
 $ git clone --recurse-submodules https://github.com/TM-MT/tpr.git
 $ cd tpr
 $ mkdir build && cd build
-# SPECIFY COMPILER
+
+# CPU Codes
 $ export CC=gcc CXX=g++
 $ cmake -D CMAKE_BUILD_TYPE=Release ..
 $ make
 # run sample code
 $ ./src/tpr_main
-# run with PMlib Reporting
-$ ./src/tpr_pm
+# run benchmark program
+# ./src/tpr_pm N S iter_time Solver
+$ ./src/tpr_pm 2048 512 1000 PTPR
 
 # Use GPU with OpenACC
 $ export CC=nvc CXX=nvc++
 $ cmake -D CMAKE_BUILD_TYPE=Release -Dwith_ACC=yes -DCMAKE_C_FLAGS="-noswitcherror -ta=tesla:managed" -DCMAKE_CXX_FLAGS="-noswitcherror -ta=tesla:managed" -DRandom_BuildTests=off  ..
 
 # Use cuda (cmake < 3.18)
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_FLAGS="-noswitcherror" -DCMAKE_C_FLAGS="-noswitcherror" -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,code=sm_75"  -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
-# Use cuda (cmake >= 3.18)
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_FLAGS="-noswitcherror" -DCMAKE_C_FLAGS="-noswitcherror" -DCU_ARCH="60" -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,code=sm_75"  -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
+# Use cuda (cmake >= 3.20)
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCU_ARCH="60" -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
 ```
 
 #### Options

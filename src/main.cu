@@ -1,3 +1,9 @@
+/**
+ * @brief      Example main function for cuda program call
+ *
+ * @author     TM-MT
+ * @date       2021
+ */
 #include <stdlib.h>
 
 #include <iostream>
@@ -5,18 +11,18 @@
 #include "main.hpp"
 #include "ptpr.cuh"
 #include "reference_cusparse.cuh"
+#include "system.hpp"
 #include "tpr.cuh"
 
 int main() {
     int n = 8192;
-    struct TRIDIAG_SYSTEM *sys =
-        (struct TRIDIAG_SYSTEM *)malloc(sizeof(struct TRIDIAG_SYSTEM));
-    setup(sys, n);
+    trisys::ExampleFixedInput input(n);
+
     TPR_ANS ans1(n), ans2(n);
     for (int s = 128; s <= std::min(n, 1024); s *= 2) {
-        assign(sys);
+        input.assign();
         ans1.s = s;
-        TPR_CU::tpr_cu(sys->a, sys->c, sys->rhs, ans1.x, n, s);
+        TPR_CU::tpr_cu(input.sys.a, input.sys.c, input.sys.rhs, ans1.x, n, s);
 
         if (s > 128 && ans1 != ans2) {
             std::cout << "TPR(" << ans1.n << "," << ans1.s << ") and TPR("
@@ -30,9 +36,9 @@ int main() {
     }
 
     for (int s = 128; s <= std::min(n, 1024); s *= 2) {
-        assign(sys);
+        input.assign();
         ans1.s = s;
-        PTPR_CU::ptpr_cu(sys->a, sys->c, sys->rhs, ans1.x, n, s);
+        PTPR_CU::ptpr_cu(input.sys.a, input.sys.c, input.sys.rhs, ans1.x, n, s);
 
         if (s > 128 && ans1 != ans2) {
             std::cout << "PTPR(" << ans1.n << "," << ans1.s << ") and PTPR("
@@ -47,66 +53,17 @@ int main() {
 
     if (n <= 1024) {
         // currently CR works in thread,
-        assign(sys);
-        TPR_CU::cr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
+        input.assign();
+        TPR_CU::cr_cu(input.sys.a, input.sys.c, input.sys.rhs, ans1.x, n);
         ans1.display(std::cout);
 
-        assign(sys);
-        PTPR_CU::pcr_cu(sys->a, sys->c, sys->rhs, ans1.x, n);
+        input.assign();
+        PTPR_CU::pcr_cu(input.sys.a, input.sys.c, input.sys.rhs, ans1.x, n);
         ans1.display(std::cout);
     }
 
-    assign(sys);
+    input.assign();
     REFERENCE_CUSPARSE rfs(n);
-    rfs.solve(sys->a, sys->c, sys->rhs, ans1.x, n);
+    rfs.solve(input.sys.a, input.sys.c, input.sys.rhs, ans1.x, n);
     ans1.display(std::cout);
-
-    clean(sys);
-    free(sys);
-}
-
-int setup(struct TRIDIAG_SYSTEM *sys, int n) {
-    sys->a = (real *)malloc(n * sizeof(real));
-    sys->diag = (real *)malloc(n * sizeof(real));
-    sys->c = (real *)malloc(n * sizeof(real));
-    sys->rhs = (real *)malloc(n * sizeof(real));
-    sys->n = n;
-
-    return sys_null_check(sys);
-}
-
-int assign(struct TRIDIAG_SYSTEM *sys) {
-    int n = sys->n;
-    for (int i = 0; i < n; i++) {
-        sys->a[i] = -1.0 / 6.0;
-        sys->c[i] = -1.0 / 6.0;
-        sys->diag[i] = 1.0;
-        sys->rhs[i] = 1.0 * (i + 1);
-    }
-    sys->a[0] = 0.0;
-    sys->c[n - 1] = 0.0;
-
-    return 0;
-}
-
-int clean(struct TRIDIAG_SYSTEM *sys) {
-    for (auto p : {sys->a, sys->diag, sys->c, sys->rhs}) {
-        free(p);
-    }
-
-    sys->a = nullptr;
-    sys->diag = nullptr;
-    sys->c = nullptr;
-    sys->rhs = nullptr;
-
-    return 0;
-}
-
-bool sys_null_check(struct TRIDIAG_SYSTEM *sys) {
-    for (auto p : {sys->a, sys->diag, sys->c, sys->rhs}) {
-        if (p == nullptr) {
-            return false;
-        }
-    }
-    return true;
 }

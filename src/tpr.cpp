@@ -22,19 +22,20 @@ using namespace TPR_Helpers;
 using namespace tprperf;
 
 /**
- * @brief set Tridiagonal System for TPR
+ * @brief      set Tridiagonal System for TPR
  *
- * USAGE
- * ```
- * TPR t(n, s);
- * t.set_tridiagonal_system(a, c, rhs);
- * t.solve();
- * t.get_ans(x);
- * ```
+ *             USAGE
+ * @code{.cpp}
+ *             TPR t(n, s);
+ *             t.set_tridiagonal_system(a, c, rhs);
+ *             t.solve();
+ *             t.get_ans(x);
+ * @endcode
  *
- * @param a
- * @param c
- * @param rhs
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
  */
 void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->a = a;
@@ -116,8 +117,9 @@ void TPR::init(int n, int s) {
 }
 
 /**
- * @brief solve
- * @return num of float operation
+ * @brief      solve
+ *
+ * @return     num of float operation
  */
 int TPR::solve() {
     int fp_st1 = 28 * n - 14;
@@ -144,7 +146,7 @@ int TPR::solve() {
 }
 
 /**
- * @brief TPR stage 1
+ * @brief      TPR stage 1
  */
 void TPR::tpr_stage1() {
 #pragma acc data present(this, aa[:n], cc[:n], rr[:n], a[:n], c[:n], rhs[:n])
@@ -260,8 +262,7 @@ void TPR::tpr_stage1() {
 }
 
 /**
- * @brief TPR STAGE 2
- *
+ * @brief      TPR STAGE 2
  */
 void TPR::tpr_stage2() {
 #pragma acc kernels present(this)
@@ -452,11 +453,13 @@ void TPR::st3_replace() {
 }
 
 /**
- * @brief get the answer
+ * @brief      get the answer
  *
- * @note [OpenACC] assert `*x` exists on device
+ * @note       [OpenACC] assert `*x` exists on device
  *
- * @return num of float operation
+ * @param      x     x[0:n] the solution vector
+ *
+ * @return     num of float operation
  */
 int TPR::get_ans(real *x) {
 #pragma acc parallel loop present(x[:n], this->x[:n])

@@ -1,21 +1,40 @@
+# PROJECT GLOBAL PROPERTIES
 if(TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
 endif()
 
+if(REAL_TYPE STREQUAL "double")
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
+endif()
+
+if(BUILD_CUDA)
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS BUILD_CUDA)
+endif()
+
+set(PROJECT_INC_DIR
+    "${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/PMlib/include")
+set_property(
+    DIRECTORY ${PROJECT_SOURCE_DIR}/src
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" COMPILE_DEFINITIONS
+             enable_OPENMP="ON")
+# END PROJECT GLOBAL PROPERTIES
+
 # CR
-add_library(libcr cr.cpp)
-target_include_directories(libcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+add_library(libcr cr.cpp cr.hpp lib.hpp)
 
 # PCR
-add_library(libpcr pcr.cpp)
-
-target_include_directories(libpcr PUBLIC ${PROJECT_SOURCE_DIR}/src)
+add_library(libpcr pcr.cpp pcr.hpp lib.hpp)
 
 # TPR_PERF
 add_library(tpr_perf tpr_perf.cpp tpr_perf.hpp)
-target_include_directories(tpr_perf PRIVATE ${PROJECT_SOURCE_DIR}/PMlib/include)
-set_property(TARGET tpr_perf PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
-                                      COMPILE_DEFINITIONS enable_OPENMP="ON")
+target_include_directories(tpr_perf PRIVATE ${PROJECT_INC_DIR})
 target_link_libraries(tpr_perf PRIVATE pmlib)
 if(TPR_PERF)
     set_property(
@@ -26,21 +45,13 @@ endif()
 
 # TPR
 add_library(tpr tpr.cpp)
-
-target_include_directories(tpr PUBLIC ${PROJECT_SOURCE_DIR}/src
-                                      ${PROJECT_SOURCE_DIR}/PMlib/include)
+target_include_directories(tpr PUBLIC ${PROJECT_INC_DIR})
 target_link_libraries(tpr PUBLIC pmlib libcr tpr_perf)
-set_property(TARGET tpr PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
-                                 COMPILE_DEFINITIONS enable_OPENMP="ON")
 
 # PTPR
 add_library(ptpr ptpr.cpp)
-
-target_include_directories(ptpr PUBLIC ${PROJECT_SOURCE_DIR}/src
-                                       ${PROJECT_SOURCE_DIR}/PMlib/include)
+target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
 target_link_libraries(ptpr PUBLIC pmlib libpcr tpr_perf)
-set_property(TARGET ptpr PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON"
-                                  COMPILE_DEFINITIONS enable_OPENMP="ON")
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
@@ -80,31 +91,10 @@ if(BUILD_CUDA)
 
     add_executable(cumain main.cu)
     target_include_directories(cumain PUBLIC ${PROJECT_SOURCE_DIR}/src)
-    target_link_libraries(cumain PRIVATE tpr_cu ptpr_cu ref_cusp)
+    target_link_libraries(cumain PRIVATE trisys tpr_cu ptpr_cu ref_cusp)
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
         set_property(
             TARGET cumain
-            APPEND
-            PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
-    endif()
-
-    # FOR BENCHMARK PROGRAM
-    add_executable(
-        cupm
-        pm.cu
-        pm.cuh
-        tpr.cu
-        tpr.cuh
-        ptpr.cu
-        ptpr.cuh
-        reference_cusparse.cu
-        reference_cusparse.cuh)
-    target_link_libraries(cupm PUBLIC cusparse cublas cudart
-                                      effolkronium_random)
-    set_property(TARGET cupm PROPERTY COMPILE_DEFINITIONS TPR_PERF="ON")
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
-        set_property(
-            TARGET cupm
             APPEND
             PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
     endif()
@@ -112,25 +102,34 @@ endif()
 
 # build sample main and benchmark program
 if(TPR_PROJECT)
+    # Tridiagonal system
+    add_library(trisys system.cpp system.hpp lib.hpp)
+    target_link_libraries(trisys PRIVATE effolkronium_random)
+
     # tpr_main
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_executable(tpr_main main.cpp ${BACKWARD_ENABLE})
-        set_target_properties(tpr_main PROPERTIES DEBUG_POSTFIX
-                                                  ${CMAKE_DEBUG_POSTFIX})
         target_include_directories(
             tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src/backward-cpp)
         add_backward(tpr_main)
     else() # Release etc.
         add_executable(tpr_main main.cpp)
     endif()
-    target_link_libraries(tpr_main PUBLIC libcr libpcr tpr ptpr pmlib)
-    target_include_directories(
-        tpr_main PUBLIC ${PROJECT_SOURCE_DIR}/src
-                        ${PROJECT_SOURCE_DIR}/PMlib/include)
-    set_property(
-        TARGET tpr_main
-        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" COMPILE_DEFINITIONS
-                 enable_OPENMP="ON" COMPILE_DEFINITIONS TPR_PERF="off")
+    target_link_libraries(tpr_main PUBLIC trisys libcr libpcr tpr ptpr pmlib)
+    target_include_directories(tpr_main PUBLIC ${PROJECT_INC_DIR})
+    set_property(TARGET tpr_main PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
+
+    if(BUILD_CUDA)
+        target_link_libraries(tpr_main PRIVATE tpr_cu ptpr_cu)
+        target_include_directories(tpr_main PRIVATE ${CUDA_INCLUDE_DIRS})
+
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+            set_property(
+                TARGET tpr_main
+                APPEND
+                PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        endif()
+    endif()
 
     # PMlib
     set(pmlib_srcdir ${PROJECT_SOURCE_DIR}/PMlib/src)
@@ -181,9 +180,36 @@ if(TPR_PROJECT)
     endif()
 
     # FOR BENCHMARK PROGRAM
-    add_executable(tpr_pm pm.cpp)
-    target_link_libraries(tpr_pm PUBLIC tpr ptpr libpcr pmlib
-                                        effolkronium_random)
+    if(${BUILD_CUDA})
+        add_executable(
+            tpr_pm
+            pm.cpp
+            pm.cuh
+            # followings are required to build with TPR_PERF=ON
+            tpr.cu
+            tpr.cuh
+            ptpr.cu
+            ptpr.cuh
+            reference_cusparse.cu
+            reference_cusparse.cuh)
+        target_link_libraries(tpr_pm PUBLIC cusparse cublas cudart)
+        set_target_properties(
+            tpr_pm
+            PROPERTIES COMPILE_DEFINITIONS TPR_PERF="ON"
+                       POSITION_INDEPENDENT_CODE ON
+                       CUDA_SEPARABLE_COMPILATION ON)
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+            set_property(
+                TARGET tpr_pm
+                APPEND
+                PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        endif()
+
+    else()
+        add_executable(tpr_pm pm.cpp)
+    endif()
+    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib)
+
     if(${OPT_PAPI})
         target_link_libraries(tpr_pm PUBLIC papi_ext "${PAPI_STATIC_LIB}")
         target_include_directories(tpr_pm PUBLIC ${PAPI_DIR}/include)
@@ -192,12 +218,8 @@ if(TPR_PROJECT)
     target_include_directories(
         tpr_pm PUBLIC ${PROJECT_SOURCE_DIR}/src
                       ${PROJECT_SOURCE_DIR}/PMlib/include)
-    set_property(TARGET tpr_pm PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON")
-endif()
-
-if(REAL_TYPE STREQUAL "double")
     set_property(
-        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        TARGET tpr_pm
         APPEND
-        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
+        PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON")
 endif()
