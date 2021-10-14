@@ -1,6 +1,3 @@
-[submodule "dbg-macro"]
-	path = dbg-macro
-	url = https://github.com/sharkdp/dbg-macro
 [submodule "backward-cpp"]
 	path = src/backward-cpp
 	url = https://github.com/bombela/backward-cpp.git
@@ -10,9 +7,6 @@
 [submodule "random"]
 	path = random
 	url = https://github.com/effolkronium/random.git
-[submodule "structopt"]
-	path = structopt
-	url = https://github.com/p-ranav/structopt.git
 [submodule "googletest"]
 	path = googletest
 	url = https://github.com/google/googletest.git
