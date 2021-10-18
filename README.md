@@ -40,7 +40,7 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,
 $ cmake -DCMAKE_BUILD_TYPE=Release -DCU_ARCH="60" -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
 ```
 
-#### Options
+#### CMake Options
  - `-D CMAKE_BUILD_TYPE={Release|Debug}`: Build type
  - `-D with_PAPI={path/to/papi|OFF}` : Specify path to PAPI installed directory. The default is `OFF`
  - `-D REAL_TYPE={float|double}`: Specify real type of floating point. The default is `float`.
@@ -49,6 +49,9 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCU_ARCH="60" -Dwith_ACC=no -DRandom_BuildTe
  - `-D ENABLE_TEST={no|yes}`: Enable building test. The default is `no`
  - `-D BUILD_CUDA={no|yes}`: Build programs written in CUDA. The default is `no`
  - `-D CU_ARCH={CMAKE_CUDA_ARCHITECTURES}`: (cmake >= 3.18) CUDA architectures. ex) ITO-B(Tesla P100) -> "60"
+
+## Documents
+use Doxygen
 
 ## References
  - Adrián P. Diéguez, Margarita Amor, and Ramón Doallo. 2019. Tree Partitioning Reduction: A New Parallel Partition Method for Solving Tridiagonal Systems. ACM Trans. Math. Softw. 45, 3, Article 31 (August 2019), 26 pages. DOI:[https://doi.org/10.1145/3328731](https://doi.org/10.1145/3328731)
