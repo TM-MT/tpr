@@ -11,6 +11,9 @@
 #include "pm.cuh"
 #endif
 
+/**
+ * @brief Use `nvcuda::experimental` futures for cuda < 11.4
+ */
 #if (__CUDACC_VER_MAJOR__ <= 11) && (__CUDACC_VER_MINOR__ < 4)
 #pragma message("Using Experimental Features")
 #define EXPERIMENTAL_ASYNC_COPY
@@ -500,6 +503,13 @@ __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
     }
 }
 
+/**
+ * @brief      Check return value of `expr`
+ *
+ * @param      expr  The expression
+ *
+ * @return     Nothing if success else exit
+ */
 #define CU_CHECK(expr)                                                     \
     {                                                                      \
         cudaError_t t = expr;                                              \
@@ -594,12 +604,13 @@ void PTPR_CU::ptpr_cu(float *a, float *c, float *rhs, float *x, int n, int s) {
 }
 
 /**
- * @brief launch configuration for tpr_ker
- * @details calculate suitable dimension and shared memory size for tpr_ker
+ * @brief      launch configuration for tpr_ker
+ * @details    calculate suitable dimension and shared memory size for tpr_ker
  *
  * @param[in]  n     size of the equation
  * @param[in]  s     TPR parameter
  * @param[in]  dev   cuda device id
+ *
  * @return     [dim_grid, dim_block, shared_memory_size]
  */
 std::tuple<dim3, dim3, size_t> PTPR_CU::tpr_launch_config(int n, int s,
@@ -629,12 +640,13 @@ std::tuple<dim3, dim3, size_t> PTPR_CU::tpr_launch_config(int n, int s,
 }
 
 /**
- * @brief Helper function for tpr_cu
- * @details calculate dimension for cuda kernel launch.
+ * @brief      Helper function for tpr_cu
+ * @details    calculate dimension for cuda kernel launch.
  *
  * @param[in]  n     size of the equation
  * @param[in]  s     TPR parameter
  * @param[in]  dev   cuda device id
+ *
  * @return     [dim_grid, dim_block]
  */
 std::array<dim3, 2> PTPR_CU::n2dim(int n, int s, int dev) {
@@ -657,6 +669,21 @@ std::array<dim3, 2> PTPR_CU::n2dim(int n, int s, int dev) {
     return {dim_grid, dim_block};
 }
 
+/**
+ * @brief      Helper function for pcr_ker
+ *
+ *             Solve A*x = B by PCR, where A is an n-by-n tridiagonal matrix, B
+ * is the right-hand-side vector of legth n
+ *
+ * @note       assert the diagonal elements of A are 1.0
+ *
+ * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
+ *                   0.0
+ * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
+ * @param[out] x     x[0:n] for the solution
+ * @param[in]  n     The order of A.
+ */
 void PTPR_CU::pcr_cu(float *a, float *c, float *rhs, float *x, int n) {
     int size = n * sizeof(float);
 
