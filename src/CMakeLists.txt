@@ -160,6 +160,7 @@ if(TPR_PROJECT)
         set(PAPI_STATIC_LIB ${PAPI_DIR}/lib/libpapi.a ${PAPI_DIR}/lib/libpfm.a)
 
         set(PAPI_EXT_DIR "${PROJECT_SOURCE_DIR}/PMlib/src_papi_ext")
+
         add_library(papi_ext STATIC ${PAPI_EXT_DIR}/papi_ext.c)
 
         set(CMAKE_C_FLAGS
@@ -171,7 +172,8 @@ if(TPR_PROJECT)
         target_include_directories(papi_ext PUBLIC ${PAPI_DIR}/include
                                                    ${PAPI_DIR}/lib)
         set_target_properties(papi_ext PROPERTIES LINKER_LANGUAGE CXX)
-        target_link_libraries(papi_ext ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
+        target_link_libraries(papi_ext ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES}
+                              ${PAPI_STATIC_LIB})
 
         # link papi to PMlib
         target_link_libraries(pmlib papi_ext)
