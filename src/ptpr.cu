@@ -170,7 +170,7 @@ __device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
     assert(__isShared((void *)shc));
     assert(__isShared((void *)shrhs));
 
-    for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
+    for (int p = 1; p <= static_cast<int>(log2f(static_cast<float>(s))); p++) {
         if (idx < n) {
             // reduction
             int u = 1 << (p - 1);  // offset
@@ -456,7 +456,7 @@ __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
-    for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
+    for (int p = 1; p <= static_cast<int>(log2f(static_cast<float>(n))); p++) {
         if (idx < n) {
             // reduction
             int u = 1 << (p - 1);  // offset
