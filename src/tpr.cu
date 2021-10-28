@@ -172,7 +172,7 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
     assert(__isShared((void *)eq.c));
     assert(__isShared((void *)eq.rhs));
 
-    for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
+    for (int p = 1; p <= static_cast<int>(log2f(static_cast<float>(s))); p++) {
         int p2k = 1 << p;
         bool select_idx =
             idx < params.n && ((i % p2k == 0) || ((i + 1) % p2k == 0));
@@ -386,7 +386,7 @@ __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation &eq,
     assert(__isShared((void *)eq.rhs));
     assert(__isGlobal((void *)eq.x));
 
-    for (int p = static_cast<int>(log2f(static_cast<double>(params.s))) - 1;
+    for (int p = static_cast<int>(log2f(static_cast<float>(params.s))) - 1;
          p >= 0; p--) {
         int u = 1 << p;
 
@@ -449,7 +449,7 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
                                         float *c, float *rhs, float *x, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    for (int p = 0; p < static_cast<int>(log2f(static_cast<double>(n))) - 1;
+    for (int p = 0; p < static_cast<int>(log2f(static_cast<float>(n))) - 1;
          p++) {
         float tmp_aa, tmp_cc, tmp_rr;
         int u = 1 << p;  // offset
@@ -516,7 +516,7 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
 
     __syncthreads();
 
-    for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2; p >= 0;
+    for (int p = static_cast<int>(log2f(static_cast<float>(n))) - 2; p >= 0;
          p--) {
         int u = 1 << p;
         int ux = 1 << (p + 1);
