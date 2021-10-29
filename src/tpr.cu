@@ -172,7 +172,7 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
     assert(__isShared((void *)eq.c));
     assert(__isShared((void *)eq.rhs));
 
-    for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
+    for (int p = 1; p <= static_cast<int>(log2f(static_cast<float>(s))); p++) {
         int p2k = 1 << p;
         bool select_idx =
             idx < params.n && ((i % p2k == 0) || ((i + 1) % p2k == 0));
@@ -185,9 +185,9 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
             {
                 int lidx = i - u;
                 if (lidx < 0) {
-                    akl = -1.0;
-                    ckl = 0.0;
-                    rkl = 0.0;
+                    akl = -1.0f;
+                    ckl = 0.0f;
+                    rkl = 0.0f;
                 } else {
                     akl = eq.a[lidx];
                     ckl = eq.c[lidx];
@@ -198,9 +198,9 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
             {
                 int ridx = i + u;
                 if (ridx >= s) {
-                    akr = 0.0;
-                    ckr = -1.0;
-                    rkr = 0.0;
+                    akr = 0.0f;
+                    ckr = -1.0f;
+                    rkr = 0.0f;
                 } else {
                     akr = eq.a[ridx];
                     ckr = eq.c[ridx];
@@ -208,7 +208,7 @@ __device__ void TPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation &eq,
                 }
             }
 
-            float inv_diag_k = 1.0 / (1.0 - ckl * eq.a[i] - akr * eq.c[i]);
+            float inv_diag_k = 1.0f / (1.0f - ckl * eq.a[i] - akr * eq.c[i]);
 
             tmp_aa = -inv_diag_k * akl * eq.a[i];
             tmp_cc = -inv_diag_k * ckr * eq.c[i];
@@ -251,7 +251,7 @@ __device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation &eq,
         float ck = eq.c[k], ckr = eq.c[kr];
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
 
-        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+        float inv_diag_k = 1.0f / (1.0f - akr * ck);
 
         eq.a[k] = inv_diag_k * ak;
         eq.c[k] = -inv_diag_k * ckr * ck;
@@ -285,7 +285,7 @@ __device__ void TPR_CU::tpr_inter_global(cg::thread_block &tb, Equation &eq,
         float ak = eq.a[k], akr = eq.a[kr];
         float ck = eq.c[k], ckr = eq.c[kr];
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
-        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+        float inv_diag_k = 1.0f / (1.0f - akr * ck);
 
         pbuffer[dst] = inv_diag_k * ak;                    // a[k]
         pbuffer[params.m + dst] = -inv_diag_k * ckr * ck;  // c[k]
@@ -386,7 +386,7 @@ __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation &eq,
     assert(__isShared((void *)eq.rhs));
     assert(__isGlobal((void *)eq.x));
 
-    for (int p = static_cast<int>(log2f(static_cast<double>(params.s))) - 1;
+    for (int p = static_cast<int>(log2f(static_cast<float>(params.s))) - 1;
          p >= 0; p--) {
         int u = 1 << p;
 
@@ -395,7 +395,7 @@ __device__ void TPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation &eq,
             int lidx = idx - u;
             float x_u;
             if (lidx < 0) {
-                x_u = 0.0;
+                x_u = 0.0f;
             } else {
                 x_u = eq.x[lidx];
             }
@@ -449,7 +449,7 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
                                         float *c, float *rhs, float *x, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    for (int p = 0; p < static_cast<int>(log2f(static_cast<double>(n))) - 1;
+    for (int p = 0; p < static_cast<int>(log2f(static_cast<float>(n))) - 1;
          p++) {
         float tmp_aa, tmp_cc, tmp_rr;
         int u = 1 << p;  // offset
@@ -463,9 +463,9 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
             {
                 int lidx = idx - u;
                 if (lidx < 0) {
-                    akl = -1.0;
-                    ckl = 0.0;
-                    rkl = 0.0;
+                    akl = -1.0f;
+                    ckl = 0.0f;
+                    rkl = 0.0f;
                 } else {
                     akl = a[lidx];
                     ckl = c[lidx];
@@ -476,9 +476,9 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
             {
                 int ridx = idx + u;
                 if (ridx >= n) {
-                    akr = 0.0;
-                    ckr = -1.0;
-                    rkr = 0.0;
+                    akr = 0.0f;
+                    ckr = -1.0f;
+                    rkr = 0.0f;
                 } else {
                     akr = a[ridx];
                     ckr = c[ridx];
@@ -486,7 +486,7 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
                 }
             }
 
-            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
+            float inv_diag_k = 1.0f / (1.0f - ckl * a[idx] - akr * c[idx]);
 
             tmp_aa = -inv_diag_k * akl * a[idx];
             tmp_cc = -inv_diag_k * ckr * c[idx];
@@ -506,7 +506,7 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
 
     if ((n > 1) && (idx == n / 2 - 1)) {
         int u = n / 2;
-        float inv_det = 1.0 / (1.0 - c[idx] * a[idx + u]);
+        float inv_det = 1.0f / (1.0f - c[idx] * a[idx + u]);
 
         x[idx] = (rhs[idx] - c[idx] * rhs[idx + u]) * inv_det;
         x[idx + u] = (rhs[idx + u] - rhs[idx] * a[idx + u]) * inv_det;
@@ -516,7 +516,7 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
 
     __syncthreads();
 
-    for (int p = static_cast<int>(log2f(static_cast<double>(n))) - 2; p >= 0;
+    for (int p = static_cast<int>(log2f(static_cast<float>(n))) - 2; p >= 0;
          p--) {
         int u = 1 << p;
         int ux = 1 << (p + 1);
@@ -525,7 +525,7 @@ __device__ void TPR_CU::cr_thread_block(cg::thread_block &tb, float *a,
             int lidx = idx - u;
             float x_u;
             if (lidx < 0) {
-                x_u = 0.0;
+                x_u = 0.0f;
             } else {
                 x_u = x[lidx];
             }

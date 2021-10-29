@@ -20,6 +20,12 @@ if(BUILD_CUDA)
     target_include_directories(
         cuexamples PUBLIC ${SRC_DIR} ${PROJECT_SOURCE_DIR}/PMlib/include)
     target_link_libraries(cuexamples tpr_cu ptpr_cu trisys gtest_main)
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+        set_property(
+            TARGET cuexamples
+            APPEND
+            PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+    endif()
 endif()
 
 include(GoogleTest)

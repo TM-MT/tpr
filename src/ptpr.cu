@@ -170,16 +170,16 @@ __device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
     assert(__isShared((void *)shc));
     assert(__isShared((void *)shrhs));
 
-    for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(s))); p++) {
+    for (int p = 1; p <= static_cast<int>(log2f(static_cast<float>(s))); p++) {
         if (idx < n) {
             // reduction
             int u = 1 << (p - 1);  // offset
             int lidx = i - u;
             float akl, ckl, rkl;
             if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
+                akl = -1.0f;
+                ckl = 0.0f;
+                rkl = 0.0f;
             } else {
                 akl = sha[lidx];
                 ckl = shc[lidx];
@@ -188,16 +188,16 @@ __device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
             int ridx = i + u;
             float akr, ckr, rkr;
             if (ridx >= s) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
+                akr = 0.0f;
+                ckr = -1.0f;
+                rkr = 0.0f;
             } else {
                 akr = sha[ridx];
                 ckr = shc[ridx];
                 rkr = shrhs[ridx];
             }
 
-            float inv_diag_k = 1.0 / (1.0 - ckl * sha[i] - akr * shc[i]);
+            float inv_diag_k = 1.0f / (1.0f - ckl * sha[i] - akr * shc[i]);
 
             tmp_aa = -inv_diag_k * akl * sha[i];
             tmp_cc = -inv_diag_k * ckr * shc[i];
@@ -250,7 +250,7 @@ __device__ void PTPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
         float ck = eq.c[k], ckr = eq.c[kr];
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
 
-        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+        float inv_diag_k = 1.0f / (1.0f - akr * ck);
 
         tmp_aa = inv_diag_k * ak;
         tmp_cc = -inv_diag_k * ckr * ck;
@@ -290,7 +290,7 @@ __device__ void PTPR_CU::tpr_inter_global(cg::thread_block &tb, Equation eq,
         float ak = eq.a[k], akr = eq.a[kr];
         float ck = eq.c[k], ckr = eq.c[kr];
         float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
-        float inv_diag_k = 1.0 / (1.0 - akr * ck);
+        float inv_diag_k = 1.0f / (1.0f - akr * ck);
 
         pbuffer[dst] = inv_diag_k * ak;                    // a[k]
         pbuffer[params.m + dst] = -inv_diag_k * ckr * ck;  // c[k]
@@ -405,10 +405,10 @@ __device__ void PTPR_CU::tpr_st3_ker(cg::thread_block &tb, Equation eq,
         int lidx = max(0, params.st - 1);
 
         float key =
-            1.0 / eq.c[s - 1] *
+            1.0f / eq.c[s - 1] *
             (eq.rhs[s - 1] - eq.a[s - 1] * eq.x[lidx] - eq.x[params.ed]);
-        if (eq.c[s - 1] == 0.0) {
-            key = 0.0;
+        if (eq.c[s - 1] == 0.0f) {
+            key = 0.0f;
         }
 
         eq.x[idx] = eq.rhs[i] - eq.a[i] * eq.x[lidx] - eq.c[i] * key;
@@ -456,16 +456,16 @@ __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
     float tmp_aa, tmp_cc, tmp_rr;
 
-    for (int p = 1; p <= static_cast<int>(log2f(static_cast<double>(n))); p++) {
+    for (int p = 1; p <= static_cast<int>(log2f(static_cast<float>(n))); p++) {
         if (idx < n) {
             // reduction
             int u = 1 << (p - 1);  // offset
             int lidx = idx - u;
             float akl, ckl, rkl;
             if (lidx < 0) {
-                akl = -1.0;
-                ckl = 0.0;
-                rkl = 0.0;
+                akl = -1.0f;
+                ckl = 0.0f;
+                rkl = 0.0f;
             } else {
                 akl = a[lidx];
                 ckl = c[lidx];
@@ -474,16 +474,16 @@ __device__ void PTPR_CU::pcr_thread_block(cg::thread_block &tb, float *a,
             int ridx = idx + u;
             float akr, ckr, rkr;
             if (ridx >= n) {
-                akr = 0.0;
-                ckr = -1.0;
-                rkr = 0.0;
+                akr = 0.0f;
+                ckr = -1.0f;
+                rkr = 0.0f;
             } else {
                 akr = a[ridx];
                 ckr = c[ridx];
                 rkr = rhs[ridx];
             }
 
-            float inv_diag_k = 1.0 / (1.0 - ckl * a[idx] - akr * c[idx]);
+            float inv_diag_k = 1.0f / (1.0f - ckl * a[idx] - akr * c[idx]);
 
             tmp_aa = -inv_diag_k * akl * a[idx];
             tmp_cc = -inv_diag_k * ckr * c[idx];
