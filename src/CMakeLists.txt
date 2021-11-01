@@ -36,7 +36,7 @@ add_library(libpcr pcr.cpp pcr.hpp lib.hpp)
 add_library(tpr_perf tpr_perf.cpp tpr_perf.hpp)
 target_include_directories(tpr_perf PRIVATE ${PROJECT_INC_DIR})
 if(TPR_PERF)
-	target_link_libraries(tpr_perf PRIVATE pmlib)
+    target_link_libraries(tpr_perf PRIVATE pmlib)
     set_property(
         TARGET tpr_perf
         APPEND
