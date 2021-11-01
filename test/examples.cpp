@@ -1,9 +1,12 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "PerfMonitor.h"
 #include "cr.hpp"
 #include "lib.hpp"
 #include "main.hpp"
+#include "omp.h"
 #include "pcr.hpp"
 #include "pm.hpp"
 #include "ptpr.hpp"
@@ -16,6 +19,7 @@ class Examples : public ::testing::Test {
    public:
     const static int n = 1024;
     trisys::ExampleFixedInput *input = nullptr;
+    const static int nt = 2;
 
     real ans_array[n] = {
 #include "ans1024.txt"
@@ -113,4 +117,30 @@ TEST_F(Examples, PTPRTest) {
     }
     array_float_eq(ans_array, input->sys.diag);
     array_float_maxsqsum(ans_array, input->sys.diag, 1e-3);
+}
+
+TEST_F(Examples, TPRMultiThreadTest) {
+    omp_set_num_threads(nt);
+    real tpr_result[nt][n];
+
+    for (int s = 4; s <= n; s *= 2) {
+        TPR t(input->sys.n, s);
+        std::vector<trisys::ExampleFixedInput> inputs(
+            nt, trisys::ExampleFixedInput(input->sys.n));
+
+#pragma omp parallel for firstprivate(t) shared(inputs)
+        for (int i = 0; i < nt; i++) {
+            inputs[i].assign();
+
+            t.set_tridiagonal_system(inputs[i].sys.a, inputs[i].sys.c,
+                                     inputs[i].sys.rhs);
+            t.solve();
+            t.get_ans(inputs[i].sys.diag);
+            print_array(inputs[i].sys.diag, n);
+            printf("\n");
+
+            array_float_eq(ans_array, inputs[i].sys.diag);
+            array_float_maxsqsum(ans_array, inputs[i].sys.diag, 1e-3);
+        }
+    }
 }

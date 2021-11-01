@@ -92,9 +92,6 @@ class TPR : Solver {
     int get_ans(real *x);
 
    private:
-    TPR(const TPR &tpr);
-    TPR &operator=(const TPR &tpr);
-
     void init(int n, int s);
 
     TPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);

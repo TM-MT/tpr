@@ -76,9 +76,6 @@ class CR : Solver {
     }
 
    private:
-    CR(const CR &cr);
-    CR &operator=(const CR &cr);
-
     int fr();
     int bs();
 };
