@@ -22,6 +22,7 @@
 class REFERENCE_LAPACK : Solver {
     int n;
     real *dl, *d, *du, *b;
+    int info;
 
    public:
     REFERENCE_LAPACK(real *a, real *diag, real *c, real *rhs, int n) {

@@ -24,9 +24,27 @@ void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *c, real *rhs) {
 }
 
 int REFERENCE_LAPACK::solve() {
-    lapack_int info = 0;
     lapack_int n = this->n, nrhs = 1;
-    info = gtsv(n, nrhs, this->dl, this->d, this->du, this->b, this->n);
+    this->info = gtsv(n, nrhs, this->dl, this->d, this->du, this->b, this->n);
+    // from http://www.netlib.org/lapack/explore-html/d1/d88/group__real_g_tsolve_gae1cbb7cd9c376c9cc72575d472eba346.html#gae1cbb7cd9c376c9cc72575d472eba346
+    // INFO is INTEGER
+    // = 0: successful exit
+    // < 0: if INFO = -i, the i-th argument had an illegal value
+    // > 0: if INFO = i, U(i,i) is exactly zero, and the solution
+    //    has not been computed.  The factorization has not been
+    //    completed unless i = N.
+    if (this->info != 0) { // if not successful
+        char error_message[256];
+        if (this->info < 0) {
+            sprintf(error_message, "%d th argument had an illegal value.", -this->info);
+        } else {
+            sprintf(error_message, "U(%d, %d) is exactly zero, and the solution has not been computed.", this->info, this->info);
+        }
+        fprintf(stderr,
+                "[Reference Lapack][Error] (error code: %d) `%s` at %s line %d\n", info, error_message, __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
+    }
+
     return static_cast<int>(info);
 }
 
