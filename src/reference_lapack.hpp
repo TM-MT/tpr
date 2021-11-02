@@ -1,6 +1,7 @@
 #pragma once
-#include "lib.hpp"
 #include <lapacke.h>
+
+#include "lib.hpp"
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
@@ -18,7 +19,6 @@
     delete[] p;        \
     p = nullptr
 
-
 class REFERENCE_LAPACK : Solver {
     int n;
     real *dl, *d, *du, *b;
@@ -34,9 +34,7 @@ class REFERENCE_LAPACK : Solver {
 
     REFERENCE_LAPACK(){};
 
-    ~REFERENCE_LAPACK() {
-        SAFE_DELETE(this->d);
-    }
+    ~REFERENCE_LAPACK() { SAFE_DELETE(this->d); }
 
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
@@ -59,7 +57,8 @@ class REFERENCE_LAPACK : Solver {
     REFERENCE_LAPACK(const REFERENCE_LAPACK &cr);
     REFERENCE_LAPACK &operator=(const REFERENCE_LAPACK &cr);
 
-    lapack_int gtsv(lapack_int n, lapack_int nrhs, real *dl, real *d, real *du, real *b, lapack_int ldb);
+    lapack_int gtsv(lapack_int n, lapack_int nrhs, real *dl, real *d, real *du,
+                    real *b, lapack_int ldb);
 };
 
 #undef RMALLOC
