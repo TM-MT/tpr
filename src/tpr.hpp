@@ -83,6 +83,12 @@ class TPR : Solver {
 #endif
     }
 
+    TPR(const TPR &tpr) {
+        n = tpr.n;
+        s = tpr.s;
+        init(tpr.n, tpr.s);
+    };
+
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();

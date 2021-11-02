@@ -136,9 +136,11 @@ TEST_F(Examples, TPRMultiThreadTest) {
                                      inputs[i].sys.rhs);
             t.solve();
             t.get_ans(inputs[i].sys.diag);
+        }
+
+        for (int i = 0; i < nt; i++) {
             print_array(inputs[i].sys.diag, n);
             printf("\n");
-
             array_float_eq(ans_array, inputs[i].sys.diag);
             array_float_maxsqsum(ans_array, inputs[i].sys.diag, 1e-3);
         }
