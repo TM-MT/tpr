@@ -62,6 +62,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 endif()
 
+
+include(FindLAPACK)
+if(NOT LAPACK_FOUND)
+    message(FATAL_ERROR "Lapack NOT FOUND")
+endif()
+
 if(with_PAPI)
     add_definitions(-DUSE_PAPI)
     set(OPT_PAPI "ON")
