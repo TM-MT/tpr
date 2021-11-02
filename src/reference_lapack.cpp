@@ -56,6 +56,11 @@ int REFERENCE_LAPACK::solve() {
  * @param x x[0:n]
  */
 int REFERENCE_LAPACK::get_ans(real *x) {
+    assert(this->info == 0); // successful exit
+    for (int i = 0; i < n; i++) {
+        x[i] = this->b[i];
+    }
+    return 0;
 }
 
 
