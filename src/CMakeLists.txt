@@ -32,6 +32,11 @@ add_library(libcr cr.cpp cr.hpp lib.hpp)
 # PCR
 add_library(libpcr pcr.cpp pcr.hpp lib.hpp)
 
+# Reference Lapack Helper Class
+add_library(ref_lapack reference_lapack.cpp reference_lapack.hpp lib.hpp)
+target_link_libraries(ref_lapack lapack blas)
+
+
 # TPR_PERF
 add_library(tpr_perf tpr_perf.cpp tpr_perf.hpp)
 target_include_directories(tpr_perf PRIVATE ${PROJECT_INC_DIR})

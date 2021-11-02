@@ -1,6 +1,7 @@
 #include "reference_lapack.hpp"
 
 #include "lib.hpp"
+#include <lapacke.h>
 
 /**
  * @brief set Tridiagnoal System
@@ -23,6 +24,10 @@ void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *c, real *rhs) {
 }
 
 int REFERENCE_LAPACK::solve() {
+    lapack_int info = 0;
+    lapack_int n = this->n, nrhs = 1;
+    info = LAPACKE_sgtsv(LAPACK_ROW_MAJOR, n, nrhs, this->dl, this->d, this->du, this->b, this->n);
+    return static_cast<int>(info);
 }
 
 

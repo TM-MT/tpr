@@ -62,7 +62,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 endif()
 
-
+set(BLA_SIZEOF_INTEGER 8)
 include(FindLAPACK)
 if(NOT LAPACK_FOUND)
     message(FATAL_ERROR "Lapack NOT FOUND")
