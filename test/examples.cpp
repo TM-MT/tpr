@@ -146,3 +146,31 @@ TEST_F(Examples, TPRMultiThreadTest) {
         }
     }
 }
+
+TEST_F(Examples, PTPRMultiThreadTest) {
+    omp_set_num_threads(nt);
+    real tpr_result[nt][n];
+
+    for (int s = 4; s <= n; s *= 2) {
+        PTPR t(input->sys.n, s);
+        std::vector<trisys::ExampleFixedInput> inputs(
+            nt, trisys::ExampleFixedInput(input->sys.n));
+
+#pragma omp parallel for firstprivate(t) shared(inputs)
+        for (int i = 0; i < nt; i++) {
+            inputs[i].assign();
+
+            t.set_tridiagonal_system(inputs[i].sys.a, inputs[i].sys.c,
+                                     inputs[i].sys.rhs);
+            t.solve();
+            t.get_ans(inputs[i].sys.diag);
+        }
+
+        for (int i = 0; i < nt; i++) {
+            print_array(inputs[i].sys.diag, n);
+            printf("\n");
+            array_float_eq(ans_array, inputs[i].sys.diag);
+            array_float_maxsqsum(ans_array, inputs[i].sys.diag, 1e-3);
+        }
+    }
+}
