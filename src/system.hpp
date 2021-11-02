@@ -15,6 +15,7 @@ class TRIDIAG_SYSTEM {
     TRIDIAG_SYSTEM(int n);
     ~TRIDIAG_SYSTEM();
     bool null_check();
+    TRIDIAG_SYSTEM(const TRIDIAG_SYSTEM &sys) { n = sys.n; };
 };
 
 /**
@@ -22,10 +23,12 @@ class TRIDIAG_SYSTEM {
  */
 class ExampleInput {
    public:
-    struct TRIDIAG_SYSTEM sys;
+    TRIDIAG_SYSTEM sys;
+
     ExampleInput(int n) : sys(n){};
     ~ExampleInput(){};
     virtual int assign() { return 0; };
+    ExampleInput(const ExampleInput &ei) : sys(ei.sys.n){};
 };
 
 /**

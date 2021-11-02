@@ -83,6 +83,12 @@ class TPR : Solver {
 #endif
     }
 
+    TPR(const TPR &tpr) {
+        n = tpr.n;
+        s = tpr.s;
+        init(tpr.n, tpr.s);
+    };
+
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();
@@ -92,9 +98,6 @@ class TPR : Solver {
     int get_ans(real *x);
 
    private:
-    TPR(const TPR &tpr);
-    TPR &operator=(const TPR &tpr);
-
     void init(int n, int s);
 
     TPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);
