@@ -11,7 +11,15 @@
  * @param c [description]
  * @param rhs [description]
  */
-void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
+void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *c, real *rhs) {
+    this->dl = a;
+    this->du = c;
+    this->b = rhs;
+
+    // d[0:n] = ones(0:n)
+    for (int i = 0; i< this->n; i++) {
+        this->d[i] = 1.0;
+    }
 }
 
 int REFERENCE_LAPACK::solve() {

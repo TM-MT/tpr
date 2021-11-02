@@ -25,7 +25,7 @@ class REFERENCE_LAPACK : Solver {
    public:
     REFERENCE_LAPACK(real *a, real *diag, real *c, real *rhs, int n) {
         init(n);
-        set_tridiagonal_system(a, diag, c, rhs);
+        set_tridiagonal_system(a, c, rhs);
     };
 
     REFERENCE_LAPACK(int n) { init(n); }
@@ -39,7 +39,7 @@ class REFERENCE_LAPACK : Solver {
         SAFE_DELETE(this->b);
     }
 
-    void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs);
+    void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     int solve();
 
