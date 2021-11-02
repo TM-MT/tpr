@@ -1,5 +1,6 @@
 #pragma once
 #include "lib.hpp"
+#include <lapacke.h>
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
@@ -63,6 +64,8 @@ class REFERENCE_LAPACK : Solver {
    private:
     REFERENCE_LAPACK(const REFERENCE_LAPACK &cr);
     REFERENCE_LAPACK &operator=(const REFERENCE_LAPACK &cr);
+
+    lapack_int gtsv(lapack_int n, lapack_int nrhs, real *dl, real *d, real *du, real *b, lapack_int ldb);
 };
 
 #undef RMALLOC
