@@ -34,7 +34,7 @@ add_library(libpcr pcr.cpp pcr.hpp lib.hpp)
 
 # Reference Lapack Helper Class
 add_library(ref_lapack reference_lapack.cpp reference_lapack.hpp lib.hpp)
-target_link_libraries(ref_lapack lapack blas)
+target_link_libraries(ref_lapack lapacke lapack blas)
 
 
 # TPR_PERF
@@ -120,7 +120,7 @@ if(TPR_PROJECT)
     else() # Release etc.
         add_executable(tpr_main main.cpp)
     endif()
-    target_link_libraries(tpr_main PUBLIC trisys libcr libpcr tpr ptpr pmlib)
+    target_link_libraries(tpr_main PUBLIC trisys libcr libpcr ref_lapack tpr ptpr pmlib)
     target_include_directories(tpr_main PUBLIC ${PROJECT_INC_DIR})
     set_property(TARGET tpr_main PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
 

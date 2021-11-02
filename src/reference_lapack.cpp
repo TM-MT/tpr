@@ -24,8 +24,8 @@ void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *c, real *rhs) {
 }
 
 int REFERENCE_LAPACK::solve() {
-    lapack_int n = this->n, nrhs = 1;
-    this->info = gtsv(n, nrhs, this->dl, this->d, this->du, this->b, this->n);
+    lapack_int n = this->n, nrhs = 1, ldb = 1;
+    this->info = gtsv(n, nrhs, this->dl, this->d, this->du, this->b, ldb);
     // from http://www.netlib.org/lapack/explore-html/d1/d88/group__real_g_tsolve_gae1cbb7cd9c376c9cc72575d472eba346.html#gae1cbb7cd9c376c9cc72575d472eba346
     // INFO is INTEGER
     // = 0: successful exit
@@ -66,6 +66,8 @@ int REFERENCE_LAPACK::get_ans(real *x) {
 
 /**
  * @brief      Helper function for {s|d}gstv
+ *
+ * see http://www.netlib.org/lapack/explore-html/d1/d88/group__real_g_tsolve_gae1cbb7cd9c376c9cc72575d472eba346.html#gae1cbb7cd9c376c9cc72575d472eba346 for more information
  *
  * @param[in]  n     { parameter_description }
  * @param[in]  nrhs  The nrhs

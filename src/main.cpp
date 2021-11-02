@@ -20,6 +20,7 @@
 #include "ptpr.hpp"
 #include "system.hpp"
 #include "tpr.hpp"
+#include "reference_lapack.hpp"
 
 #ifdef BUILD_CUDA
 #include "ptpr.cuh"
@@ -56,6 +57,15 @@ int main() {
     }
     print_array(input.sys.diag, n);
     printf("\n");
+
+    input.assign();
+    REFERENCE_LAPACK lap(input.sys.a, input.sys.diag, input.sys.c, input.sys.rhs,
+            input.sys.n);
+    lap.solve();
+    lap.get_ans(input.sys.diag);
+    print_array(input.sys.diag, n);
+    printf("\n");
+
 
     pmcpp::pm.initialize(100);
     auto tpr_label = std::string("TPR");

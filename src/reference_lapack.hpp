@@ -35,10 +35,7 @@ class REFERENCE_LAPACK : Solver {
     REFERENCE_LAPACK(){};
 
     ~REFERENCE_LAPACK() {
-        SAFE_DELETE(this->dl);
         SAFE_DELETE(this->d);
-        SAFE_DELETE(this->du);
-        SAFE_DELETE(this->b);
     }
 
     void set_tridiagonal_system(real *a, real *c, real *rhs);
@@ -49,17 +46,13 @@ class REFERENCE_LAPACK : Solver {
 
     /**
      * @brief Initialize REFERENCE_LAPACK with size `n`
-     * @note call this before call any function in CR
+     * @note call this before call any function in REFERENCE_LAPACK
      *
      * @param n size of the system
      */
     void init(int n) {
         this->n = n;
-
-        RMALLOC(this->dl, n);
         RMALLOC(this->d, n);
-        RMALLOC(this->du, n);
-        RMALLOC(this->b, n);
     }
 
    private:
