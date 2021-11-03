@@ -31,8 +31,6 @@ extern pm_lib::PerfMonitor pm;
 void to_lower(std::string &s1);
 Solver str2Solver(std::string &solver);
 bool use_pmlib(Solver &solver);
-int file_print_array(std::string &path, real *x, int n);
-int fprint_array(FILE *fp, real *x, int n);
 
 class Perf {
    public:
