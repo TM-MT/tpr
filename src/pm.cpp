@@ -141,8 +141,6 @@ int main(int argc, char *argv[]) {
         solver = in.solver;
         output_path = in.output_path;
     }
-    std::cout << output_path.has_value() << "\n";
-
     trisys::ExampleRandomRHSInput input(n);
 
     pmcpp::pm.initialize(100);
