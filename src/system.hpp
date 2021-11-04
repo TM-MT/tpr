@@ -41,6 +41,16 @@ class ExampleFixedInput : public ExampleInput {
 };
 
 /**
+ * @brief      (1) Each matrix entry randomly generated from a uniform distribution
+ *             on [−1,1] (denoted as U(−1,1))
+ */
+class ExampleRandom : public ExampleInput {
+   public:
+    using ExampleInput::ExampleInput;
+    int assign() override;
+};
+
+/**
  * @brief      Random RHS(U(-1, 1)) Input
  */
 class ExampleRandomRHSInput : public ExampleInput {
