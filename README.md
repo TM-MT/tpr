@@ -46,6 +46,7 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCU_ARCH="60" -Dwith_ACC=no -DRandom_BuildTe
  - `-D REAL_TYPE={float|double}`: Specify real type of floating point. The default is `float`.
  - `-D with_ACC={no|yes}`
  - `-D TPR_PERF={no|yes}`: Enable Performance monitoring for each stage in TPR. This option may affect the performance.
+ - `-D with_LAPACK={no|yes}`: Enable REFERENCE LAPACK `sgtsv` function. Require [Reference LAPACK](http://netlib.org/lapack/) and LAPACKE, and can be found by `FindLAPACK` module provided by cmake.
  - `-D ENABLE_TEST={no|yes}`: Enable building test. The default is `no`
  - `-D BUILD_CUDA={no|yes}`: Build programs written in CUDA. The default is `no`
  - `-D CU_ARCH={CMAKE_CUDA_ARCHITECTURES}`: (cmake >= 3.18) CUDA architectures. ex) ITO-B(Tesla P100) -> "60"

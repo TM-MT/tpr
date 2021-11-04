@@ -22,6 +22,10 @@
 #include "system.hpp"
 #include "tpr.hpp"
 
+#ifdef INCLUDE_REFERENCE_LAPACK
+#include "reference_lapack.hpp"
+#endif
+
 #ifdef BUILD_CUDA
 #include "pm.cuh"
 #include "ptpr.cuh"
@@ -68,6 +72,11 @@ Solver str2Solver(std::string solver) {
     } else if (solver.compare(std::string("ptpr")) == 0) {
         return Solver::PTPR;
     }
+#ifdef INCLUDE_REFERENCE_LAPACK
+    else if (solver.compare(std::string("lapack")) == 0) {
+        return Solver::LAPACK;
+    }
+#endif
 #ifdef BUILD_CUDA
     // only available options on `BUILD_CUDA`
     else if (solver.compare(std::string("cutpr")) == 0) {
@@ -92,8 +101,8 @@ Solver str2Solver(std::string solver) {
  * @return     True if using PMlib
  */
 bool use_pmlib(Solver &solver) {
-    // TPR, PCR, PTPR takes 0, 1, 2 respectively
-    return static_cast<int>(solver) < 3;
+    // TPR, PCR, PTPR, LAPACK takes 0, 1, 2, 3 respectively
+    return static_cast<int>(solver) < 4;
 }
 
 void to_lower(std::string &s1) {
@@ -208,6 +217,21 @@ int main(int argc, char *argv[]) {
                 }
             }
         } break;
+#ifdef INCLUDE_REFERENCE_LAPACK
+        case pmcpp::Solver::LAPACK: {
+            auto lapack_label = std::string("LAPACKE_sgtsv");
+            pmcpp::pm.setProperties(lapack_label);
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
+                REFERENCE_LAPACK lap(input.sys.a, input.sys.diag, input.sys.c,
+                                     input.sys.rhs, input.sys.n);
+                pmcpp::pm.start(lapack_label);
+                lap.solve();
+                lap.get_ans(input.sys.diag);
+                pmcpp::pm.stop(lapack_label, 0);
+            }
+        } break;
+#endif
 #ifdef BUILD_CUDA
         case pmcpp::Solver::CUTPR: {
             for (int i = 0; i < iter_times; i++) {

@@ -11,6 +11,7 @@ option(CU_ARCH "CUDA ARCHITECTURE" "")
 option(ENABLE_TEST "MAKE TEST" off)
 option(TPR_PERF "Enable PMlib in TPR" "no")
 option(with_PAPI "Enable PAPI" "OFF")
+option(with_LAPACK "Enable Reference LAPACK" "no")
 
 if(BUILD_CUDA)
     project(tpr C CXX CUDA)
@@ -60,6 +61,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         set(CMAKE_CXX_FLAGS
             "${CMAKE_CXX_FLAGS} --param vect-max-version-for-alias-checks=50")
     endif()
+endif()
+
+if(with_LAPACK)
+    set(BLA_SIZEOF_INTEGER 8)
+    include(FindLAPACK)
 endif()
 
 if(with_PAPI)
