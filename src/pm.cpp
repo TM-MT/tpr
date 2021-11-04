@@ -212,15 +212,17 @@ int main(int argc, char *argv[]) {
             }
         } break;
         case pmcpp::Solver::LAPACK: {
-            input.assign();
             auto lapack_label = std::string("LAPACKE_sgtsv");
             pmcpp::pm.setProperties(lapack_label);
-            REFERENCE_LAPACK lap(input.sys.a, input.sys.diag, input.sys.c,
-                                 input.sys.rhs, input.sys.n);
-            pmcpp::pm.start(lapack_label);
-            lap.solve();
-            lap.get_ans(input.sys.diag);
-            pmcpp::pm.stop(lapack_label, 0);
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
+                REFERENCE_LAPACK lap(input.sys.a, input.sys.diag, input.sys.c,
+                                     input.sys.rhs, input.sys.n);
+                pmcpp::pm.start(lapack_label);
+                lap.solve();
+                lap.get_ans(input.sys.diag);
+                pmcpp::pm.stop(lapack_label, 0);
+            }
         } break;
 #ifdef BUILD_CUDA
         case pmcpp::Solver::CUTPR: {
