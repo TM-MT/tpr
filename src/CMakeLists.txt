@@ -24,6 +24,12 @@ set_property(
     APPEND
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" COMPILE_DEFINITIONS
              enable_OPENMP="ON")
+if(with_LAPACK)
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS INCLUDE_REFERENCE_LAPACK)
+endif()
 # END PROJECT GLOBAL PROPERTIES
 
 # CR
@@ -33,8 +39,10 @@ add_library(libcr cr.cpp cr.hpp lib.hpp)
 add_library(libpcr pcr.cpp pcr.hpp lib.hpp)
 
 # Reference Lapack Helper Class
-add_library(ref_lapack reference_lapack.cpp reference_lapack.hpp lib.hpp)
-target_link_libraries(ref_lapack lapacke lapack blas)
+if(with_LAPACK)
+    add_library(ref_lapack reference_lapack.cpp reference_lapack.hpp lib.hpp)
+    target_link_libraries(ref_lapack lapacke lapack blas)
+endif()
 
 # TPR_PERF
 add_library(tpr_perf tpr_perf.cpp tpr_perf.hpp)
@@ -119,15 +127,10 @@ if(TPR_PROJECT)
     else() # Release etc.
         add_executable(tpr_main main.cpp)
     endif()
-    target_link_libraries(
-        tpr_main
-        PUBLIC trisys
-               libcr
-               libpcr
-               ref_lapack
-               tpr
-               ptpr
-               pmlib)
+    target_link_libraries(tpr_main PUBLIC trisys libcr libpcr tpr ptpr pmlib)
+    if(with_LAPACK)
+        target_link_libraries(tpr_main PUBLIC ref_lapack)
+    endif()
     target_include_directories(tpr_main PUBLIC ${PROJECT_INC_DIR})
     set_property(TARGET tpr_main PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
 
@@ -222,7 +225,10 @@ if(TPR_PROJECT)
     else()
         add_executable(tpr_pm pm.cpp)
     endif()
-    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr ref_lapack libpcr pmlib)
+    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib)
+    if(with_LAPACK)
+        target_link_libraries(tpr_pm PUBLIC ref_lapack)
+    endif()
 
     if(${OPT_PAPI})
         target_link_libraries(tpr_pm PUBLIC papi_ext "${PAPI_STATIC_LIB}")

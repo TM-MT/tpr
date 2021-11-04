@@ -19,9 +19,12 @@
 #include "main.hpp"
 #include "pcr.hpp"
 #include "ptpr.hpp"
-#include "reference_lapack.hpp"
 #include "system.hpp"
 #include "tpr.hpp"
+
+#ifdef INCLUDE_REFERENCE_LAPACK
+#include "reference_lapack.hpp"
+#endif
 
 #ifdef BUILD_CUDA
 #include "pm.cuh"
@@ -68,9 +71,12 @@ Solver str2Solver(std::string solver) {
         return Solver::TPR;
     } else if (solver.compare(std::string("ptpr")) == 0) {
         return Solver::PTPR;
-    } else if (solver.compare(std::string("lapack")) == 0) {
+    }
+#ifdef INCLUDE_REFERENCE_LAPACK
+    else if (solver.compare(std::string("lapack")) == 0) {
         return Solver::LAPACK;
     }
+#endif
 #ifdef BUILD_CUDA
     // only available options on `BUILD_CUDA`
     else if (solver.compare(std::string("cutpr")) == 0) {
@@ -211,6 +217,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         } break;
+#ifdef INCLUDE_REFERENCE_LAPACK
         case pmcpp::Solver::LAPACK: {
             auto lapack_label = std::string("LAPACKE_sgtsv");
             pmcpp::pm.setProperties(lapack_label);
@@ -224,6 +231,7 @@ int main(int argc, char *argv[]) {
                 pmcpp::pm.stop(lapack_label, 0);
             }
         } break;
+#endif
 #ifdef BUILD_CUDA
         case pmcpp::Solver::CUTPR: {
             for (int i = 0; i < iter_times; i++) {

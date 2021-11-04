@@ -26,11 +26,9 @@ enum class Solver {
     PCR,
     PTPR,
     LAPACK,
-#ifdef BUILD_CUDA
     CUTPR,
     CUPTPR,
     CUSPARSE,
-#endif
 };
 extern pm_lib::PerfMonitor pm;
 
