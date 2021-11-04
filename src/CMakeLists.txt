@@ -222,7 +222,7 @@ if(TPR_PROJECT)
     else()
         add_executable(tpr_pm pm.cpp)
     endif()
-    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib)
+    target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr ref_lapack libpcr pmlib)
 
     if(${OPT_PAPI})
         target_link_libraries(tpr_pm PUBLIC papi_ext "${PAPI_STATIC_LIB}")

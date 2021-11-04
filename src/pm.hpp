@@ -16,10 +16,16 @@
 using time_ms = float;
 
 namespace pmcpp {
+/**
+ * @brief      This class describes a solver.
+ *
+ * @note       Update `use_pmlib` function
+ */
 enum class Solver {
     TPR = 0,
     PCR,
     PTPR,
+    LAPACK,
 #ifdef BUILD_CUDA
     CUTPR,
     CUPTPR,
