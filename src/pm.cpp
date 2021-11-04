@@ -126,40 +126,6 @@ Options parse(int argc, char *argv[]) {
 
     return ret;
 }
-
-int file_print_array(std::string &path, real *x, int n) {
-    std::cout << path << "\n";
-    FILE *fp;
-    fp = fopen(path.c_str(), "w");
-    if (fp == nullptr) {
-        fprintf(stderr, "[PM][Error] Failed to open `%s`\n", path.c_str());
-        exit(EXIT_FAILURE);
-    }
-    fprint_array(fp, x, n);
-    fclose(fp);
-    return 0;
-}
-
-#ifdef _REAL_IS_DOUBLE_
-#define CONVERSION_FORMAT "%lf"
-#else
-#define CONVERSION_FORMAT "%f"
-#endif
-
-#define DELIMITER ","
-int fprint_array(FILE *fp, real *x, int n) {
-    for (int i = 0; i < n; i++) {
-        fprintf(fp, CONVERSION_FORMAT, x[i]);
-        if (i < n - 1) {
-            fprintf(fp, DELIMITER);
-        }
-    }
-    fprintf(fp, "\n");
-    return 0;
-}
-#undef CONVERSION_FORMAT
-#undef DELIMITER
-
 }  // namespace pmcpp
 
 int main(int argc, char *argv[]) {
@@ -274,7 +240,7 @@ int main(int argc, char *argv[]) {
     // assert `input.sys.diag` has the valid result
     if (output_path.has_value()) {
         auto path = output_path.value();
-        pmcpp::file_print_array(path, input.sys.diag, input.sys.n);
+        file_print_array(path, input.sys.diag, input.sys.n);
     }
 
     // CPU programs are measured by pmlib

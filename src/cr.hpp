@@ -45,6 +45,11 @@ class CR : Solver {
 #pragma acc exit data delete (this)
     }
 
+    CR(const CR &cr) {
+        n = cr.n;
+        init(cr.n);
+    };
+
     void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs);
 
     int solve();
@@ -76,9 +81,6 @@ class CR : Solver {
     }
 
    private:
-    CR(const CR &cr);
-    CR &operator=(const CR &cr);
-
     int fr();
     int bs();
 };
