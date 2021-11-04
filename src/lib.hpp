@@ -101,7 +101,6 @@ static int pow2(int k) {
 }
 
 static int file_print_array(std::string &path, real *x, int n) {
-    std::cout << path << "\n";
     FILE *fp;
     fp = fopen(path.c_str(), "w");
     if (fp == nullptr) {
