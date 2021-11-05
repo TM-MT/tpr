@@ -3,6 +3,13 @@
 
 #include "lib.hpp"
 
+#define DEFINE_EXAPMLE(EXAMPLE_NAME)           \
+    class EXAMPLE_NAME : public ExampleInput { \
+       public:                                 \
+        using ExampleInput::ExampleInput;      \
+        int assign() override;                 \
+    };
+
 namespace trisys {
 class TRIDIAG_SYSTEM {
    public:
@@ -25,7 +32,7 @@ class ExampleInput {
    public:
     TRIDIAG_SYSTEM sys;
 
-    ExampleInput(int n) : sys(n){ assign(); };
+    ExampleInput(int n) : sys(n) { assign(); };
     ~ExampleInput(){};
     virtual int assign() { return 0; };
     ExampleInput(const ExampleInput &ei) : sys(ei.sys.n){};
@@ -34,28 +41,18 @@ class ExampleInput {
 /**
  * @brief      Fixed Input Sample
  */
-class ExampleFixedInput : public ExampleInput {
-   public:
-    using ExampleInput::ExampleInput;
-    int assign() override;
-};
+DEFINE_EXAPMLE(ExampleFixedInput)
 
 /**
- * @brief      (1) Each matrix entry randomly generated from a uniform distribution
- *             on [−1,1] (denoted as U(−1,1))
+ * @brief      (1) Each matrix entry randomly generated from a uniform
+ * distribution on [−1,1] (denoted as U(−1,1))
  */
-class ExampleRandom : public ExampleInput {
-   public:
-    using ExampleInput::ExampleInput;
-    int assign() override;
-};
+DEFINE_EXAPMLE(ExampleRandom)
 
 /**
  * @brief      Random RHS(U(-1, 1)) Input
  */
-class ExampleRandomRHSInput : public ExampleInput {
-   public:
-    using ExampleInput::ExampleInput;
-    int assign() override;
-};
+DEFINE_EXAPMLE(ExampleRandomRHSInput)
 }  // namespace trisys
+
+#undef DEFINE_EXAPMLE
