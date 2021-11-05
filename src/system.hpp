@@ -25,7 +25,7 @@ class ExampleInput {
    public:
     TRIDIAG_SYSTEM sys;
 
-    ExampleInput(int n) : sys(n){};
+    ExampleInput(int n) : sys(n){ assign(); };
     ~ExampleInput(){};
     virtual int assign() { return 0; };
     ExampleInput(const ExampleInput &ei) : sys(ei.sys.n){};
