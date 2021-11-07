@@ -2,8 +2,10 @@
 
 #include <array>
 
+#ifdef TPR_PERF
 #include "PerfMonitor.h"
 #include "pm.hpp"
+#endif
 
 /**
  * Helper Functions for Performance Monitoring TPR

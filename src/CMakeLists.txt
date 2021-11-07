@@ -24,6 +24,12 @@ set_property(
     APPEND
     PROPERTY COMPILE_DEFINITIONS DISABLE_MPI="ON" COMPILE_DEFINITIONS
              enable_OPENMP="ON")
+if(with_LAPACK)
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS INCLUDE_REFERENCE_LAPACK)
+endif()
 # END PROJECT GLOBAL PROPERTIES
 
 # CR
@@ -32,11 +38,17 @@ add_library(libcr cr.cpp cr.hpp lib.hpp)
 # PCR
 add_library(libpcr pcr.cpp pcr.hpp lib.hpp)
 
+# Reference Lapack Helper Class
+if(with_LAPACK)
+    add_library(ref_lapack reference_lapack.cpp reference_lapack.hpp lib.hpp)
+    target_link_libraries(ref_lapack lapacke lapack blas)
+endif()
+
 # TPR_PERF
 add_library(tpr_perf tpr_perf.cpp tpr_perf.hpp)
 target_include_directories(tpr_perf PRIVATE ${PROJECT_INC_DIR})
-target_link_libraries(tpr_perf PRIVATE pmlib)
 if(TPR_PERF)
+    target_link_libraries(tpr_perf PRIVATE pmlib)
     set_property(
         TARGET tpr_perf
         APPEND
@@ -46,12 +58,12 @@ endif()
 # TPR
 add_library(tpr tpr.cpp)
 target_include_directories(tpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(tpr PUBLIC pmlib libcr tpr_perf)
+target_link_libraries(tpr PUBLIC libcr tpr_perf)
 
 # PTPR
 add_library(ptpr ptpr.cpp)
 target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(ptpr PUBLIC pmlib libpcr tpr_perf)
+target_link_libraries(ptpr PUBLIC libpcr tpr_perf)
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
@@ -116,6 +128,9 @@ if(TPR_PROJECT)
         add_executable(tpr_main main.cpp)
     endif()
     target_link_libraries(tpr_main PUBLIC trisys libcr libpcr tpr ptpr pmlib)
+    if(with_LAPACK)
+        target_link_libraries(tpr_main PUBLIC ref_lapack)
+    endif()
     target_include_directories(tpr_main PUBLIC ${PROJECT_INC_DIR})
     set_property(TARGET tpr_main PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
 
@@ -211,6 +226,9 @@ if(TPR_PROJECT)
         add_executable(tpr_pm pm.cpp)
     endif()
     target_link_libraries(tpr_pm PUBLIC trisys tpr ptpr libpcr pmlib)
+    if(with_LAPACK)
+        target_link_libraries(tpr_pm PUBLIC ref_lapack)
+    endif()
 
     if(${OPT_PAPI})
         target_link_libraries(tpr_pm PUBLIC papi_ext "${PAPI_STATIC_LIB}")

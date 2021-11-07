@@ -59,6 +59,8 @@ static int fllog2(int a) pure_function;
 static inline uint32_t ilog2(const uint32_t x) pure_function;
 #pragma acc routine seq
 static int pow2(int k) pure_function;
+static int file_print_array(std::string &path, real *x, int n);
+static int fprint_array(FILE *fp, real *x, int n);
 
 static void print_array(real *array, int n) {
     for (int i = 0; i < n; i++) {
@@ -97,6 +99,39 @@ static int pow2(int k) {
     assert(k >= 0);
     return 1 << k;
 }
+
+static int file_print_array(std::string &path, real *x, int n) {
+    FILE *fp;
+    fp = fopen(path.c_str(), "w");
+    if (fp == nullptr) {
+        fprintf(stderr, "[%s][Error] Failed to open `%s`\n", __FILE__,
+                path.c_str());
+        exit(EXIT_FAILURE);
+    }
+    fprint_array(fp, x, n);
+    fclose(fp);
+    return 0;
+}
+
+#ifdef _REAL_IS_DOUBLE_
+#define CONVERSION_FORMAT "%lf"
+#else
+#define CONVERSION_FORMAT "%f"
+#endif
+
+#define DELIMITER ","
+static int fprint_array(FILE *fp, real *x, int n) {
+    for (int i = 0; i < n; i++) {
+        fprintf(fp, CONVERSION_FORMAT, x[i]);
+        if (i < n - 1) {
+            fprintf(fp, DELIMITER);
+        }
+    }
+    fprintf(fp, "\n");
+    return 0;
+}
+#undef CONVERSION_FORMAT
+#undef DELIMITER
 
 #undef pure_function
 #undef ILOG2_USE_x86_ASM

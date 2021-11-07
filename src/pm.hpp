@@ -16,21 +16,27 @@
 using time_ms = float;
 
 namespace pmcpp {
+/**
+ * @brief      This class describes a solver.
+ *
+ * @note       Update `use_pmlib` function
+ */
 enum class Solver {
     TPR = 0,
     PCR,
     PTPR,
-#ifdef BUILD_CUDA
+    LAPACK,
     CUTPR,
     CUPTPR,
     CUSPARSE,
-#endif
 };
 extern pm_lib::PerfMonitor pm;
 
 void to_lower(std::string &s1);
 Solver str2Solver(std::string &solver);
 bool use_pmlib(Solver &solver);
+int file_print_array(std::string &path, real *x, int n);
+int fprint_array(FILE *fp, real *x, int n);
 
 class Perf {
    public:

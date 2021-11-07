@@ -78,6 +78,12 @@ class PTPR : Solver {
 #endif
     }
 
+    PTPR(const PTPR &ptpr) {
+        n = ptpr.n;
+        s = ptpr.s;
+        init(ptpr.n, ptpr.s);
+    };
+
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();
@@ -87,9 +93,6 @@ class PTPR : Solver {
     int get_ans(real *x);
 
    private:
-    PTPR(const PTPR &ptpr);
-    PTPR &operator=(const PTPR &ptpr);
-
     void init(int n, int s);
 
     PTPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);

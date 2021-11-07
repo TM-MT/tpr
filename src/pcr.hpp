@@ -24,6 +24,11 @@ class PCR : Solver {
 #pragma acc exit data delete (this)
     }
 
+    PCR(const PCR &pcr) {
+        n = pcr.n;
+        init(pcr.n);
+    };
+
     void init(int n) {
         this->n = n;
 
@@ -47,8 +52,4 @@ class PCR : Solver {
     int solve();
 
     int get_ans(real *x);
-
-   private:
-    PCR(const PCR &pcr);
-    PCR &operator=(const PCR &pcr);
 };

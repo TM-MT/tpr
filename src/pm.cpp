@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <initializer_list>
+#include <optional>
 #include <string>
 
 #include "PerfMonitor.h"
@@ -20,6 +21,10 @@
 #include "ptpr.hpp"
 #include "system.hpp"
 #include "tpr.hpp"
+
+#ifdef INCLUDE_REFERENCE_LAPACK
+#include "reference_lapack.hpp"
+#endif
 
 #ifdef BUILD_CUDA
 #include "pm.cuh"
@@ -46,6 +51,9 @@ struct Options {
     int iter;
     // Solver
     Solver solver;
+    // Path for the result, <path, has_value?>
+    // std::optional available from c++17
+    std::optional<std::string> output_path;
 };
 
 /**
@@ -64,6 +72,11 @@ Solver str2Solver(std::string solver) {
     } else if (solver.compare(std::string("ptpr")) == 0) {
         return Solver::PTPR;
     }
+#ifdef INCLUDE_REFERENCE_LAPACK
+    else if (solver.compare(std::string("lapack")) == 0) {
+        return Solver::LAPACK;
+    }
+#endif
 #ifdef BUILD_CUDA
     // only available options on `BUILD_CUDA`
     else if (solver.compare(std::string("cutpr")) == 0) {
@@ -88,8 +101,8 @@ Solver str2Solver(std::string solver) {
  * @return     True if using PMlib
  */
 bool use_pmlib(Solver &solver) {
-    // TPR, PCR, PTPR takes 0, 1, 2 respectively
-    return static_cast<int>(solver) < 3;
+    // TPR, PCR, PTPR, LAPACK takes 0, 1, 2, 3 respectively
+    return static_cast<int>(solver) < 4;
 }
 
 void to_lower(std::string &s1) {
@@ -104,9 +117,10 @@ void to_lower(std::string &s1) {
  */
 Options parse(int argc, char *argv[]) {
     // assert args are given in Options order
-    if (argc != 5) {
+    if (argc < 5) {
         std::cerr << "Invalid command line args.\n";
-        std::cerr << "Usage: " << argv[0] << " n s iter solver\n";
+        std::cerr << "Usage: " << argv[0]
+                  << " n s iter solver [destination for the result]\n";
         exit(EXIT_FAILURE);
     }
 
@@ -115,6 +129,9 @@ Options parse(int argc, char *argv[]) {
     ret.s = atoi(argv[2]);
     ret.iter = atoi(argv[3]);
     ret.solver = pmcpp::str2Solver(std::string(argv[4]));
+    if (argc == 6) {
+        ret.output_path = argv[5];
+    }
 
     return ret;
 }
@@ -123,6 +140,7 @@ Options parse(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
     pmcpp::Solver solver;
+    std::optional<std::string> output_path;
     // Parse Command Line Args
     {
         pmcpp::Options in = pmcpp::parse(argc, argv);
@@ -130,8 +148,8 @@ int main(int argc, char *argv[]) {
         s = in.s;
         iter_times = in.iter;
         solver = in.solver;
+        output_path = in.output_path;
     }
-
     trisys::ExampleRandomRHSInput input(n);
 
     pmcpp::pm.initialize(100);
@@ -199,6 +217,21 @@ int main(int argc, char *argv[]) {
                 }
             }
         } break;
+#ifdef INCLUDE_REFERENCE_LAPACK
+        case pmcpp::Solver::LAPACK: {
+            auto lapack_label = std::string("LAPACKE_sgtsv");
+            pmcpp::pm.setProperties(lapack_label);
+            for (int i = 0; i < iter_times; i++) {
+                input.assign();
+                REFERENCE_LAPACK lap(input.sys.a, input.sys.diag, input.sys.c,
+                                     input.sys.rhs, input.sys.n);
+                pmcpp::pm.start(lapack_label);
+                lap.solve();
+                lap.get_ans(input.sys.diag);
+                pmcpp::pm.stop(lapack_label, 0);
+            }
+        } break;
+#endif
 #ifdef BUILD_CUDA
         case pmcpp::Solver::CUTPR: {
             for (int i = 0; i < iter_times; i++) {
@@ -223,6 +256,13 @@ int main(int argc, char *argv[]) {
             }
         } break;
 #endif
+    }
+
+    // output the result
+    // assert `input.sys.diag` has the valid result
+    if (output_path.has_value()) {
+        auto path = output_path.value();
+        file_print_array(path, input.sys.diag, input.sys.n);
     }
 
     // CPU programs are measured by pmlib
