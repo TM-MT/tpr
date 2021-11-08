@@ -1,6 +1,8 @@
 #include <cooperative_groups.h>
 #include <cooperative_groups/memcpy_async.h>
 #include <cooperative_groups/reduce.h>
+#include <cuda.h>
+#include <stdio.h>
 
 #include <iostream>
 
@@ -28,6 +30,12 @@ using namespace TPR_CU;
  */
 extern __shared__ float array[];
 
+__device__ long int TPR_CU::get_time() {
+    long int time;
+    asm volatile("mov.u64  %0, %globaltimer;" : "=l"(time));
+    return time;
+}
+
 /**
  * @brief      TPR main kernel of TPR
  *
@@ -47,6 +55,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     assert(tg.is_valid());
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
+    long int start, stop;
 
     // local copy
     // sha[0:s], shc[0:s], shrhs[0:s]
@@ -97,7 +106,16 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
         bkup.z = shrhs[idx - st];
     }
 
+    if (idx == 0) {
+        start = get_time();
+    }
+
     tpr_st1_ker(tb, eq, params);
+
+    if (idx == 0) {
+        stop = get_time();
+        printf("tpr_st1_ker,%lld\n", stop - start);
+    }
 
     if (idx < n && idx % 2 == 1) {
         bkup.x = sha[idx - st];
@@ -122,7 +140,16 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     // make sure stage 1 operations have done.
     tg.sync();
 
+    if (idx == 0) {
+        start = get_time();
+    }
+
     tpr_st2_ker(tg, tb, eq, params, pbuffer);
+
+    if (idx == 0) {
+        stop = get_time();
+        printf("tpr_st2_ker,%lld\n", stop - start);
+    }
 
     tg.sync();
 
@@ -149,7 +176,17 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     eq.a = sha;
     eq.c = shc;
     eq.rhs = shrhs;
+
+    if (idx == 0) {
+        start = get_time();
+    }
+
     tpr_st3_ker(tb, eq, params);
+
+    if (idx == 0) {
+        stop = get_time();
+        printf("tpr_st3_ker,%lld\n", stop - start);
+    }
 
     return;
 }

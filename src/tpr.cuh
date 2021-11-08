@@ -45,6 +45,8 @@ __device__ void cr_thread_block(cg::thread_block &tb, float *a, float *c,
                                 float *rhs, float *x, int n);
 std::tuple<dim3, dim3, size_t> tpr_launch_config(int n, int s, int dev);
 std::array<dim3, 2> n2dim(int n, int s, int dev);
+
+__device__ long int get_time();
 }  // namespace TPR_CU
 #endif
 namespace TPR_CU {
