@@ -57,6 +57,20 @@ int ExampleFixedInput::assign() {
     return 0;
 }
 
+int ExampleRandom::assign() {
+    int n = this->sys.n;
+    for (int i = 0; i < n; i++) {
+        this->sys.a[i] = Random::get(-1., 1.);     // U(-1, 1)
+        this->sys.c[i] = Random::get(-1., 1.);     // U(-1, 1)
+        this->sys.diag[i] = Random::get(-1., 1.);  // U(-1, 1)
+        this->sys.rhs[i] = Random::get(-1., 1.);   // U(-1, 1)
+    }
+    this->sys.a[0] = 0.0;
+    this->sys.c[n - 1] = 0.0;
+
+    return 0;
+}
+
 int ExampleRandomRHSInput::assign() {
     int n = this->sys.n;
     for (int i = 0; i < n; i++) {
