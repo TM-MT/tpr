@@ -23,6 +23,17 @@ namespace cg = cooperative_groups;
 using namespace nvcuda::experimental;
 #endif
 
+#define SET_START()         \
+    if (idx == 0) {         \
+        start = get_time(); \
+    }
+
+#define STOP_AND_PRINT(LABEL)                                               \
+    if (idx == 0) {                                                         \
+        stop = get_time();                                                  \
+        printf("%d,%d,%s,%lld\n", params.n, params.s, LABEL, stop - start); \
+    }
+
 using namespace TPR_CU;
 
 /**
@@ -106,16 +117,9 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
         bkup.z = shrhs[idx - st];
     }
 
-    if (idx == 0) {
-        start = get_time();
-    }
-
+    SET_START()
     tpr_st1_ker(tb, eq, params);
-
-    if (idx == 0) {
-        stop = get_time();
-        printf("tpr_st1_ker,%lld\n", stop - start);
-    }
+    STOP_AND_PRINT("tpr_st1_ker")
 
     if (idx < n && idx % 2 == 1) {
         bkup.x = sha[idx - st];
@@ -140,16 +144,9 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     // make sure stage 1 operations have done.
     tg.sync();
 
-    if (idx == 0) {
-        start = get_time();
-    }
-
+    SET_START()
     tpr_st2_ker(tg, tb, eq, params, pbuffer);
-
-    if (idx == 0) {
-        stop = get_time();
-        printf("tpr_st2_ker,%lld\n", stop - start);
-    }
+    STOP_AND_PRINT("tpr_st2_ker")
 
     tg.sync();
 
@@ -177,16 +174,9 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     eq.c = shc;
     eq.rhs = shrhs;
 
-    if (idx == 0) {
-        start = get_time();
-    }
-
+    SET_START()
     tpr_st3_ker(tb, eq, params);
-
-    if (idx == 0) {
-        stop = get_time();
-        printf("tpr_st3_ker,%lld\n", stop - start);
-    }
+    STOP_AND_PRINT("tpr_st3_ker")
 
     return;
 }
