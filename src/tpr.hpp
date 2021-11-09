@@ -69,18 +69,6 @@ class TPR : Solver {
         SAFE_DELETE(this->bkup_a);
         SAFE_DELETE(this->bkup_c);
         SAFE_DELETE(this->bkup_rhs);
-#ifdef _OPENACC
-#pragma acc exit data delete (aa[:n], cc[:n], rr[:n])
-#pragma acc exit data delete (this->x[:n])
-#pragma acc exit data delete (bkup_a[:n], bkup_c[:n], bkup_rhs[:n])
-#pragma acc exit data delete ( \
-    this->st2_a[:n / s], this->st2_c[:n / s], this->st2_rhs[:n / s])
-#pragma acc exit data delete (                                                 \
-    this->inter_a[:2 * n / s], this->inter_c[:2 * n / s], this->inter_rhs[:2 * \
-                                                                           n / \
-                                                                           s])
-#pragma acc exit data delete (this)
-#endif
     }
 
     TPR(const TPR &tpr) {
