@@ -130,7 +130,7 @@ void TPR::tpr_stage1() {
             bkup_rhs[i] = rhs[i];
         }
 
-    // TPR Stage 1
+        // TPR Stage 1
         for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
             int u = pow2(p - 1);
             int p2k = pow2(p);
@@ -234,7 +234,7 @@ void TPR::tpr_stage2() {
         this->a[k] = inv_diag_k * ak;
         this->c[k] = -inv_diag_k * ckr * ck;
         this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
-   }
+    }
 
     // INTERMIDIATE STAGE
     {
