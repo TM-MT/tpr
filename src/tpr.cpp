@@ -120,7 +120,7 @@ int TPR::solve() {
  * @brief      TPR stage 1
  */
 void TPR::tpr_stage1() {
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
     // Make Backup for Stage 3 use
     for (int st = 0; st < this->n; st += this->s) {
         // mk_bkup_init(st, st + this->s - 1);
@@ -129,14 +129,11 @@ void TPR::tpr_stage1() {
             bkup_c[i] = c[i];
             bkup_rhs[i] = rhs[i];
         }
-    }
 
     // TPR Stage 1
-    for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
-        int u = pow2(p - 1);
-        int p2k = pow2(p);
-#pragma omp parallel for schedule(static)
-        for (int st = 0; st < this->n; st += s) {
+        for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+            int u = pow2(p - 1);
+            int p2k = pow2(p);
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
 
@@ -205,11 +202,8 @@ void TPR::tpr_stage1() {
                 this->rhs[i] = rr[i];
             }
         }
-    }
 
-#pragma omp parallel for
-    // Make Backup for stage 3 use
-    for (int st = 0; st < this->n; st += this->s) {
+        // Make Backup for stage 3 use
         // mk_bkup_st1(st, st + this->s - 1);
         for (int i = st + 1; i <= st + this->s - 1; i += 2) {
             bkup_a[i] = a[i];
@@ -281,9 +275,9 @@ void TPR::tpr_stage2() {
 }
 
 void TPR::tpr_stage3() {
-    for (int p = fllog2(s) - 1; p >= 0; p--) {
 #pragma omp parallel for
-        for (int st = 0; st < this->n; st += s) {
+    for (int st = 0; st < this->n; st += s) {
+        for (int p = fllog2(s) - 1; p >= 0; p--) {
             // tpr_stage3(st, st + s - 1);
             int ed = st + this->s - 1;
             int u = pow2(p);
