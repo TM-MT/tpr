@@ -28,10 +28,11 @@ using namespace nvcuda::experimental;
         start = get_time(); \
     }
 
-#define STOP_AND_PRINT(LABEL)                                               \
-    if (idx == 0) {                                                         \
-        stop = get_time();                                                  \
-        printf("%d,%d,%s,%lld\n", params.n, params.s, LABEL, stop - start); \
+#define STOP_AND_PRINT(LABEL)                                           \
+    if (idx == 0) {                                                     \
+        stop = get_time();                                              \
+        printf("%d,%d,%s,%lld\n", params.n, params.s, "TPR_CU::" LABEL, \
+               stop - start);                                           \
     }
 
 using namespace TPR_CU;

@@ -43,6 +43,7 @@ __device__ void tpr_st3_ker(cg::thread_block &tb, PTPR_CU::Equation eq,
 __global__ void pcr_ker(float *a, float *c, float *rhs, int n);
 __device__ void pcr_thread_block(cg::thread_block &tb, float *a, float *c,
                                  float *rhs, int n);
+__device__ long int get_time();
 std::tuple<dim3, dim3, size_t> tpr_launch_config(int n, int s, int dev);
 std::array<dim3, 2> n2dim(int n, int s, int dev);
 }  // namespace PTPR_CU

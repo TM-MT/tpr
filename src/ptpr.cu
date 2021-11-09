@@ -24,6 +24,18 @@ namespace cg = cooperative_groups;
 using namespace nvcuda::experimental;
 #endif
 
+#define SET_START()         \
+    if (idx == 0) {         \
+        start = get_time(); \
+    }
+
+#define STOP_AND_PRINT(LABEL)                                            \
+    if (idx == 0) {                                                      \
+        stop = get_time();                                               \
+        printf("%d,%d,%s,%lld\n", params.n, params.s, "PTPR_CU::" LABEL, \
+               stop - start);                                            \
+    }
+
 using namespace PTPR_CU;
 
 /**
@@ -31,6 +43,11 @@ using namespace PTPR_CU;
  */
 extern __shared__ float array[];
 
+__device__ long int PTPR_CU::get_time() {
+    long int time;
+    asm volatile("mov.u64  %0, %globaltimer;" : "=l"(time));
+    return time;
+}
 /**
  * @brief      PTPR main kernel
  *
@@ -52,6 +69,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int st = idx / s * s;
     int ed = st + s - 1;
+    long int start, stop;
 
     // local copy
     // sha[0:s], shc[0:s], shrhs[0:s]
@@ -94,7 +112,9 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 #else
     cg::wait(tb);
 #endif
+    SET_START();
     tpr_st1_ker(tb, eq, params);
+    STOP_AND_PRINT("tpr_st1_ker");
 
     tpr_inter(tb, eq, bkup_st, params);
 
@@ -112,7 +132,9 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 
     tg.sync();
 
+    SET_START();
     tpr_st2_ker(tg, tb, eq, params, pbuffer);
+    STOP_AND_PRINT("tpr_st2_ker");
 
     tg.sync();
 
@@ -143,7 +165,9 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     eq.c = shc;
     eq.rhs = shrhs;
 
+    SET_START();
     tpr_st3_ker(tb, eq, params);
+    STOP_AND_PRINT("tpr_st3_ker");
 
     return;
 }
