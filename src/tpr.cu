@@ -76,6 +76,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     shc = (float *)&array[s];
     shrhs = (float *)&array[2 * s];
 
+    SET_START();
     // make local copy on shared memory
 #ifdef EXPERIMENTAL_ASYNC_COPY
     pipeline pipe;
@@ -110,6 +111,7 @@ __global__ void TPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 #else
     cg::wait(tb);
 #endif
+    STOP_AND_PRINT("memcpy")
 
     // TPR Stage 1
     if (idx < n && idx % 2 == 0) {

@@ -78,6 +78,7 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
     shc = (float *)&array[s];
     shrhs = (float *)&array[2 * s];
 
+    SET_START();
     // make local copy on shared memory
 #ifdef EXPERIMENTAL_ASYNC_COPY
     pipeline pipe;
@@ -112,6 +113,8 @@ __global__ void PTPR_CU::tpr_ker(float *a, float *c, float *rhs, float *x,
 #else
     cg::wait(tb);
 #endif
+    STOP_AND_PRINT("memcpy");
+
     SET_START();
     tpr_st1_ker(tb, eq, params);
     STOP_AND_PRINT("tpr_st1_ker");
