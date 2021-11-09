@@ -41,7 +41,6 @@ class TPR : Solver {
     real *a, *c, *rhs, *x;
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
-    real *inter_a, *inter_c, *inter_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
     CR st2solver;
     int n, s, m;
@@ -63,9 +62,6 @@ class TPR : Solver {
         SAFE_DELETE(this->st2_a);
         SAFE_DELETE(this->st2_c);
         SAFE_DELETE(this->st2_rhs);
-        SAFE_DELETE(this->inter_a);
-        SAFE_DELETE(this->inter_c);
-        SAFE_DELETE(this->inter_rhs);
         SAFE_DELETE(this->bkup_a);
         SAFE_DELETE(this->bkup_c);
         SAFE_DELETE(this->bkup_rhs);
