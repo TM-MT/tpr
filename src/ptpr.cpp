@@ -127,10 +127,10 @@ int PTPR::solve() {
  * @brief      PTPR STAGE 1
  */
 void PTPR::tpr_stage1() {
-    for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
-        int u = pow2(p - 1);
 #pragma omp parallel for schedule(static)
-        for (int st = 0; st < this->n; st += s) {
+    for (int st = 0; st < this->n; st += s) {
+        for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+            int u = pow2(p - 1);
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
 
@@ -178,9 +178,7 @@ void PTPR::tpr_stage1() {
                 cc[k] = inv_diag_k * c[k];
                 rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
             }
-        }
 
-        for (int st = 0; st < this->n; st += s) {
             // patch
             for (int i = st; i <= st + s - 1; i++) {
                 this->a[i] = aa[i];
