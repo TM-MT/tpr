@@ -83,21 +83,16 @@ void PTPR::init(int n, int s) {
     RMALLOC(this->inter_rhs, 2 * n / s);
 
     // NULL CHECK
-    {
-        bool none_null = true;
-        none_null = none_null && (this->x != nullptr);
-        none_null = none_null && (this->st2_a != nullptr);
-        none_null = none_null && (this->st2_c != nullptr);
-        none_null = none_null && (this->st2_rhs != nullptr);
-        none_null = none_null && (this->inter_a != nullptr);
-        none_null = none_null && (this->inter_c != nullptr);
-        none_null = none_null && (this->inter_rhs != nullptr);
-
-        if (!none_null) {
-            printf("[%s] FAILED TO ALLOCATE an array.\n", __func__);
-            abort();
-        }
-    }
+    assert(this->x != nullptr);
+    assert(this->aa != nullptr);
+    assert(this->cc != nullptr);
+    assert(this->aa != nullptr);
+    assert(this->st2_a != nullptr);
+    assert(this->st2_c != nullptr);
+    assert(this->st2_rhs != nullptr);
+    assert(this->inter_a != nullptr);
+    assert(this->inter_c != nullptr);
+    assert(this->inter_rhs != nullptr);
 }
 
 /**
