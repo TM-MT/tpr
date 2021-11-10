@@ -18,10 +18,6 @@ class PCR : Solver {
         delete[] this->a1;
         delete[] this->c1;
         delete[] this->rhs1;
-
-#pragma acc exit data detach(this->a, this->c, this->rhs)
-#pragma acc exit data delete (a1[:n], c1[:n], rhs1[:n])
-#pragma acc exit data delete (this)
     }
 
     PCR(const PCR &pcr) {
@@ -35,18 +31,12 @@ class PCR : Solver {
         this->a1 = new real[n];
         this->c1 = new real[n];
         this->rhs1 = new real[n];
-
-#pragma acc enter data copyin(this)
-#pragma acc enter data create(a1[:n], c1[:n], rhs1[:n])
     }
 
     void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
         this->a = a;
         this->c = c;
         this->rhs = rhs;
-
-#pragma acc update device(this)
-#pragma acc enter data attach(this->a, this->c, this->rhs)
     }
 
     int solve();
