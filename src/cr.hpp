@@ -38,11 +38,6 @@ class CR : Solver {
         SAFE_DELETE(this->cc);
         SAFE_DELETE(this->rr);
         SAFE_DELETE(this->x);
-
-#pragma acc exit data detach(this->a, this->c, this->rhs)
-#pragma acc exit data delete ( \
-    this->aa[:n], this->cc[:n], this->rr[:n], this->x[:n])
-#pragma acc exit data delete (this)
     }
 
     CR(const CR &cr) {
@@ -74,10 +69,6 @@ class CR : Solver {
             (this->rr == nullptr) || (this->x == nullptr)) {
             abort();
         }
-
-#pragma acc enter data copyin(this)
-#pragma acc enter data create(this->aa [0:n], this->cc [0:n], this->rr [0:n], \
-                              this->x [0:n])
     }
 
    private:
