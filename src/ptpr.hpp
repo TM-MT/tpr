@@ -89,6 +89,7 @@ class PTPR : Solver {
     PTPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
 
     void tpr_stage1();
+    void tpr_inter();
     void tpr_stage2();
     void tpr_stage3();
 };

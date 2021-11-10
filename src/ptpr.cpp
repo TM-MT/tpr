@@ -110,6 +110,8 @@ int PTPR::solve() {
     tpr_stage1();
     tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
 
+    tpr_inter();
+
     // STAGE 2
     tprperf::start(tprperf::Labels::st2);
     tpr_stage2();
@@ -215,35 +217,38 @@ void PTPR::tpr_stage1() {
 }
 
 /**
+ * @brief      PTPR Intermediate Stage
+ */
+void PTPR::tpr_inter() {
+#pragma omp simd
+    for (int i = this->s - 1; i < this->n - 1; i += this->s) {
+        int k = i;
+        int kr = i + 1;
+        real ak = this->a[k];
+        real akr = this->a[kr];
+        real ck = this->c[k];
+        real ckr = this->c[kr];
+        real rhsk = this->rhs[k];
+        real rhskr = this->rhs[kr];
+
+        real inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+        int dst = i / this->s;
+        this->st2_a[dst] = inv_diag_k * ak;
+        this->st2_c[dst] = -inv_diag_k * ckr * ck;
+        this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
+    }
+
+    this->st2_a[this->m - 1] = this->a[this->n - 1];
+    this->st2_c[this->m - 1] = this->c[this->n - 1];
+    this->st2_rhs[this->m - 1] = this->rhs[this->n - 1];
+}
+
+/**
  * @brief      PTPR STAGE 2
  */
 void PTPR::tpr_stage2() {
-    // INTERMIDIATE STAGE
-    {
-#pragma omp simd
-        for (int i = this->s - 1; i < this->n - 1; i += this->s) {
-            int k = i;
-            int kr = i + 1;
-            real ak = this->a[k];
-            real akr = this->a[kr];
-            real ck = this->c[k];
-            real ckr = this->c[kr];
-            real rhsk = this->rhs[k];
-            real rhskr = this->rhs[kr];
-
-            real inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-            int dst = i / this->s;
-            this->st2_a[dst] = inv_diag_k * ak;
-            this->st2_c[dst] = -inv_diag_k * ckr * ck;
-            this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
-        }
-
-        this->st2_a[this->m - 1] = this->a[this->n - 1];
-        this->st2_c[this->m - 1] = this->c[this->n - 1];
-        this->st2_rhs[this->m - 1] = this->rhs[this->n - 1];
-    }
-
+    // assert tpr_inter() have been called and st2_* have valid input.
     this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c,
                                            this->st2_rhs);
     this->st2solver.solve();
