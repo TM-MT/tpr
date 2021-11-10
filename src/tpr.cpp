@@ -210,6 +210,24 @@ void TPR::tpr_stage1() {
             bkup_c[i] = c[i];
             bkup_rhs[i] = rhs[i];
         }
+
+        // Update by E_{st} and E_{ed}
+        {
+            // EquationInfo eqi = update_uppper_no_check(st, ed);
+            int k = st, kr = st + s - 1;
+            real ak = a[k];
+            real akr = a[kr];
+            real ck = c[k];
+            real ckr = c[kr];
+            real rhsk = rhs[k];
+            real rhskr = rhs[kr];
+
+            real inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+            this->a[k] = inv_diag_k * ak;
+            this->c[k] = -inv_diag_k * ckr * ck;
+            this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+        }
     }
 }
 
@@ -217,25 +235,6 @@ void TPR::tpr_stage1() {
  * @brief      TPR STAGE 2
  */
 void TPR::tpr_stage2() {
-#pragma omp simd
-    // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
-    for (int st = 0; st < this->n; st += s) {
-        // EquationInfo eqi = update_uppper_no_check(st, ed);
-        int k = st, kr = st + s - 1;
-        real ak = a[k];
-        real akr = a[kr];
-        real ck = c[k];
-        real ckr = c[kr];
-        real rhsk = rhs[k];
-        real rhskr = rhs[kr];
-
-        real inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-        this->a[k] = inv_diag_k * ak;
-        this->c[k] = -inv_diag_k * ckr * ck;
-        this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
-    }
-
     // INTERMIDIATE STAGE
     {
 #pragma omp simd

@@ -128,6 +128,7 @@ int PTPR::solve() {
  */
 void PTPR::tpr_stage1() {
 #pragma omp parallel for schedule(static)
+    // for each slice
     for (int st = 0; st < this->n; st += s) {
         for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
             int u = pow2(p - 1);
@@ -185,6 +186,30 @@ void PTPR::tpr_stage1() {
                 this->c[i] = cc[i];
                 this->rhs[i] = rr[i];
             }
+        }  // end p
+
+        // Update by E_{st} and E_{ed}, make bkup for stage 3 use.
+        {
+            // EquationInfo eqi = update_uppper_no_check(st, ed);
+            int k = st, kr = st + s - 1;
+            real ak = a[k];
+            real akr = a[kr];
+            real ck = c[k];
+            real ckr = c[kr];
+            real rhsk = rhs[k];
+            real rhskr = rhs[kr];
+
+            real inv_diag_k = 1.0 / (1.0 - akr * ck);
+
+            // make bkup for stage 3 use
+            int dst = st / this->s;
+            this->bkup_a[dst] = this->a[k];
+            this->bkup_c[dst] = this->c[k];
+            this->bkup_rhs[dst] = this->rhs[k];
+
+            this->a[k] = inv_diag_k * ak;
+            this->c[k] = -inv_diag_k * ckr * ck;
+            this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
         }
     }
 }
@@ -193,30 +218,6 @@ void PTPR::tpr_stage1() {
  * @brief      PTPR STAGE 2
  */
 void PTPR::tpr_stage2() {
-    // Update by E_{st} and E_{ed} copy E_{ed} for stage 2 use
-    for (int st = 0; st < this->n; st += s) {
-        // EquationInfo eqi = update_uppper_no_check(st, ed);
-        int k = st, kr = st + s - 1;
-        real ak = a[k];
-        real akr = a[kr];
-        real ck = c[k];
-        real ckr = c[kr];
-        real rhsk = rhs[k];
-        real rhskr = rhs[kr];
-
-        real inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-        // make bkup for stage 3 use
-        int dst = st / this->s;
-        this->bkup_a[dst] = this->a[k];
-        this->bkup_c[dst] = this->c[k];
-        this->bkup_rhs[dst] = this->rhs[k];
-
-        this->a[k] = inv_diag_k * ak;
-        this->c[k] = -inv_diag_k * ckr * ck;
-        this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
-    }
-
     // INTERMIDIATE STAGE
     {
 #pragma omp simd
