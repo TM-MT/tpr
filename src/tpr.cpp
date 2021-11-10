@@ -109,9 +109,8 @@ int TPR::solve() {
     tpr_stage2();
     tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
 
-    st3_replace();
-
     tprperf::start(tprperf::Labels::st3);
+    st3_replace();
     // TPR Stage 3
     tpr_stage3();
     tprperf::stop(tprperf::Labels::st3, static_cast<double>(fp_st3));
@@ -257,9 +256,9 @@ void TPR::tpr_inter() {
         this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
     }
 
-    this->st2_a[n / s - 1] = this->a[this->n - 1];
-    this->st2_c[n / s - 1] = this->c[this->n - 1];
-    this->st2_rhs[n / s - 1] = this->rhs[this->n - 1];
+    this->st2_a[this->m - 1] = this->a[this->n - 1];
+    this->st2_c[this->m - 1] = this->c[this->n - 1];
+    this->st2_rhs[this->m - 1] = this->rhs[this->n - 1];
 }
 
 /**
