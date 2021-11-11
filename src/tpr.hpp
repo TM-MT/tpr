@@ -95,5 +95,5 @@ class TPR : Solver {
     void tpr_stage2();
     void tpr_stage3();
 
-    real* extend_input_array(real *p);
+    real *extend_input_array(real *p);
 };

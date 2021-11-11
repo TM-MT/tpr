@@ -25,9 +25,9 @@ class PCR : Solver {
     PCR(){};
 
     ~PCR() {
-        delete[] &this->a[-this->margin];
-        delete[] &this->c[-this->margin];
-        delete[] &this->rhs[-this->margin];
+        delete[] & this->a[-this->margin];
+        delete[] & this->c[-this->margin];
+        delete[] & this->rhs[-this->margin];
         delete[] this->a1;
         delete[] this->c1;
         delete[] this->rhs1;
@@ -56,11 +56,9 @@ class PCR : Solver {
 
     int get_ans(real *x);
 
-    real* extend_input_array(real *p, int len);
+    real *extend_input_array(real *p, int len);
 
-private:
-    real* extend_array(real *p, int oldlen, int newlen, int margin);
-    inline int array_margin(int n) {
-        return 1 << fllog2(n);
-    }
+   private:
+    real *extend_array(real *p, int oldlen, int newlen, int margin);
+    inline int array_margin(int n) { return 1 << fllog2(n); }
 };

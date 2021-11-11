@@ -18,12 +18,13 @@
 #endif
 
 /**
- * @brief INDEX CONVERTER FOR EXTENDED ARRAYS SUCH AS `this->a, this->c, this->rhs`
- * 
+ * @brief INDEX CONVERTER FOR EXTENDED ARRAYS SUCH AS `this->a, this->c,
+ * this->rhs`
+ *
  * @param  index
  * @return index
  */
-#define I2EXI(i)  ((i) / this->s * this->sl + this->s + ((i) % this->s))
+#define I2EXI(i) ((i) / this->s * this->sl + this->s + ((i) % this->s))
 
 using namespace TPR_Helpers;
 using namespace tprperf;
@@ -49,12 +50,8 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->c = extend_input_array(c);
     this->rhs = extend_input_array(rhs);
 
-    if ((this->a == nullptr) 
-        | (this->c == nullptr) 
-        | (this->rhs == nullptr)) {
-        printf("[%s] FAILED TO ALLOCATE an array.\n",
-            __func__
-            );
+    if ((this->a == nullptr) | (this->c == nullptr) | (this->rhs == nullptr)) {
+        printf("[%s] FAILED TO ALLOCATE an array.\n", __func__);
         abort();
     }
 
@@ -62,12 +59,14 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     for (int mm = 0; mm < this->m; mm++) {
         // a[kl] = -1 for k - u < I2EXI(st)
         for (int i = 0; i < this->s; i++) {
-            assert(mm * this->sl + i < this->m * this->sl); // must be less than array length
-            assert(this->a[mm * this->sl + i] == 0.0); // there should be no data
+            assert(mm * this->sl + i <
+                   this->m * this->sl);  // must be less than array length
+            assert(this->a[mm * this->sl + i] ==
+                   0.0);  // there should be no data
             this->a[mm * this->sl + i] = -1.0;
         }
         // c[kr] = -1 for k + u > I2EXI(st)
-        for (int i = 2 * this->s; i < 3*this->s; i++) {
+        for (int i = 2 * this->s; i < 3 * this->s; i++) {
             assert(mm * this->sl + i < this->m * this->sl);
             assert(this->c[mm * this->sl + i] == 0.0);
             this->c[mm * this->sl + i] = -1.0;
@@ -124,15 +123,15 @@ void TPR::init(int n, int s) {
 
 /**
  * @brief extend input array
- * 
+ *
  * @note use `this->n, this->s, this->m, this->sl`
- * 
+ *
  * @param p [description]
  * @return [description]
  */
-real* TPR::extend_input_array(real *p) {
+real *TPR::extend_input_array(real *p) {
     // this->sl > this->s
-    real* RMALLOC(ret, m * this->sl);
+    real *RMALLOC(ret, m * this->sl);
 
     // Initialize
     for (int i = 0; i < m * this->sl; i++) {
@@ -292,7 +291,6 @@ void TPR::tpr_stage1() {
         }
     }
 }
-
 
 /**
  * @brief      TPR Intermediate Stage

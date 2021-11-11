@@ -80,13 +80,13 @@ int PCR::get_ans(real *x) {
     return 0;
 };
 
-real* PCR::extend_input_array(real *p, int len) {
+real *PCR::extend_input_array(real *p, int len) {
     int margin = array_margin(len);
-    real* start_point = extend_array(p, len, len + 2 * margin, margin);
+    real *start_point = extend_array(p, len, len + 2 * margin, margin);
     return &start_point[margin];
 }
 
-real* PCR::extend_array(real *p, int oldlen, int newlen, int margin) {
+real *PCR::extend_array(real *p, int oldlen, int newlen, int margin) {
     real *ret = new real[newlen];
 
     // fill 0
@@ -101,4 +101,3 @@ real* PCR::extend_array(real *p, int oldlen, int newlen, int margin) {
 
     return ret;
 }
-
