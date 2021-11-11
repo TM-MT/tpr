@@ -10,15 +10,6 @@ class PCR : Solver {
    public:
     PCR(real *a, real *diag, real *c, real *rhs, int n) {
         init(n);
-
-        this->a = extend_input_array(a, n);
-        this->c = extend_input_array(c, n);
-        this->rhs = extend_input_array(rhs, n);
-        this->n = n;
-        this->margin = array_margin(n);
-
-        // TO-DO
-        // make sure diag = {1., 1., ..., 1.};
         set_tridiagonal_system(a, diag, c, rhs);
     };
 
@@ -40,6 +31,7 @@ class PCR : Solver {
 
     void init(int n) {
         this->n = n;
+        this->margin = array_margin(n);
 
         this->a1 = new real[n];
         this->c1 = new real[n];
@@ -47,9 +39,9 @@ class PCR : Solver {
     }
 
     void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
-        this->a = a;
-        this->c = c;
-        this->rhs = rhs;
+        this->a = extend_input_array(a, n);
+        this->c = extend_input_array(c, n);
+        this->rhs = extend_input_array(rhs, n);
     }
 
     int solve();

@@ -17,20 +17,11 @@ int PCR::solve() {
 #pragma omp parallel shared(a1, c1, rhs1)
         {
 #pragma omp for schedule(static)
-            for (int k = 0; k < s; k++) {
-                int kr = k + s;
-
-                real e = 1.0 / (1.0 - c[k] * a[kr]);
-
-                a1[k] = e * a[k];
-                c1[k] = -e * c[k] * c[kr];
-                rhs1[k] = e * (rhs[k] - c[k] * rhs[kr]);
-            }
-
-#pragma omp for schedule(static)
-            for (int k = s; k < n - s; k++) {
+            for (int k = 0; k < n; k++) {
                 int kl = k - s;
                 int kr = k + s;
+                assert(kl >= -this->margin);
+                assert(kr < this->n + this->margin);
 
                 real ap = a[k];
                 real cp = c[k];
@@ -40,20 +31,6 @@ int PCR::solve() {
                 a1[k] = -e * ap * a[kl];
                 c1[k] = -e * cp * c[kr];
                 rhs1[k] = e * (rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
-            }
-
-#pragma omp for schedule(static)
-            for (int k = n - s; k < n; k++) {
-                int kl = k - s;
-
-                real ap = a[k];
-                real cp = c[k];
-
-                real e = 1.0 / (1.0 - ap * c[kl]);
-
-                a1[k] = -e * ap * a[kl];
-                c1[k] = e * cp;
-                rhs1[k] = e * (rhs[k] - ap * rhs[kl]);
             }
 
 #pragma omp for schedule(static)
