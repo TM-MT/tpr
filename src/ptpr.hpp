@@ -6,8 +6,8 @@
 #include <array>
 #include <cmath>
 
-#include "cr.hpp"
 #include "lib.hpp"
+#include "pcr.hpp"
 
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
@@ -25,7 +25,7 @@
     delete[] p;        \
     p = nullptr
 
-namespace TPR_Helpers {
+namespace PTPR_Helpers {
 /**
  * @brief      Infomation of equation and its index
  */
@@ -35,27 +35,27 @@ struct EquationInfo {
     real c;
     real rhs;
 };
-}  // namespace TPR_Helpers
+}  // namespace PTPR_Helpers
 
-class TPR : Solver {
+class PTPR : Solver {
     real *a, *c, *rhs, *x;
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
-    CR st2solver;
-    int n, s, m, sl;
+    PCR st2solver;
+    int n, s, m;
 
    public:
-    TPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
+    PTPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
         init(n, s);
         set_tridiagonal_system(a, c, rhs);
     };
 
-    TPR(int n, int s) { init(n, s); };
+    PTPR(int n, int s) { init(n, s); };
 
-    ~TPR() {
+    ~PTPR() {
         // free local variables
-        SAFE_DELETE(this->x);
+        delete[] & this->x[-1];
         SAFE_DELETE(this->aa);
         SAFE_DELETE(this->cc);
         SAFE_DELETE(this->rr);
@@ -67,10 +67,10 @@ class TPR : Solver {
         SAFE_DELETE(this->bkup_rhs);
     }
 
-    TPR(const TPR &tpr) {
-        n = tpr.n;
-        s = tpr.s;
-        init(tpr.n, tpr.s);
+    PTPR(const PTPR &ptpr) {
+        n = ptpr.n;
+        s = ptpr.s;
+        init(ptpr.n, ptpr.s);
     };
 
     void set_tridiagonal_system(real *a, real *c, real *rhs);
@@ -84,16 +84,12 @@ class TPR : Solver {
    private:
     void init(int n, int s);
 
-    TPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);
-    TPR_Helpers::EquationInfo update_uppper_no_check(int k, int kr);
-    TPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
-
-    void st3_replace();
+    PTPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);
+    PTPR_Helpers::EquationInfo update_uppper_no_check(int k, int kr);
+    PTPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
 
     void tpr_stage1();
     void tpr_inter();
     void tpr_stage2();
     void tpr_stage3();
-
-    real* extend_input_array(real *p);
 };

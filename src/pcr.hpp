@@ -1,34 +1,57 @@
 #pragma once
-#include <lib.hpp>
+#include "lib.hpp"
 
-class PCR: Solver
-{
+class PCR : Solver {
     real *a, *c, *rhs;
+    real *a1, *c1, *rhs1;
     int n;
     int margin;
 
-public:
+   public:
     PCR(real *a, real *diag, real *c, real *rhs, int n) {
+        init(n);
+
         this->a = extend_input_array(a, n);
         this->c = extend_input_array(c, n);
         this->rhs = extend_input_array(rhs, n);
         this->n = n;
         this->margin = array_margin(n);
 
-        #pragma acc enter data create(this, this->n, this->margin)
-        #pragma acc enter data copyin(this->a[-margin:n+margin], this->c[-margin:n+margin], this->rhs[-margin:n+margin]) wait
         // TO-DO
         // make sure diag = {1., 1., ..., 1.};
+        set_tridiagonal_system(a, diag, c, rhs);
     };
 
+    PCR(){};
+
     ~PCR() {
-        #pragma acc exit data delete(this->a[-margin:n+margin], this->c[-margin:n+margin], this->rhs[-margin:n+margin])
-        #pragma acc exit data delete(this, this->n, this->margin)
         delete[] &this->a[-this->margin];
         delete[] &this->c[-this->margin];
         delete[] &this->rhs[-this->margin];
+        delete[] this->a1;
+        delete[] this->c1;
+        delete[] this->rhs1;
     }
- 
+
+    PCR(const PCR &pcr) {
+        n = pcr.n;
+        init(pcr.n);
+    };
+
+    void init(int n) {
+        this->n = n;
+
+        this->a1 = new real[n];
+        this->c1 = new real[n];
+        this->rhs1 = new real[n];
+    }
+
+    void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
+        this->a = a;
+        this->c = c;
+        this->rhs = rhs;
+    }
+
     int solve();
 
     int get_ans(real *x);
@@ -36,9 +59,6 @@ public:
     real* extend_input_array(real *p, int len);
 
 private:
-    PCR(const PCR &pcr);
-    PCR &operator=(const PCR &pcr);
-
     real* extend_array(real *p, int oldlen, int newlen, int margin);
     inline int array_margin(int n) {
         return 1 << fllog2(n);

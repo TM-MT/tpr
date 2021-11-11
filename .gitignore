@@ -1,1 +1,4 @@
 build
+DOC
+*.sublime-workspace
+.DS_STORE
