@@ -50,10 +50,9 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->c = extend_input_array(c);
     this->rhs = extend_input_array(rhs);
 
-    if ((this->a == nullptr) | (this->c == nullptr) | (this->rhs == nullptr)) {
-        printf("[%s] FAILED TO ALLOCATE an array.\n", __func__);
-        abort();
-    }
+    assert(this->a != nullptr);
+    assert(this->c != nullptr);
+    assert(this->rhs != nullptr);
 
     // for stage 1 use
     for (int mm = 0; mm < this->m; mm++) {
@@ -90,7 +89,6 @@ void TPR::init(int n, int s) {
     this->n = n;
     this->s = s;
     this->m = n / s;
-    // this->sl = 2*pow2(fllog2(s)) + s;
     this->sl = 3 * s;
 
     // solver for stage 2
@@ -186,9 +184,10 @@ void TPR::tpr_stage1() {
     for (int st = 0; st < this->n; st += this->s) {
         // mk_bkup_init(st, st + this->s - 1);
         for (int i = st; i <= st + this->s - 1; i += 2) {
-            bkup_a[i] = a[i];
-            bkup_c[i] = c[i];
-            bkup_rhs[i] = rhs[i];
+            int src = I2EXI(i);
+            bkup_a[i] = a[src];
+            bkup_c[i] = c[src];
+            bkup_rhs[i] = rhs[src];
         }
 
         // TPR Stage 1
@@ -198,20 +197,10 @@ void TPR::tpr_stage1() {
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
 
-            // update_uppper_no_check(st, st + u);
-            {
-                int k = st;
-                int kr = st + u;
-                real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
-
-                aa[k] = inv_diag_k * a[k];
-                cc[k] = -inv_diag_k * c[kr] * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
-            }
-
 #pragma omp simd
-            for (int i = st + p2k; i <= ed - u; i += p2k) {
-                assert(i + u <= ed);
+            for (int i = st; i <= ed - u; i += p2k) {
+                assert(0 <= I2EXI(i) - u);
+                assert(I2EXI(i) + u <= this->n * 3);
 
                 // from update_no_check(i - u , i, i + u);
                 int k = I2EXI(i);
@@ -219,57 +208,46 @@ void TPR::tpr_stage1() {
                 int kr = k + u;
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
 
-                aa[k] = -inv_diag_k * a[kl] * a[k];
-                cc[k] = -inv_diag_k * c[kr] * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
+                aa[i] = -inv_diag_k * a[kl] * a[k];
+                cc[i] = -inv_diag_k * c[kr] * c[k];
+                rr[i] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
             }
 
 #pragma omp simd
-            for (int i = st + p2k - 1; i <= ed - u; i += p2k) {
-                assert(st <= i - u);
-                assert(i + u <= ed);
-
+            for (int i = st + p2k - 1; i <= ed; i += p2k) {
                 // from update_no_check(i - u , i, i + u);
-                int kl = i - u;
-                int k = i;
-                int kr = i + u;
+                int k = I2EXI(i);
+                int kl = k - u;
+                int kr = k + u;
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
 
-                aa[k] = -inv_diag_k * a[kl] * a[k];
-                cc[k] = -inv_diag_k * c[kr] * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
-            }
-
-            // update_lower_no_check(ed - u, ed);
-            {
-                int kl = ed - u;
-                int k = ed;
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
-
-                aa[k] = -inv_diag_k * a[kl] * a[k];
-                cc[k] = inv_diag_k * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
+                aa[i] = -inv_diag_k * a[kl] * a[k];
+                cc[i] = -inv_diag_k * c[kr] * c[k];
+                rr[i] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
             }
 
             // patch
             for (int i = st; i <= ed; i += p2k) {
-                this->a[i] = aa[i];
-                this->c[i] = cc[i];
-                this->rhs[i] = rr[i];
+                int dst = I2EXI(i);
+                this->a[dst] = aa[i];
+                this->c[dst] = cc[i];
+                this->rhs[dst] = rr[i];
             }
             for (int i = st + p2k - 1; i <= ed; i += p2k) {
-                this->a[i] = aa[i];
-                this->c[i] = cc[i];
-                this->rhs[i] = rr[i];
+                int dst = I2EXI(i);
+                this->a[dst] = aa[i];
+                this->c[dst] = cc[i];
+                this->rhs[dst] = rr[i];
             }
         }
 
         // Make Backup for stage 3 use
         // mk_bkup_st1(st, st + this->s - 1);
         for (int i = st + 1; i <= st + this->s - 1; i += 2) {
-            bkup_a[i] = a[i];
-            bkup_c[i] = c[i];
-            bkup_rhs[i] = rhs[i];
+            int src = I2EXI(i);
+            bkup_a[i] = a[src];
+            bkup_c[i] = c[src];
+            bkup_rhs[i] = rhs[src];
         }
 
         // Update by E_{st} and E_{ed}
@@ -298,8 +276,8 @@ void TPR::tpr_stage1() {
 void TPR::tpr_inter() {
 #pragma omp simd
     for (int i = this->s - 1; i < this->n - 1; i += this->s) {
-        int k = i;
-        int kr = i + 1;
+        int k = I2EXI(i);
+        int kr = I2EXI(i + 1);
         real ak = this->a[k];
         real akr = this->a[kr];
         real ck = this->c[k];
@@ -315,9 +293,9 @@ void TPR::tpr_inter() {
         this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
     }
 
-    this->st2_a[this->m - 1] = this->a[this->n - 1];
-    this->st2_c[this->m - 1] = this->c[this->n - 1];
-    this->st2_rhs[this->m - 1] = this->rhs[this->n - 1];
+    this->st2_a[this->m - 1] = this->a[I2EXI(this->n - 1)];
+    this->st2_c[this->m - 1] = this->c[I2EXI(this->n - 1)];
+    this->st2_rhs[this->m - 1] = this->rhs[I2EXI(this->n - 1)];
 }
 
 /**
@@ -349,22 +327,25 @@ void TPR::tpr_stage3() {
 
             {
                 int i = st + u - 1;
+                int src = I2EXI(i);
                 real x_u;
                 if (i - u < 0) {
                     x_u = 0.0;
                 } else {
                     x_u = x[i - u];
                 }
-                this->x[i] = rhs[i] - a[i] * x_u - c[i] * x[i + u];
+                this->x[i] = rhs[src] - a[src] * x_u - c[src] * x[i + u];
             }
 
 #pragma omp simd
             // update x[i]
             for (int i = st + u - 1 + 2 * u; i <= ed; i += 2 * u) {
-                assert(i - u >= st);
-                assert(i + u <= ed);
+                int src = I2EXI(i);
+                assert(i - u >= 0);
+                assert(i + u < this->n);
+                assert(0 <= src && src < 3 * this->n);
 
-                this->x[i] = rhs[i] - a[i] * x[i - u] - c[i] * x[i + u];
+                this->x[i] = rhs[src] - a[src] * x[i - u] - c[src] * x[i + u];
             }
         }
     }
@@ -442,10 +423,16 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
  * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
  */
 void TPR::st3_replace() {
-    for (int i = 0; i < this->n; i++) {
-        this->a[i] = this->bkup_a[i];
-        this->c[i] = this->bkup_c[i];
-        this->rhs[i] = this->bkup_rhs[i];
+    for (int mm = 0; mm < this->m; mm++) {
+        int src_base = mm * this->s;
+        int dst_base = mm * this->sl;
+        for (int i = 0; i < this->s; i++) {
+            int src = src_base + i;
+            int dst = dst_base + i;
+            this->a[dst] = this->bkup_a[src];
+            this->c[dst] = this->bkup_c[src];
+            this->rhs[dst] = this->bkup_rhs[src];
+        }
     }
 }
 

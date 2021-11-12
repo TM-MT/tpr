@@ -54,6 +54,10 @@ class TPR : Solver {
     TPR(int n, int s) { init(n, s); };
 
     ~TPR() {
+        // extend_input_array created local variable
+        SAFE_DELETE(this->a);
+        SAFE_DELETE(this->c);
+        SAFE_DELETE(this->rhs);
         // free local variables
         SAFE_DELETE(this->x);
         SAFE_DELETE(this->aa);
