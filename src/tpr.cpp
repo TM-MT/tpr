@@ -193,19 +193,21 @@ void TPR::tpr_stage1() {
         // TPR Stage 1
         for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
             int u = pow2(p - 1);
+            assert((u >= 0) && (u <= this->sl));
             int p2k = pow2(p);
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
 
 #pragma omp simd
-            for (int i = st; i <= ed - u; i += p2k) {
-                assert(0 <= I2EXI(i) - u);
-                assert(I2EXI(i) + u <= this->n * 3);
-
+            for (int i = st; i <= ed; i += p2k) {
                 // from update_no_check(i - u , i, i + u);
                 int k = I2EXI(i);
                 int kl = k - u;
                 int kr = k + u;
+                assert(0 <= kl);
+                assert(kr < 3 * this->n);
+                assert(I2EXI(st) - s < kl);
+                assert(kr < I2EXI(ed) + s);
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[i] = -inv_diag_k * a[kl] * a[k];
@@ -219,6 +221,10 @@ void TPR::tpr_stage1() {
                 int k = I2EXI(i);
                 int kl = k - u;
                 int kr = k + u;
+                assert(0 <= kl);
+                assert(kr < 3 * this->n);
+                assert(I2EXI(st) - s < kl);
+                assert(kr < I2EXI(ed) + s);
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[i] = -inv_diag_k * a[kl] * a[k];
@@ -425,7 +431,8 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
 void TPR::st3_replace() {
     for (int mm = 0; mm < this->m; mm++) {
         int src_base = mm * this->s;
-        int dst_base = mm * this->sl;
+        int dst_base = mm * this->sl + this->s;
+
         for (int i = 0; i < this->s; i++) {
             int src = src_base + i;
             int dst = dst_base + i;
