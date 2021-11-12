@@ -112,6 +112,9 @@ void TPR::init(int n, int s) {
 
     // NULL CHECK
     assert(this->x != nullptr);
+    assert(this->aa != nullptr);
+    assert(this->cc != nullptr);
+    assert(this->rr != nullptr);
     assert(this->st2_a != nullptr);
     assert(this->st2_c != nullptr);
     assert(this->st2_rhs != nullptr);

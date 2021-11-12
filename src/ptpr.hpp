@@ -43,7 +43,7 @@ class PTPR : Solver {
     real *st2_a, *st2_c, *st2_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
     PCR st2solver;
-    int n, s, m;
+    int n, s, m, sl;
 
    public:
     PTPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
@@ -54,6 +54,10 @@ class PTPR : Solver {
     PTPR(int n, int s) { init(n, s); };
 
     ~PTPR() {
+        // extend_input_array created local variable
+        SAFE_DELETE(this->a);
+        SAFE_DELETE(this->c);
+        SAFE_DELETE(this->rhs);
         // free local variables
         delete[] & this->x[-1];
         SAFE_DELETE(this->aa);
@@ -83,13 +87,10 @@ class PTPR : Solver {
 
    private:
     void init(int n, int s);
-
-    PTPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);
-    PTPR_Helpers::EquationInfo update_uppper_no_check(int k, int kr);
-    PTPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
-
     void tpr_stage1();
     void tpr_inter();
     void tpr_stage2();
     void tpr_stage3();
+
+    real *extend_input_array(real *p);
 };

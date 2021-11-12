@@ -17,6 +17,16 @@
 #define UNREACHABLE
 #endif
 
+/**
+ * @brief      INDEX CONVERTER FOR EXTENDED ARRAYS SUCH AS `this->a, this->c,
+ *             this->rhs`
+ *
+ * @param      i     Index
+ *
+ * @return     index
+ */
+#define I2EXI(i) ((i) / this->s * this->sl + this->s + ((i) % this->s))
+
 using namespace PTPR_Helpers;
 using namespace tprperf;
 
@@ -37,9 +47,31 @@ using namespace tprperf;
  * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
  */
 void PTPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
-    this->a = a;
-    this->c = c;
-    this->rhs = rhs;
+    this->a = extend_input_array(a);
+    this->c = extend_input_array(c);
+    this->rhs = extend_input_array(rhs);
+
+    assert(this->a != nullptr);
+    assert(this->c != nullptr);
+    assert(this->rhs != nullptr);
+
+    // for stage 1 use
+    for (int mm = 0; mm < this->m; mm++) {
+        // a[kl] = -1 for k - u < I2EXI(st)
+        for (int i = 0; i < this->s; i++) {
+            assert(mm * this->sl + i <
+                   this->m * this->sl);  // must be less than array length
+            assert(this->a[mm * this->sl + i] ==
+                   0.0);  // there should be no data
+            this->a[mm * this->sl + i] = -1.0;
+        }
+        // c[kr] = -1 for k + u > I2EXI(st)
+        for (int i = 2 * this->s; i < 3 * this->s; i++) {
+            assert(mm * this->sl + i < this->m * this->sl);
+            assert(this->c[mm * this->sl + i] == 0.0);
+            this->c[mm * this->sl + i] = -1.0;
+        }
+    }
 }
 
 /**
@@ -58,6 +90,7 @@ void PTPR::init(int n, int s) {
     this->n = n;
     this->s = s;
     this->m = n / s;
+    this->sl = 3 * s;
 
     // solver for stage 2
     this->st2solver.init(this->m);
@@ -93,6 +126,32 @@ void PTPR::init(int n, int s) {
     assert(this->bkup_a != nullptr);
     assert(this->bkup_c != nullptr);
     assert(this->bkup_rhs != nullptr);
+}
+
+/**
+ * @brief      extend input array
+ *
+ * @note       use `this->n, this->s, this->m, this->sl`
+ *
+ * @param      p     Input Array length of `this->n`
+ *
+ * @return     A pointer to the new array length of `this->m * this->sl`
+ */
+real *PTPR::extend_input_array(real *p) {
+    // this->sl > this->s
+    real *RMALLOC(ret, m * this->sl);
+
+    // Initialize
+    for (int i = 0; i < m * this->sl; i++) {
+        ret[i] = 0.0;
+    }
+
+    // copy p -> ret
+    for (int i = 0; i < n; i++) {
+        ret[I2EXI(i)] = p[i];
+    }
+
+    return ret;
 }
 
 /**
@@ -132,68 +191,43 @@ void PTPR::tpr_stage1() {
 #pragma omp parallel for schedule(static)
     // for each slice
     for (int st = 0; st < this->n; st += s) {
-        for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+        const int src_base = I2EXI(st);
+        for (int p = 1; p <= fllog2(s); p += 1) {
             int u = pow2(p - 1);
             // tpr_stage1(st, st + s - 1);
             int ed = st + s - 1;
 
 #pragma omp simd
-            for (int i = st; i < st + u; i++) {
-                assert(i + u <= ed);
-
-                // from update_uppper_no_check(i, i + u);
-                int k = i;
-                int kr = i + u;
-
-                real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
-
-                aa[k] = inv_diag_k * a[k];
-                cc[k] = -inv_diag_k * c[kr] * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kr] * c[k]);
-            }
-
-#pragma omp simd
-            for (int i = st + u; i <= ed - u; i++) {
-                assert(st <= i - u);
-                assert(i + u <= ed);
-
+            for (int i = st; i <= ed; i++) {
                 // from update_no_check(i - u , i, i + u);
-                int kl = i - u;
-                int k = i;
-                int kr = i + u;
+                int k = src_base + i - st;
+                assert(k == I2EXI(i));
+                int kl = k - u;
+                int kr = k + u;
+                assert(0 <= kl);
+                assert(kr < 3 * this->n);
+                assert(I2EXI(st) - s < kl);
+                assert(kr < I2EXI(ed) + s);
                 real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
 
-                aa[k] = -inv_diag_k * a[kl] * a[k];
-                cc[k] = -inv_diag_k * c[kr] * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
-            }
-
-#pragma omp simd
-            for (int i = ed - u + 1; i <= ed; i++) {
-                assert(st <= i - u);
-
-                // form update_lower_no_check(i - u, i);
-                int kl = i - u;
-                int k = i;
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
-
-                aa[k] = -inv_diag_k * a[kl] * a[k];
-                cc[k] = inv_diag_k * c[k];
-                rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
+                aa[i] = -inv_diag_k * a[kl] * a[k];
+                cc[i] = -inv_diag_k * c[kr] * c[k];
+                rr[i] = inv_diag_k * (rhs[k] - rhs[kl] * a[k] - rhs[kr] * c[k]);
             }
 
             // patch
             for (int i = st; i <= st + s - 1; i++) {
-                this->a[i] = aa[i];
-                this->c[i] = cc[i];
-                this->rhs[i] = rr[i];
+                int dst = src_base + i - st;
+                this->a[dst] = aa[i];
+                this->c[dst] = cc[i];
+                this->rhs[dst] = rr[i];
             }
         }  // end p
 
         // Update by E_{st} and E_{ed}, make bkup for stage 3 use.
         {
             // EquationInfo eqi = update_uppper_no_check(st, ed);
-            int k = st, kr = st + s - 1;
+            int k = I2EXI(st), kr = I2EXI(st + s - 1);
             real ak = a[k];
             real akr = a[kr];
             real ck = c[k];
@@ -222,8 +256,8 @@ void PTPR::tpr_stage1() {
 void PTPR::tpr_inter() {
 #pragma omp simd
     for (int i = this->s - 1; i < this->n - 1; i += this->s) {
-        int k = i;
-        int kr = i + 1;
+        int k = I2EXI(i);
+        int kr = I2EXI(i + 1);
         real ak = this->a[k];
         real akr = this->a[kr];
         real ck = this->c[k];
@@ -239,9 +273,9 @@ void PTPR::tpr_inter() {
         this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
     }
 
-    this->st2_a[this->m - 1] = this->a[this->n - 1];
-    this->st2_c[this->m - 1] = this->c[this->n - 1];
-    this->st2_rhs[this->m - 1] = this->rhs[this->n - 1];
+    this->st2_a[this->m - 1] = this->a[I2EXI(this->n - 1)];
+    this->st2_c[this->m - 1] = this->c[I2EXI(this->n - 1)];
+    this->st2_rhs[this->m - 1] = this->rhs[I2EXI(this->n - 1)];
 }
 
 /**
@@ -252,12 +286,11 @@ void PTPR::tpr_stage2() {
     this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c,
                                            this->st2_rhs);
     this->st2solver.solve();
+    this->st2solver.get_ans(this->st2_rhs);
 
-    // this->st2solver.get_ans(this->st2_rhs);
-    // assert this->st2_rhs has the answer
     // copy back to PTPR::x
-    for (int i = s - 1; i < n; i += s) {
-        this->x[i] = this->st2_rhs[i / s];
+    for (int i = 0; i < this->m; i++) {
+        x[(i + 1) * this->s - 1] = this->st2_rhs[i];
     }
 }
 
@@ -267,99 +300,37 @@ void PTPR::tpr_stage2() {
 void PTPR::tpr_stage3() {
 #pragma omp parallel for schedule(static)
     for (int st = 0; st < this->n; st += s) {
+        int exst = I2EXI(st);
         // restore bkup
         int src = st / this->s;
-        this->a[st] = this->bkup_a[src];
-        this->c[st] = this->bkup_c[src];
-        this->rhs[st] = this->bkup_rhs[src];
+        this->a[exst] = this->bkup_a[src];
+        this->c[exst] = this->bkup_c[src];
+        this->rhs[exst] = this->bkup_rhs[src];
 
         // from tpr_stage3(st, st + s - 1);
         int ed = st + s - 1;
+        int exed = exst + s - 1;
         // x[-1] should be 0.0
 
-        real key = 1.0 / c[ed] * (rhs[ed] - a[ed] * x[st - 1] - x[ed]);
-        if (c[ed] == 0.0) {
+        real key = 1.0 / c[exed] * (rhs[exed] - a[exed] * x[st - 1] - x[ed]);
+        if (c[exed] == 0.0) {
             key = 0.0;
         }
 
 #pragma omp simd
         // x[ed] is known
         for (int i = st; i < ed; i++) {
-            x[i] = rhs[i] - a[i] * x[st - 1] - c[i] * key;
+            int exi = exst + i - st;
+            assert(exi == I2EXI(i));
+            x[i] = rhs[exi] - a[exi] * x[st - 1] - c[exi] * key;
         }
     }
-}
-
-/// Update E_k by E_{kl}, E_{kr}
-EquationInfo PTPR::update_no_check(int kl, int k, int kr) {
-    assert(0 <= kl && kl < k && k < kr && kr < n);
-    real akl = a[kl];
-    real ak = a[k];
-    real akr = a[kr];
-    real ckl = c[kl];
-    real ck = c[k];
-    real ckr = c[kr];
-    real rhskl = rhs[kl];
-    real rhsk = rhs[k];
-    real rhskr = rhs[kr];
-
-    real inv_diag_k = 1.0 / (1.0 - ckl * ak - akr * ck);
-
-    EquationInfo eqi;
-    eqi.idx = k;
-    eqi.a = -inv_diag_k * akl * ak;
-    eqi.c = -inv_diag_k * ckr * ck;
-    eqi.rhs = inv_diag_k * (rhsk - rhskl * ak - rhskr * ck);
-
-    return eqi;
-}
-
-/// Update E_k by E_{kr}
-EquationInfo PTPR::update_uppper_no_check(int k, int kr) {
-    assert(0 <= k && k < kr && kr < n);
-    real ak = a[k];
-    real akr = a[kr];
-    real ck = c[k];
-    real ckr = c[kr];
-    real rhsk = rhs[k];
-    real rhskr = rhs[kr];
-
-    real inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-    EquationInfo eqi;
-    eqi.idx = k;
-    eqi.a = inv_diag_k * ak;
-    eqi.c = -inv_diag_k * ckr * ck;
-    eqi.rhs = inv_diag_k * (rhsk - rhskr * ck);
-
-    return eqi;
-}
-
-/// Update E_k by E_{kl}
-EquationInfo PTPR::update_lower_no_check(int kl, int k) {
-    assert(0 <= kl && kl < k && k < n);
-    real ak = a[k];
-    real akl = a[kl];
-    real ck = c[k];
-    real ckl = c[kl];
-    real rhskl = rhs[kl];
-    real rhsk = rhs[k];
-
-    real inv_diag_k = 1.0 / (1.0 - ckl * ak);
-
-    EquationInfo eqi;
-    eqi.idx = k;
-    eqi.a = -inv_diag_k * akl * ak;
-    eqi.c = inv_diag_k * ck;
-    eqi.rhs = inv_diag_k * (rhsk - rhskl * ak);
-
-    return eqi;
 }
 
 /**
  * @brief      get the answer
  *
- * @param      x     x[0:n] for the solution.
+ * @param      x     x[0:n] for the solution vector
  *
  * @return     num of float operation
  */
