@@ -18,11 +18,12 @@
 #endif
 
 /**
- * @brief INDEX CONVERTER FOR EXTENDED ARRAYS SUCH AS `this->a, this->c,
- * this->rhs`
+ * @brief      INDEX CONVERTER FOR EXTENDED ARRAYS SUCH AS `this->a, this->c,
+ *             this->rhs`
  *
- * @param  index
- * @return index
+ * @param      i     Index
+ *
+ * @return     index
  */
 #define I2EXI(i) ((i) / this->s * this->sl + this->s + ((i) % this->s))
 
