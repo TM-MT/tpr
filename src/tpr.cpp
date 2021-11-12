@@ -184,15 +184,15 @@ void TPR::tpr_stage1() {
     // Make Backup for Stage 3 use
     for (int st = 0; st < this->n; st += this->s) {
         // mk_bkup_init(st, st + this->s - 1);
-        for (int i = st; i <= st + this->s - 1; i += 2) {
-            int src = I2EXI(i);
-            bkup_a[i] = a[src];
-            bkup_c[i] = c[src];
-            bkup_rhs[i] = rhs[src];
+        const int src_base = I2EXI(st);
+        for (int i = 0; i <= this->s - 1; i += 2) {
+            bkup_a[st + i] = a[src_base + i];
+            bkup_c[st + i] = c[src_base + i];
+            bkup_rhs[st + i] = rhs[src_base + i];
         }
 
         // TPR Stage 1
-        for (int p = 1; p <= static_cast<int>(log2(s)); p += 1) {
+        for (int p = 1; p <= fllog2(s); p += 1) {
             int u = pow2(p - 1);
             assert((u >= 0) && (u <= this->sl));
             int p2k = pow2(p);
@@ -202,7 +202,8 @@ void TPR::tpr_stage1() {
 #pragma omp simd
             for (int i = st; i <= ed; i += p2k) {
                 // from update_no_check(i - u , i, i + u);
-                int k = I2EXI(i);
+                int k = src_base + i - st;
+                assert(k == I2EXI(i));
                 int kl = k - u;
                 int kr = k + u;
                 assert(0 <= kl);
@@ -219,7 +220,7 @@ void TPR::tpr_stage1() {
 #pragma omp simd
             for (int i = st + p2k - 1; i <= ed; i += p2k) {
                 // from update_no_check(i - u , i, i + u);
-                int k = I2EXI(i);
+                int k = src_base + i - st;
                 int kl = k - u;
                 int kr = k + u;
                 assert(0 <= kl);
@@ -235,13 +236,13 @@ void TPR::tpr_stage1() {
 
             // patch
             for (int i = st; i <= ed; i += p2k) {
-                int dst = I2EXI(i);
+                int dst = src_base + i - st;
                 this->a[dst] = aa[i];
                 this->c[dst] = cc[i];
                 this->rhs[dst] = rr[i];
             }
             for (int i = st + p2k - 1; i <= ed; i += p2k) {
-                int dst = I2EXI(i);
+                int dst = src_base + i - st;
                 this->a[dst] = aa[i];
                 this->c[dst] = cc[i];
                 this->rhs[dst] = rr[i];
@@ -250,11 +251,10 @@ void TPR::tpr_stage1() {
 
         // Make Backup for stage 3 use
         // mk_bkup_st1(st, st + this->s - 1);
-        for (int i = st + 1; i <= st + this->s - 1; i += 2) {
-            int src = I2EXI(i);
-            bkup_a[i] = a[src];
-            bkup_c[i] = c[src];
-            bkup_rhs[i] = rhs[src];
+        for (int i = 1; i <= this->s - 1; i += 2) {
+            bkup_a[st + i] = a[src_base + i];
+            bkup_c[st + i] = c[src_base + i];
+            bkup_rhs[st + i] = rhs[src_base + i];
         }
 
         // Update by E_{st} and E_{ed}
@@ -332,6 +332,7 @@ void TPR::tpr_stage3() {
     for (int st = 0; st < this->n; st += s) {
         for (int p = fllog2(s) - 1; p >= 0; p--) {
             // tpr_stage3(st, st + s - 1);
+            int exst = I2EXI(st);
             int ed = st + this->s - 1;
             int u = pow2(p);
 
@@ -339,7 +340,7 @@ void TPR::tpr_stage3() {
 
             {
                 int i = st + u - 1;
-                int src = I2EXI(i);
+                int src = exst + u - 1;
                 real x_u;
                 if (i - u < 0) {
                     x_u = 0.0;
@@ -352,7 +353,7 @@ void TPR::tpr_stage3() {
 #pragma omp simd
             // update x[i]
             for (int i = st + u - 1 + 2 * u; i <= ed; i += 2 * u) {
-                int src = I2EXI(i);
+                int src = exst + i - st;
                 assert(i - u >= 0);
                 assert(i + u < this->n);
                 assert(0 <= src && src < 3 * this->n);
