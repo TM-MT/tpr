@@ -74,13 +74,13 @@ void TPR::set_tridiagonal_system(real *a, real *c, real *rhs) {
 }
 
 /**
- * @brief Initializer for TPR()
- * @details Call this function first to set up for TPR
+ * @brief      Initializer for TPR()
+ * @details    Call this function first to set up for TPR
  *
- * @note This function should call once.
+ * @note       This function should call once.
  *
- * @param n size of given system
- * @param s size of a slice. `s` should be power of 2
+ * @param      n     size of given system
+ * @param      s     size of a slice. `s` should be power of 2
  */
 void TPR::init(int n, int s) {
     auto format = std::string("TPR_n_");
@@ -120,12 +120,13 @@ void TPR::init(int n, int s) {
 }
 
 /**
- * @brief extend input array
+ * @brief      extend input array
  *
- * @note use `this->n, this->s, this->m, this->sl`
+ * @note       use `this->n, this->s, this->m, this->sl`
  *
- * @param p [description]
- * @return [description]
+ * @param      p     Input Array length of `this->n`
+ *
+ * @return     A pointer to the new array length of `this->m * this->sl`
  */
 real *TPR::extend_input_array(real *p) {
     // this->sl > this->s
@@ -321,6 +322,11 @@ void TPR::tpr_stage2() {
     }
 }
 
+/**
+ * @brief      TPR STAGE 3
+ *
+ * @note       Replace should have done.
+ */
 void TPR::tpr_stage3() {
 #pragma omp parallel for
     for (int st = 0; st < this->n; st += s) {
@@ -357,76 +363,10 @@ void TPR::tpr_stage3() {
     }
 }
 
-/// Update E_k by E_{kl}, E_{kr}
-EquationInfo TPR::update_no_check(int kl, int k, int kr) {
-    assert(0 <= kl && kl < k && k < kr && kr < n);
-    real akl = a[kl];
-    real ak = a[k];
-    real akr = a[kr];
-    real ckl = c[kl];
-    real ck = c[k];
-    real ckr = c[kr];
-    real rhskl = rhs[kl];
-    real rhsk = rhs[k];
-    real rhskr = rhs[kr];
-
-    real inv_diag_k = 1.0 / (1.0 - ckl * ak - akr * ck);
-
-    EquationInfo eqi;
-    eqi.idx = k;
-    eqi.a = -inv_diag_k * akl * ak;
-    eqi.c = -inv_diag_k * ckr * ck;
-    eqi.rhs = inv_diag_k * (rhsk - rhskl * ak - rhskr * ck);
-
-    return eqi;
-}
-
-/// Update E_k by E_{kr}
-EquationInfo TPR::update_uppper_no_check(int k, int kr) {
-    assert(0 <= k && k < kr && kr < n);
-    real ak = a[k];
-    real akr = a[kr];
-    real ck = c[k];
-    real ckr = c[kr];
-    real rhsk = rhs[k];
-    real rhskr = rhs[kr];
-
-    real inv_diag_k = 1.0 / (1.0 - akr * ck);
-
-    EquationInfo eqi;
-    eqi.idx = k;
-    eqi.a = inv_diag_k * ak;
-    eqi.c = -inv_diag_k * ckr * ck;
-    eqi.rhs = inv_diag_k * (rhsk - rhskr * ck);
-
-    return eqi;
-}
-
-/// Update E_k by E_{kl}
-EquationInfo TPR::update_lower_no_check(int kl, int k) {
-    assert(0 <= kl && kl < k && k < n);
-    real ak = a[k];
-    real akl = a[kl];
-    real ck = c[k];
-    real ckl = c[kl];
-    real rhskl = rhs[kl];
-    real rhsk = rhs[k];
-
-    real inv_diag_k = 1.0 / (1.0 - ckl * ak);
-
-    EquationInfo eqi;
-    eqi.idx = k;
-    eqi.a = -inv_diag_k * akl * ak;
-    eqi.c = inv_diag_k * ck;
-    eqi.rhs = inv_diag_k * (rhsk - rhskl * ak);
-
-    return eqi;
-}
-
 /**
- * @brief   subroutine for STAGE 3 REPLACE
+ * @brief      subroutine for STAGE 3 REPLACE
  *
- * @note    make sure `bkup_*` are allocated and call mk_bkup_* functions
+ * @note       make sure `bkup_*` are allocated and call mk_bkup_* functions
  */
 void TPR::st3_replace() {
     for (int mm = 0; mm < this->m; mm++) {

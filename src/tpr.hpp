@@ -87,16 +87,10 @@ class TPR : Solver {
 
    private:
     void init(int n, int s);
-
-    TPR_Helpers::EquationInfo update_no_check(int kl, int k, int kr);
-    TPR_Helpers::EquationInfo update_uppper_no_check(int k, int kr);
-    TPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
-
-    void st3_replace();
-
     void tpr_stage1();
     void tpr_inter();
     void tpr_stage2();
+    void st3_replace();
     void tpr_stage3();
 
     real *extend_input_array(real *p);
