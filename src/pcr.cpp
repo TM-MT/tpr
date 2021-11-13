@@ -12,25 +12,26 @@
  */
 int PCR::solve() {
     int pn = fllog2(this->n);
+    int n = this->n, margin = this->margin;
 
     for (int p = 0; p < pn - 1; p++) {
         int s = 1 << p;
 
-#pragma omp parallel shared(a1, c1, rhs1)
+#pragma omp parallel shared(a1, c1, rhs1) firstprivate(s, n, margin)
         {
 #pragma omp for schedule(static)
-            for (int k = this->margin; k < this->margin + this->n; k++) {
+            for (int k = margin; k < margin + n; k++) {
                 int kl = k - s;
                 int kr = k + s;
                 assert(kl >= 0);
-                assert(kr < this->n + 2 * this->margin);
+                assert(kr < n + 2 * margin);
 
                 real ap = a[k];
                 real cp = c[k];
 
                 real e = 1.0 / (1.0 - ap * c[kl] - cp * a[kr]);
 
-                int dst = k - this->margin;
+                int dst = k - margin;
                 a1[dst] = -e * ap * a[kl];
                 c1[dst] = -e * cp * c[kr];
                 rhs1[dst] = e * (rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
@@ -38,7 +39,7 @@ int PCR::solve() {
 
 #pragma omp for schedule(static)
             for (int k = 0; k < n; k++) {
-                int dst = k + this->margin;
+                int dst = k + margin;
                 a[dst] = a1[k];
                 c[dst] = c1[k];
                 rhs[dst] = rhs1[k];
