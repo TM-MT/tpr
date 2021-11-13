@@ -107,9 +107,10 @@ void PTPR::init(int n, int s) {
     RMALLOC(this->cc, n);
     RMALLOC(this->rr, n);
     // allocation for stage 2 use
-    RMALLOC(this->st2_a, this->m);
-    RMALLOC(this->st2_c, this->m);
-    RMALLOC(this->st2_rhs, this->m);
+    this->st2_a = this->st2solver.create_extend_array(this->m);
+    this->st2_c = this->st2solver.create_extend_array(this->m);
+    this->st2_rhs = this->st2solver.create_extend_array(this->m);
+
     // allocation for bkup use
     RMALLOC(this->bkup_a, this->m);
     RMALLOC(this->bkup_c, this->m);
@@ -267,15 +268,16 @@ void PTPR::tpr_inter() {
 
         real inv_diag_k = 1.0 / (1.0 - akr * ck);
 
-        int dst = i / this->s;
+        int dst = i / this->s + this->st2solver.margin;
         this->st2_a[dst] = inv_diag_k * ak;
         this->st2_c[dst] = -inv_diag_k * ckr * ck;
         this->st2_rhs[dst] = inv_diag_k * (rhsk - rhskr * ck);
     }
 
-    this->st2_a[this->m - 1] = this->a[I2EXI(this->n - 1)];
-    this->st2_c[this->m - 1] = this->c[I2EXI(this->n - 1)];
-    this->st2_rhs[this->m - 1] = this->rhs[I2EXI(this->n - 1)];
+    int dst = this->m - 1 + this->st2solver.margin;
+    this->st2_a[dst] = this->a[I2EXI(this->n - 1)];
+    this->st2_c[dst] = this->c[I2EXI(this->n - 1)];
+    this->st2_rhs[dst] = this->rhs[I2EXI(this->n - 1)];
 }
 
 /**
@@ -283,14 +285,14 @@ void PTPR::tpr_inter() {
  */
 void PTPR::tpr_stage2() {
     // assert tpr_inter() have been called and st2_* have valid input.
-    this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c,
-                                           this->st2_rhs);
+    this->st2solver.set_tridiagonal_system_no_extend(
+        this->st2_a, nullptr, this->st2_c, this->st2_rhs);
     this->st2solver.solve();
     this->st2solver.get_ans(this->st2_rhs);
 
     // copy back to PTPR::x
     for (int i = 0; i < this->m; i++) {
-        x[(i + 1) * this->s - 1] = this->st2_rhs[i];
+        x[(i + 1) * this->s - 1] = this->st2_rhs[i + this->st2solver.margin];
     }
 }
 

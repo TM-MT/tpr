@@ -63,9 +63,9 @@ class PTPR : Solver {
         SAFE_DELETE(this->aa);
         SAFE_DELETE(this->cc);
         SAFE_DELETE(this->rr);
-        SAFE_DELETE(this->st2_a);
-        SAFE_DELETE(this->st2_c);
-        SAFE_DELETE(this->st2_rhs);
+        this->st2solver.free_extend_input_array(this->st2_a, this->m);
+        this->st2solver.free_extend_input_array(this->st2_c, this->m);
+        this->st2solver.free_extend_input_array(this->st2_rhs, this->m);
         SAFE_DELETE(this->bkup_a);
         SAFE_DELETE(this->bkup_c);
         SAFE_DELETE(this->bkup_rhs);
