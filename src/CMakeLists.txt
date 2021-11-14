@@ -60,7 +60,7 @@ target_link_libraries(ptpr PUBLIC tpr_perf)
 set_property(
     TARGET ptpr
     APPEND
-    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREADS=1)
+    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREAD=1)
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
