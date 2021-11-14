@@ -42,7 +42,7 @@ int CR::fr() {
             int kl = i - u;
             int k = i;
             int kr = i + u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+            real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
 
             aa[k] = -inv_diag_k * a[kl] * a[k];
             cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -53,7 +53,7 @@ int CR::fr() {
             // update_upper_no_check(i, i - u)
             int k = this->n - 1;
             int kl = k - u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+            real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k]);
 
             aa[k] = -inv_diag_k * a[kl] * a[k];
             cc[k] = inv_diag_k * c[k];
@@ -79,7 +79,7 @@ int CR::bs() {
     {
         int i = this->n / 2 - 1;
         int u = this->n / 2;
-        real inv_det = 1.0 / (1.0 - c[i] * a[i + u]);
+        real inv_det = 1.0f / (1.0f - c[i] * a[i + u]);
 
         x[i] = (rhs[i] - c[i] * rhs[i + u]) * inv_det;
         x[i + u] = (rhs[i + u] - rhs[i] * a[i + u]) * inv_det;

@@ -214,7 +214,7 @@ void TPR::tpr_stage1() {
                 assert(kr < 3 * this->n);
                 assert(I2EXI(st) - s < kl);
                 assert(kr < I2EXI(ed) + s);
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[i] = -inv_diag_k * a[kl] * a[k];
                 cc[i] = -inv_diag_k * c[kr] * c[k];
@@ -231,7 +231,7 @@ void TPR::tpr_stage1() {
                 assert(kr < 3 * this->n);
                 assert(I2EXI(st) - s < kl);
                 assert(kr < I2EXI(ed) + s);
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[i] = -inv_diag_k * a[kl] * a[k];
                 cc[i] = -inv_diag_k * c[kr] * c[k];
@@ -272,7 +272,7 @@ void TPR::tpr_stage1() {
             real rhsk = rhs[k];
             real rhskr = rhs[kr];
 
-            real inv_diag_k = 1.0 / (1.0 - akr * ck);
+            real inv_diag_k = 1.0f / (1.0f - akr * ck);
 
             this->a[k] = inv_diag_k * ak;
             this->c[k] = -inv_diag_k * ckr * ck;
@@ -296,7 +296,7 @@ void TPR::tpr_inter() {
         real rhsk = this->rhs[k];
         real rhskr = this->rhs[kr];
 
-        real inv_diag_k = 1.0 / (1.0 - akr * ck);
+        real inv_diag_k = 1.0f / (1.0f - akr * ck);
 
         int dst = i / this->s;
         this->st2_a[dst] = inv_diag_k * ak;
@@ -347,7 +347,7 @@ void TPR::tpr_stage3() {
                 int src = exst + u - 1;
                 real x_u;
                 if (i - u < 0) {
-                    x_u = 0.0;
+                    x_u = 0.0f;
                 } else {
                     x_u = x[i - u];
                 }

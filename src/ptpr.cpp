@@ -209,7 +209,7 @@ void PTPR::tpr_stage1() {
                 assert(kr < 3 * this->n);
                 assert(I2EXI(st) - s < kl);
                 assert(kr < I2EXI(ed) + s);
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[i] = -inv_diag_k * a[kl] * a[k];
                 cc[i] = -inv_diag_k * c[kr] * c[k];
@@ -236,7 +236,7 @@ void PTPR::tpr_stage1() {
             real rhsk = rhs[k];
             real rhskr = rhs[kr];
 
-            real inv_diag_k = 1.0 / (1.0 - akr * ck);
+            real inv_diag_k = 1.0f / (1.0f - akr * ck);
 
             // make bkup for stage 3 use
             int dst = st / this->s;
@@ -266,7 +266,7 @@ void PTPR::tpr_inter() {
         real rhsk = this->rhs[k];
         real rhskr = this->rhs[kr];
 
-        real inv_diag_k = 1.0 / (1.0 - akr * ck);
+        real inv_diag_k = 1.0f / (1.0f - akr * ck);
 
         int dst = i / this->s + this->st2solver.margin;
         this->st2_a[dst] = inv_diag_k * ak;
@@ -314,9 +314,9 @@ void PTPR::tpr_stage3() {
         int exed = exst + s - 1;
         // x[-1] should be 0.0
 
-        real key = 1.0 / c[exed] * (rhs[exed] - a[exed] * x[st - 1] - x[ed]);
-        if (c[exed] == 0.0) {
-            key = 0.0;
+        real key = 1.0f / c[exed] * (rhs[exed] - a[exed] * x[st - 1] - x[ed]);
+        if (c[exed] == 0.0f) {
+            key = 0.0f;
         }
 
 #pragma omp simd

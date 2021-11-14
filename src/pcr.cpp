@@ -29,7 +29,7 @@ int PCR::solve() {
                 real ap = a[k];
                 real cp = c[k];
 
-                real e = 1.0 / (1.0 - ap * c[kl] - cp * a[kr]);
+                real e = 1.0f / (1.0f - ap * c[kl] - cp * a[kr]);
 
                 int dst = k - margin;
                 a1[dst] = -e * ap * a[kl];
