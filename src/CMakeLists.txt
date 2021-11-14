@@ -3,13 +3,6 @@ if(TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
 endif()
 
-if(REAL_TYPE STREQUAL "double")
-    set_property(
-        DIRECTORY ${PROJECT_SOURCE_DIR}/src
-        APPEND
-        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
-endif()
-
 if(BUILD_CUDA)
     set_property(
         DIRECTORY ${PROJECT_SOURCE_DIR}/src
