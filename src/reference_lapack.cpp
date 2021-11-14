@@ -20,7 +20,7 @@ void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *c, real *rhs) {
 
     // d[0:n] = ones(0:n)
     for (int i = 0; i < this->n; i++) {
-        this->d[i] = 1.0;
+        this->d[i] = 1.0f;
     }
 }
 
