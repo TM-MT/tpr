@@ -54,9 +54,13 @@ target_include_directories(tpr PUBLIC ${PROJECT_INC_DIR})
 target_link_libraries(tpr PUBLIC libcr tpr_perf)
 
 # PTPR
-add_library(ptpr ptpr.cpp)
+add_library(ptpr ptpr.cpp pcr.cpp)
 target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(ptpr PUBLIC libpcr tpr_perf)
+target_link_libraries(ptpr PUBLIC tpr_perf)
+set_property(
+    TARGET ptpr
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREADS=1)
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")

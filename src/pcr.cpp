@@ -14,9 +14,15 @@ int PCR::solve() {
     for (int p = 0; p < pn - 1; p++) {
         int s = 1 << p;
 
+#ifndef PCR_SINGLE_THREADS
 #pragma omp parallel shared(a1, c1, rhs1)
+#endif
         {
+#ifdef PCR_SINGLE_THREADS
+#pragma omp simd
+#else
 #pragma omp for schedule(static)
+#endif
             for (int k = 0; k < s; k++) {
                 int kr = k + s;
 
@@ -27,7 +33,11 @@ int PCR::solve() {
                 rhs1[k] = e * (rhs[k] - c[k] * rhs[kr]);
             }
 
+#ifdef PCR_SINGLE_THREADS
+#pragma omp simd
+#else
 #pragma omp for schedule(static)
+#endif
             for (int k = s; k < n - s; k++) {
                 int kl = k - s;
                 int kr = k + s;
@@ -42,7 +52,11 @@ int PCR::solve() {
                 rhs1[k] = e * (rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
             }
 
+#ifdef PCR_SINGLE_THREADS
+#pragma omp simd
+#else
 #pragma omp for schedule(static)
+#endif
             for (int k = n - s; k < n; k++) {
                 int kl = k - s;
 
@@ -56,7 +70,9 @@ int PCR::solve() {
                 rhs1[k] = e * (rhs[k] - ap * rhs[kl]);
             }
 
+#ifndef PCR_SINGLE_THREADS
 #pragma omp for schedule(static)
+#endif
             for (int k = 0; k < n; k++) {
                 a[k] = a1[k];
                 c[k] = c1[k];
