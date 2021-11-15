@@ -36,13 +36,17 @@ int CR::fr() {
         int u = 1 << p;
         const int ux = 1 << (p + 1);
 
+#ifdef CR_SINGLE_THREAD
+#pragma omp simd
+#else
 #pragma omp parallel for simd schedule(static)
+#endif
         for (int i = ux - 1; i < this->n - ux; i += ux) {
             // update(i, u)
             int kl = i - u;
             int k = i;
             int kr = i + u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+            real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
 
             aa[k] = -inv_diag_k * a[kl] * a[k];
             cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -53,14 +57,16 @@ int CR::fr() {
             // update_upper_no_check(i, i - u)
             int k = this->n - 1;
             int kl = k - u;
-            real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+            real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k]);
 
             aa[k] = -inv_diag_k * a[kl] * a[k];
             cc[k] = inv_diag_k * c[k];
             rr[k] = inv_diag_k * (rhs[k] - rhs[kl] * a[k]);
         }
 
+#ifndef CR_SINGLE_THREAD
 #pragma omp parallel for schedule(static)
+#endif
         for (int i = ux - 1; i < this->n; i += ux) {
             a[i] = aa[i];
             c[i] = cc[i];
@@ -79,7 +85,7 @@ int CR::bs() {
     {
         int i = this->n / 2 - 1;
         int u = this->n / 2;
-        real inv_det = 1.0 / (1.0 - c[i] * a[i + u]);
+        real inv_det = 1.0f / (1.0f - c[i] * a[i + u]);
 
         x[i] = (rhs[i] - c[i] * rhs[i + u]) * inv_det;
         x[i + u] = (rhs[i + u] - rhs[i] * a[i + u]) * inv_det;
@@ -92,7 +98,11 @@ int CR::bs() {
             this->x[i] = rhs[i] - c[i] * x[i + u];
         }
 
+#ifdef CR_SINGLE_THREAD
+#pragma omp simd
+#else
 #pragma omp parallel for simd
+#endif
         for (int i = u - 1 + 2 * u; i < this->n - u; i += 2 * u) {
             this->x[i] = rhs[i] - a[i] * x[i - u] - c[i] * x[i + u];
         }

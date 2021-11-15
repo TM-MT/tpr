@@ -143,7 +143,7 @@ void TPR::tpr_stage1() {
             {
                 int k = st;
                 int kr = st + u;
-                real inv_diag_k = 1.0 / (1.0 - a[kr] * c[k]);
+                real inv_diag_k = 1.0f / (1.0f - a[kr] * c[k]);
 
                 aa[k] = inv_diag_k * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -158,7 +158,7 @@ void TPR::tpr_stage1() {
                 int kl = i - u;
                 int k = i;
                 int kr = i + u;
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -174,7 +174,7 @@ void TPR::tpr_stage1() {
                 int kl = i - u;
                 int k = i;
                 int kr = i + u;
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -185,7 +185,7 @@ void TPR::tpr_stage1() {
             {
                 int kl = ed - u;
                 int k = ed;
-                real inv_diag_k = 1.0 / (1.0 - c[kl] * a[k]);
+                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = inv_diag_k * c[k];
@@ -224,7 +224,7 @@ void TPR::tpr_stage1() {
             real rhsk = rhs[k];
             real rhskr = rhs[kr];
 
-            real inv_diag_k = 1.0 / (1.0 - akr * ck);
+            real inv_diag_k = 1.0f / (1.0f - akr * ck);
 
             this->a[k] = inv_diag_k * ak;
             this->c[k] = -inv_diag_k * ckr * ck;
@@ -248,7 +248,7 @@ void TPR::tpr_inter() {
         real rhsk = this->rhs[k];
         real rhskr = this->rhs[kr];
 
-        real inv_diag_k = 1.0 / (1.0 - akr * ck);
+        real inv_diag_k = 1.0f / (1.0f - akr * ck);
 
         int dst = i / this->s;
         this->st2_a[dst] = inv_diag_k * ak;
@@ -292,7 +292,7 @@ void TPR::tpr_stage3() {
                 int i = st + u - 1;
                 real x_u;
                 if (i - u < 0) {
-                    x_u = 0.0;
+                    x_u = 0.0f;
                 } else {
                     x_u = x[i - u];
                 }
@@ -324,7 +324,7 @@ EquationInfo TPR::update_no_check(int kl, int k, int kr) {
     real rhsk = rhs[k];
     real rhskr = rhs[kr];
 
-    real inv_diag_k = 1.0 / (1.0 - ckl * ak - akr * ck);
+    real inv_diag_k = 1.0f / (1.0f - ckl * ak - akr * ck);
 
     EquationInfo eqi;
     eqi.idx = k;
@@ -345,7 +345,7 @@ EquationInfo TPR::update_uppper_no_check(int k, int kr) {
     real rhsk = rhs[k];
     real rhskr = rhs[kr];
 
-    real inv_diag_k = 1.0 / (1.0 - akr * ck);
+    real inv_diag_k = 1.0f / (1.0f - akr * ck);
 
     EquationInfo eqi;
     eqi.idx = k;
@@ -366,7 +366,7 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
     real rhskl = rhs[kl];
     real rhsk = rhs[k];
 
-    real inv_diag_k = 1.0 / (1.0 - ckl * ak);
+    real inv_diag_k = 1.0f / (1.0f - ckl * ak);
 
     EquationInfo eqi;
     eqi.idx = k;

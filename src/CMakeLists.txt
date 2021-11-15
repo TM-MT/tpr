@@ -3,13 +3,6 @@ if(TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
 endif()
 
-if(REAL_TYPE STREQUAL "double")
-    set_property(
-        DIRECTORY ${PROJECT_SOURCE_DIR}/src
-        APPEND
-        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
-endif()
-
 if(BUILD_CUDA)
     set_property(
         DIRECTORY ${PROJECT_SOURCE_DIR}/src
@@ -56,14 +49,22 @@ if(TPR_PERF)
 endif()
 
 # TPR
-add_library(tpr tpr.cpp)
+add_library(tpr tpr.cpp cr.cpp)
 target_include_directories(tpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(tpr PUBLIC libcr tpr_perf)
+target_link_libraries(tpr PUBLIC tpr_perf)
+set_property(
+    TARGET tpr
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS CR_SINGLE_THREAD=1)
 
 # PTPR
-add_library(ptpr ptpr.cpp)
+add_library(ptpr ptpr.cpp pcr.cpp)
 target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(ptpr PUBLIC libpcr tpr_perf)
+target_link_libraries(ptpr PUBLIC tpr_perf)
+set_property(
+    TARGET ptpr
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREAD=1)
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
