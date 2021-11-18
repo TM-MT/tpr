@@ -1,6 +1,10 @@
 #pragma once
 #include "lib.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+namespace PCRSingleThread {
+#endif
+
 class PCR : Solver {
     /**
      * a[0:n+2*margin]
@@ -85,3 +89,7 @@ class PCR : Solver {
     void free_extend_input_array(real *p, int len);
     inline int array_margin(int n) { return 1 << fllog2(n); }
 };
+
+#ifdef PCR_SINGLE_THREAD
+}
+#endif

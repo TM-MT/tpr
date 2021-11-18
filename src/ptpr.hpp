@@ -9,6 +9,10 @@
 #include "lib.hpp"
 #include "pcr.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+using namespace PCRSingleThread;
+#endif
+
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
  *

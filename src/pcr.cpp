@@ -6,6 +6,10 @@
 
 #include "lib.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+namespace PCRSingleThread {
+#endif
+
 /**
  * @brief solve
  * @return num of float operation
@@ -115,3 +119,7 @@ real *PCR::create_extend_array(int oldlen, int margin) {
     }
     return ret;
 }
+
+#ifdef PCR_SINGLE_THREAD
+}  // namespace PCRSingleThread
+#endif
