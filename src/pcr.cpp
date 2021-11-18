@@ -4,6 +4,10 @@
 
 #include "lib.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+namespace PCRSingleThread {
+#endif
+
 /**
  * @brief solve
  * @return num of float operation
@@ -95,3 +99,7 @@ int PCR::get_ans(real *x) {
     }
     return 0;
 };
+
+#ifdef PCR_SINGLE_THREAD
+}  // namespace PCRSingleThread
+#endif
