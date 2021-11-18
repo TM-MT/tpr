@@ -3,6 +3,11 @@
 #include <stdio.h>
 
 #include "lib.hpp"
+#include "omp.h"
+
+#ifdef PCR_SINGLE_THREAD
+namespace PCRSingleThread {
+#endif
 
 /**
  * @brief solve
@@ -95,3 +100,7 @@ int PCR::get_ans(real *x) {
     }
     return 0;
 };
+
+#ifdef PCR_SINGLE_THREAD
+}  // namespace PCRSingleThread
+#endif

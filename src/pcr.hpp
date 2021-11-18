@@ -1,6 +1,10 @@
 #pragma once
 #include "lib.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+namespace PCRSingleThread {
+#endif
+
 class PCR : Solver {
     real *a, *c, *rhs;
     real *a1, *c1, *rhs1;
@@ -43,3 +47,7 @@ class PCR : Solver {
 
     int get_ans(real *x);
 };
+
+#ifdef PCR_SINGLE_THREAD
+}
+#endif

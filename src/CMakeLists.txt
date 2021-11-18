@@ -60,11 +60,11 @@ set_property(
 # PTPR
 add_library(ptpr ptpr.cpp pcr.cpp)
 target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(ptpr PUBLIC tpr_perf)
+target_link_libraries(ptpr PRIVATE tpr_perf)
 set_property(
     TARGET ptpr
     APPEND
-    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREAD=1)
+    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREAD="yes")
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
