@@ -8,13 +8,19 @@
 
 #include "lib.hpp"
 
+/**
+ * Select Solver for Stage 2 by choosing include files and define
+ * `STAGE2_SOLVER`
+ */
 #ifdef PTPR_ST2_SINGLE_CR
 #include "cr.hpp"
+#define STAGE2_SOLVER CR
 #ifdef CR_SINGLE_THREAD
 using namespace CRSingleThread;
 #endif
 #else
 #include "pcr.hpp"
+#define STAGE2_SOLVER PCR
 #ifdef PCR_SINGLE_THREAD
 using namespace PCRSingleThread;
 #endif
@@ -53,11 +59,7 @@ class PTPR : Solver {
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
-#ifdef PTPR_ST2_SINGLE_CR
-    CR st2solver;
-#else
-    PCR st2solver;
-#endif
+    STAGE2_SOLVER st2solver;
 
     int n, s, m;
 
