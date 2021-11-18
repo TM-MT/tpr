@@ -253,7 +253,7 @@ void PTPR::tpr_stage2() {
                                            this->st2_rhs);
     this->st2solver.solve();
 
-    // this->st2solver.get_ans(this->st2_rhs);
+    this->st2solver.get_ans(this->st2_rhs);
     // assert this->st2_rhs has the answer
     // copy back to PTPR::x
     for (int i = s - 1; i < n; i += s) {

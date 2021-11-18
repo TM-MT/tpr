@@ -7,10 +7,17 @@
 #include <cmath>
 
 #include "lib.hpp"
-#include "pcr.hpp"
 
+#ifdef PTPR_ST2_SINGLE_CR
+#include "cr.hpp"
+#ifdef CR_SINGLE_THREAD
+using namespace CRSingleThread;
+#endif
+#else
+#include "pcr.hpp"
 #ifdef PCR_SINGLE_THREAD
 using namespace PCRSingleThread;
+#endif
 #endif
 
 /**
@@ -46,7 +53,12 @@ class PTPR : Solver {
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
+#ifdef PTPR_ST2_SINGLE_CR
+    CR st2solver;
+#else
     PCR st2solver;
+#endif
+
     int n, s, m;
 
    public:

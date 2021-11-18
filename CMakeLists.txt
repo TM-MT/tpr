@@ -12,6 +12,8 @@ option(ENABLE_TEST "MAKE TEST" off)
 option(TPR_PERF "Enable PMlib in TPR" "no")
 option(with_PAPI "Enable PAPI" "OFF")
 option(with_LAPACK "Enable Reference LAPACK" "no")
+option(PTPR_ST2 "Solver for PCR-like TPR Stage 2, only available for cpu code"
+       PCR)
 
 if(BUILD_CUDA)
     project(tpr C CXX CUDA)

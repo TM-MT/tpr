@@ -58,13 +58,25 @@ set_property(
     PROPERTY COMPILE_DEFINITIONS CR_SINGLE_THREAD="yes")
 
 # PTPR
-add_library(ptpr ptpr.cpp pcr.cpp)
+if(PTPR_ST2 STREQUAL "CR")
+    # Use CR for Stage 2
+    add_library(ptpr ptpr.cpp cr.cpp)
+    set_property(
+        TARGET ptpr
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS CR_SINGLE_THREAD="yes" PTPR_ST2_SINGLE_CR)
+    message("Using CR")
+else()
+    # default: Single Thread PCR
+    add_library(ptpr ptpr.cpp pcr.cpp)
+    set_property(
+        TARGET ptpr
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREAD="yes")
+    message("Using PCR")
+endif()
 target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
 target_link_libraries(ptpr PRIVATE tpr_perf)
-set_property(
-    TARGET ptpr
-    APPEND
-    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREAD="yes")
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
