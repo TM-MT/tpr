@@ -2,6 +2,10 @@
 
 #include "lib.hpp"
 
+#ifdef CR_SINGLE_THREAD
+namespace CRSingleThread {
+#endif
+
 /**
  * @brief set Tridiagnoal System
  *
@@ -122,3 +126,7 @@ int CR::get_ans(real *x) {
     }
     return 0;
 }
+
+#ifdef CR_SINGLE_THREAD
+}  // namespace CRSingleThread
+#endif

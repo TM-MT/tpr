@@ -9,6 +9,10 @@
 #include "cr.hpp"
 #include "lib.hpp"
 
+#ifdef CR_SINGLE_THREAD
+using namespace CRSingleThread;
+#endif
+
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
  *
