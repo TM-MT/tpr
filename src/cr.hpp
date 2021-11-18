@@ -1,6 +1,10 @@
 #pragma once
 #include "lib.hpp"
 
+#ifdef CR_SINGLE_THREAD
+namespace CRSingleThread {
+#endif
+
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
  *
@@ -78,3 +82,7 @@ class CR : Solver {
 
 #undef RMALLOC
 #undef SAFE_DELETE
+
+#ifdef CR_SINGLE_THREAD
+}  // namespace CRSingleThread
+#endif

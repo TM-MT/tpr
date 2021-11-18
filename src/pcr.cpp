@@ -3,7 +3,6 @@
 #include <stdio.h>
 
 #include "lib.hpp"
-#include "omp.h"
 
 #ifdef PCR_SINGLE_THREAD
 namespace PCRSingleThread {
