@@ -21,6 +21,39 @@ using namespace PTPR_Helpers;
 using namespace tprperf;
 
 /**
+ * @brief      extend `x` to the length n' s.t. n' >= n, n' % s == 0
+ *
+ * @param      x      x[0:n] input array
+ * @param[in]  n      the length of x
+ * @param[in]  s      TPR parameter `s`
+ * @param      new_x  The new x, x[0:n']
+ *
+ * @return     n'
+ */
+int PTPR_Helpers::add_padding(real *x, int n, int s, real **new_x) {
+    if (n % s == 0) {
+        *new_x = x;
+        return n;
+    } else {
+        int new_n = (n / s + 1) * s;
+        real *tmp;
+        RMALLOC(tmp, new_n);
+
+        for (int i = 0; i < n; i++) {
+            tmp[i] = x[i];
+        }
+        for (int i = n; i < new_n; i++) {
+            tmp[i] = 0.0f;
+        }
+
+        SAFE_DELETE(x);
+
+        *new_x = tmp;
+        return new_n;
+    }
+}
+
+/**
  * @brief      set Tridiagonal System for PTPR
  *
  *             USAGE
@@ -55,6 +88,7 @@ void PTPR::init(int n, int s) {
     auto format = std::string("PTPR_n_");
     tprperf::init(format.replace(5, 1, std::to_string(s)));
 
+    assert(n % s == 0);
     this->n = n;
     this->s = s;
     this->m = n / s;

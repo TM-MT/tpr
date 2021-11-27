@@ -39,6 +39,8 @@ struct EquationInfo {
     real c;
     real rhs;
 };
+
+int add_padding(real *x, int n, int s, real **new_x);
 }  // namespace PTPR_Helpers
 
 class PTPR : Solver {

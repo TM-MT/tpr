@@ -10,10 +10,10 @@ using Random = effolkronium::random_static;
 using namespace trisys;
 
 TRIDIAG_SYSTEM::TRIDIAG_SYSTEM(int n) {
-    this->a = (real *)malloc(n * sizeof(real));
-    this->diag = (real *)malloc(n * sizeof(real));
-    this->c = (real *)malloc(n * sizeof(real));
-    this->rhs = (real *)malloc(n * sizeof(real));
+    this->a = new real[n];
+    this->diag = new real[n];
+    this->c = new real[n];
+    this->rhs = new real[n];
     this->n = n;
 
     bool check = null_check();
@@ -34,7 +34,7 @@ bool TRIDIAG_SYSTEM::null_check() {
 
 TRIDIAG_SYSTEM::~TRIDIAG_SYSTEM() {
     for (auto p : {this->a, this->diag, this->c, this->rhs}) {
-        free(p);
+        delete[] p;
     }
 
     this->a = nullptr;
