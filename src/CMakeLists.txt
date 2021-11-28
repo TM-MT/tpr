@@ -152,6 +152,27 @@ if(TPR_PROJECT)
         endif()
     endif()
 
+    # Numerical Stability Test Program
+    add_executable(nstab numerical_stability.cpp)
+    target_link_libraries(nstab PUBLIC trisys libcr libpcr tpr ptpr)
+    if(with_LAPACK)
+        target_link_libraries(nstab PUBLIC ref_lapack)
+    endif()
+    target_include_directories(nstab PUBLIC ${PROJECT_INC_DIR})
+    set_property(TARGET nstab PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
+
+    if(BUILD_CUDA)
+        target_link_libraries(nstab PRIVATE tpr_cu ptpr_cu)
+        target_include_directories(nstab PRIVATE ${CUDA_INCLUDE_DIRS})
+
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+            set_property(
+                TARGET nstab
+                APPEND
+                PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        endif()
+    endif()
+
     # PMlib
     set(pmlib_srcdir ${PROJECT_SOURCE_DIR}/PMlib/src)
     set(pmlib_incdir ${PROJECT_SOURCE_DIR}/PMlib/include)
