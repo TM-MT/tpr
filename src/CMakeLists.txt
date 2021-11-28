@@ -115,6 +115,11 @@ endif()
 
 # build sample main and benchmark program
 if(TPR_PROJECT)
+    set(INPUTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/inputs")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/system.hpp.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/system.hpp USE_SOURCE_PERMISSIONS @ONLY)
+
     # Tridiagonal system
     add_library(trisys system.cpp system.hpp lib.hpp)
     target_link_libraries(trisys PRIVATE effolkronium_random)
