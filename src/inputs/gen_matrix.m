@@ -94,7 +94,8 @@ save('m12.txt', 'm12', '-ascii')
 
 m13 = gallery("dorr", n, 1e-4);
 fprintf(fid, "%e\n", cond(m13));
-save('m13.txt', 'm13', '-ascii')
+% save('m13.txt', 'm13', '-ascii')
+writematrix(m13)
 
 % 14. tridiag(a, 1e-8*ones(N,1), c) with a,c sampled from U (−1, 1)
 m14 = diag(rand(n - 1, 1) * 2 - 1, -1) + 1e-8 * eye(n) + diag(rand(n - 1, 1) * 2 - 1, 1);
