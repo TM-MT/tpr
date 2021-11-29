@@ -75,6 +75,7 @@ std::vector<real> read_xtrue(int n) {
         }
     } else {
         std::cerr << "Failed to read " << path << "\n";
+        exit(EXIT_FAILURE);
     }
 
     fclose(fp);

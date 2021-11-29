@@ -12,6 +12,9 @@ using Random = effolkronium::random_static;
 
 using namespace trisys;
 
+/**
+ * @brief      Read float and check
+ */
 #define READFP(dst) assert(fscanf(fp, "%f,", &dst) == 1)
 
 TRIDIAG_SYSTEM::TRIDIAG_SYSTEM(int n) {
@@ -76,10 +79,11 @@ int ExampleFromInput::assign() {
             for (int j = i + 2; j < n; j++) {
                 READFP(dummy);
             }
-            fscanf(fp, "%f", &this->sys.rhs[i]);
+            assert(fscanf(fp, "%f", &this->sys.rhs[i]) == 1);
         }
     } else {
         std::cerr << "FAILED at opening " << this->path << "\n";
+        exit(EXIT_FAILURE);
     }
 
     // set diag[i] = 1.0
