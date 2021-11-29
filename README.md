@@ -26,6 +26,9 @@ $ ./src/tpr_main
 # run benchmark program
 # ./src/tpr_pm N S iter_time Solver
 $ ./src/tpr_pm 2048 512 1000 PTPR
+# Evaluate the solution by L2-Norm defined by `||x - x_t||_2 / ||x_t||_2` where x_t denotes the truth
+# print the result to stdout in csv format,`InputMatrix,Solver,N,S,L2-Norm`
+$ ./src/nstab
 
 # Use cuda (cmake < 3.18)
 $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,code=sm_75"  -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
