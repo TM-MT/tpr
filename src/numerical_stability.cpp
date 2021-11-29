@@ -111,13 +111,11 @@ double norm(real *solution, real *xtruth, int n) {
 
 template <typename T>
 double eval(T &solver, trisys::TRIDIAG_SYSTEM &sys, std::vector<real> &xtruth) {
-    // print_array(sys.a, sys.n);
     solver.set_tridiagonal_system(sys.a, sys.diag, sys.c, sys.rhs);
     solver.solve();
     std::vector<real> solution;
     solution.resize(sys.n);
     solver.get_ans(&solution[0]);
-    // print_array(&solution[0], sys.n);
 
     return norm(&solution[0], &xtruth[0], sys.n);
 }
@@ -160,9 +158,6 @@ int main() {
         }
 
         // EVAL_AND_PRINT(PCR, fname, n);
-        input.assign();
-        print_array(input.sys.a, n);
-        print_array(input.sys.diag, n);
         EVAL_AND_PRINT(REFERENCE_LAPACK, fname, n);
     }
 }
