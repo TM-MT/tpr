@@ -21,8 +21,9 @@
 
 class REFERENCE_LAPACK : Solver {
     int n;
-    real *dl, *d, *du, *b;
+    real *dl, *d = nullptr, *du, *b;
     int info;
+    bool diag_allocated = false;
 
    public:
     REFERENCE_LAPACK(real *a, real *diag, real *c, real *rhs, int n) {
@@ -34,8 +35,13 @@ class REFERENCE_LAPACK : Solver {
 
     REFERENCE_LAPACK(){};
 
-    ~REFERENCE_LAPACK() { SAFE_DELETE(this->d); }
+    ~REFERENCE_LAPACK() {
+        if (this->diag_allocated) {
+            SAFE_DELETE(this->d);
+        }
+    }
 
+    void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs);
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     int solve();
@@ -48,10 +54,7 @@ class REFERENCE_LAPACK : Solver {
      *
      * @param n size of the system
      */
-    void init(int n) {
-        this->n = n;
-        RMALLOC(this->d, n);
-    }
+    void init(int n) { this->n = n; }
 
    private:
     REFERENCE_LAPACK(const REFERENCE_LAPACK &cr);

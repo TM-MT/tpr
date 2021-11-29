@@ -249,7 +249,7 @@ void PTPR::tpr_inter() {
  */
 void PTPR::tpr_stage2() {
     // assert tpr_inter() have been called and st2_* have valid input.
-    this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c,
+    this->st2solver.set_tridiagonal_system(this->st2_a, this->st2_c,
                                            this->st2_rhs);
     this->st2solver.solve();
 

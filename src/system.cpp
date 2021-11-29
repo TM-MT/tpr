@@ -1,6 +1,9 @@
 #include "system.hpp"
 
+#include <assert.h>
 #include <stdlib.h>
+
+#include <cstdio>
 
 #include "effolkronium/random.hpp"
 
@@ -8,6 +11,11 @@
 using Random = effolkronium::random_static;
 
 using namespace trisys;
+
+/**
+ * @brief      Read float and check
+ */
+#define READFP(dst) assert(fscanf(fp, "%f,", &dst) == 1)
 
 TRIDIAG_SYSTEM::TRIDIAG_SYSTEM(int n) {
     this->a = (real *)malloc(n * sizeof(real));
@@ -41,6 +49,45 @@ TRIDIAG_SYSTEM::~TRIDIAG_SYSTEM() {
     this->diag = nullptr;
     this->c = nullptr;
     this->rhs = nullptr;
+}
+
+int ExampleFromInput::assign() {
+    std::cerr << "Reading from " << this->path << "\n";
+    FILE *fp = fopen(this->path.c_str(), "r");
+    int n = this->sys.n;
+    real dummy;
+
+    if (fp != nullptr) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < i - 1; j++) {
+                READFP(dummy);
+            }
+
+            if (i > 0) {
+                READFP(this->sys.a[i]);
+            } else {
+                this->sys.a[i] = 0.0;
+            }
+
+            READFP(this->sys.diag[i]);
+            if (i < n - 1) {
+                READFP(this->sys.c[i]);
+            } else {
+                this->sys.c[i] = 0.0;
+            }
+
+            for (int j = i + 2; j < n; j++) {
+                READFP(dummy);
+            }
+            assert(fscanf(fp, "%f", &this->sys.rhs[i]) == 1);
+        }
+    } else {
+        std::cerr << "FAILED at opening " << this->path << "\n";
+        exit(EXIT_FAILURE);
+    }
+
+    fclose(fp);
+    return 0;
 }
 
 int ExampleFixedInput::assign() {

@@ -3,6 +3,8 @@
 
 #include "lib.hpp"
 
+#cmakedefine INPUTS_DIR "@INPUTS_DIR@"
+
 #define DEFINE_EXAPMLE(EXAMPLE_NAME)           \
     class EXAMPLE_NAME : public ExampleInput { \
        public:                                 \
@@ -36,6 +38,17 @@ class ExampleInput {
     ~ExampleInput(){};
     virtual int assign() { return 0; };
     ExampleInput(const ExampleInput &ei) : sys(ei.sys.n){};
+};
+
+class ExampleFromInput {
+   public:
+    TRIDIAG_SYSTEM sys;
+    std::string path;
+
+    ExampleFromInput(int n) : sys(n) {};
+    ~ExampleFromInput(){};
+    int assign();
+    ExampleFromInput(const ExampleInput &ei) : sys(ei.sys.n){};
 };
 
 /**

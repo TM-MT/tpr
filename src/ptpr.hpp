@@ -41,7 +41,7 @@ struct EquationInfo {
 };
 }  // namespace PTPR_Helpers
 
-class PTPR : Solver {
+class PTPR : public Solver {
     real *a, *c, *rhs, *x;
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
@@ -52,7 +52,7 @@ class PTPR : Solver {
    public:
     PTPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
         init(n, s);
-        set_tridiagonal_system(a, c, rhs);
+        set_tridiagonal_system(a, diag, c, rhs);
     };
 
     PTPR(int n, int s) { init(n, s); };
@@ -77,6 +77,17 @@ class PTPR : Solver {
         init(ptpr.n, ptpr.s);
     };
 
+    void set_tridiagonal_system(real *input_a, real *input_diag, real *input_c,
+                                real *input_rhs) {
+        // set diag[i] = 1.0
+        for (int i = 0; i < this->n; i++) {
+            input_a[i] /= input_diag[i];
+            input_c[i] /= input_diag[i];
+            input_rhs[i] /= input_diag[i];
+        }
+
+        set_tridiagonal_system(input_a, input_c, input_rhs);
+    };
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();

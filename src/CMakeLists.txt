@@ -82,7 +82,7 @@ if(BUILD_CUDA)
     add_library(ref_cusp STATIC reference_cusparse.cu reference_cusparse.cuh)
     set_target_properties(ref_cusp PROPERTIES POSITION_INDEPENDENT_CODE ON
                                               CUDA_SEPARABLE_COMPILATION ON)
-    target_link_libraries(ref_cusp PRIVATE cusparse cublas cudart)
+    target_link_libraries(ref_cusp PUBLIC cusparse cublas cudart)
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
         set_property(
             TARGET tpr_cu
@@ -115,6 +115,11 @@ endif()
 
 # build sample main and benchmark program
 if(TPR_PROJECT)
+    set(INPUTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/inputs")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/system.hpp.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/system.hpp USE_SOURCE_PERMISSIONS @ONLY)
+
     # Tridiagonal system
     add_library(trisys system.cpp system.hpp lib.hpp)
     target_link_libraries(trisys PRIVATE effolkronium_random)
@@ -142,6 +147,27 @@ if(TPR_PROJECT)
         if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
             set_property(
                 TARGET tpr_main
+                APPEND
+                PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        endif()
+    endif()
+
+    # Numerical Stability Test Program
+    add_executable(nstab numerical_stability.cpp)
+    target_link_libraries(nstab PUBLIC trisys libcr libpcr tpr ptpr)
+    if(with_LAPACK)
+        target_link_libraries(nstab PUBLIC ref_lapack)
+    endif()
+    target_include_directories(nstab PUBLIC ${PROJECT_INC_DIR})
+    set_property(TARGET nstab PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
+
+    if(BUILD_CUDA)
+        target_link_libraries(nstab PUBLIC ref_cusp cusparse cublas cudart)
+        target_include_directories(nstab PRIVATE ${CUDA_INCLUDE_DIRS})
+
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+            set_property(
+                TARGET nstab
                 APPEND
                 PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
         endif()

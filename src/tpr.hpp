@@ -77,6 +77,17 @@ class TPR : Solver {
         init(tpr.n, tpr.s);
     };
 
+    void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
+        // set diag[i] = 1.0
+        for (int i = 0; i < this->n; i++) {
+            a[i] /= diag[i];
+            c[i] /= diag[i];
+            rhs[i] /= diag[i];
+        }
+
+        set_tridiagonal_system(a, c, rhs);
+    };
+
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();
