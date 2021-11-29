@@ -157,7 +157,7 @@ int main() {
             TPR_EVAL_AND_PRINT(TPR, fname, n, s);
         }
 
-        // EVAL_AND_PRINT(PCR, fname, n);
+        EVAL_AND_PRINT(PCR, fname, n);
         EVAL_AND_PRINT(REFERENCE_LAPACK, fname, n);
     }
 }

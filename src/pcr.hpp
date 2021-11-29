@@ -43,9 +43,9 @@ class PCR : Solver {
         if (diag != nullptr) {
             // set diag[i] = 1.0
             for (int i = 0; i < this->n; i++) {
-                this->a[i] /= diag[i];
-                this->c[i] /= diag[i];
-                this->rhs[i] /= diag[i];
+                a[i] /= diag[i];
+                c[i] /= diag[i];
+                rhs[i] /= diag[i];
             }
         }
 
