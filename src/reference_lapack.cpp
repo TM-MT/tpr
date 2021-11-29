@@ -6,15 +6,33 @@
 
 /**
  * @brief set Tridiagnoal System
- * @note [OpenACC] given arrays are exists on the device
  *
  * @param a [description]
  * @param diag [description]
  * @param c [description]
  * @param rhs [description]
  */
+void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *diag, real *c,
+                                              real *rhs) {
+    this->dl = a;
+    this->d = diag;
+    this->du = c;
+    this->b = rhs;
+}
+
+/**
+ * @brief set Tridiagnoal System
+ * @note call this may overwrite `this->d`
+ *
+ * @param a [description]
+ * @param c [description]
+ * @param rhs [description]
+ */
 void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->dl = a;
+    this->diag_allocated = true;
+    delete[] this->d;
+    this->d = new real[this->n];
     this->du = c;
     this->b = rhs;
 

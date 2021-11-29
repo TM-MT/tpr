@@ -86,14 +86,6 @@ int ExampleFromInput::assign() {
         exit(EXIT_FAILURE);
     }
 
-    // set diag[i] = 1.0
-    for (int i = 0; i < n; i++) {
-        this->sys.a[i] /= this->sys.diag[i];
-        this->sys.c[i] /= this->sys.diag[i];
-        this->sys.rhs[i] /= this->sys.diag[i];
-        this->sys.diag[i] = 1.0f;
-    }
-
     fclose(fp);
     return 0;
 }

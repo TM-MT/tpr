@@ -125,6 +125,26 @@ double eval(T &solver, trisys::TRIDIAG_SYSTEM &sys, std::vector<real> &xtruth) {
 fs::path filename(std::string &path) { return fs::path(path).filename(); }
 }  // namespace nstab
 
+// for tpr, pcr-like tpr
+#define TPR_EVAL_AND_PRINT(SOLVER, FILENAME, N, S)                     \
+    {                                                                  \
+        input.assign();                                                \
+        SOLVER solver(N, S);                                           \
+        double norm = nstab::eval(solver, input.sys, xt);              \
+        printf("%s,%s,%d,%d,%le\n", nstab::filename(FILENAME).c_str(), \
+               #SOLVER, N, S, norm);                                   \
+    }
+
+// For CR, PCR, Lapack etc.
+#define EVAL_AND_PRINT(SOLVER, FILENAME, N)                            \
+    {                                                                  \
+        input.assign();                                                \
+        SOLVER solver(N);                                              \
+        double norm = nstab::eval(solver, input.sys, xt);              \
+        printf("%s,%s,%d,%d,%le\n", nstab::filename(FILENAME).c_str(), \
+               #SOLVER, N, 0, norm);                                   \
+    }
+
 int main() {
     int n = 512;
 
@@ -134,9 +154,15 @@ int main() {
         trisys::ExampleFromInput input(n);
         input.path = fname;
 
+        for (int s = 16; s <= n; s *= 2) {
+            TPR_EVAL_AND_PRINT(PTPR, fname, n, s);
+            TPR_EVAL_AND_PRINT(TPR, fname, n, s);
+        }
+
+        // EVAL_AND_PRINT(PCR, fname, n);
         input.assign();
-        PTPR ptpr(n, 128);
-        double norm = nstab::eval(ptpr, input.sys, xt);
-        printf("%s,PTPR,128,%le\n", nstab::filename(fname).c_str(), norm);
+        print_array(input.sys.a, n);
+        print_array(input.sys.diag, n);
+        EVAL_AND_PRINT(REFERENCE_LAPACK, fname, n);
     }
 }

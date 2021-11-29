@@ -13,8 +13,10 @@ class PCR : Solver {
    public:
     PCR(real *a, real *diag, real *c, real *rhs, int n) {
         init(n);
-        set_tridiagonal_system(a, diag, c, rhs);
+        set_tridiagonal_system(a, c, rhs);
     };
+
+    PCR(int n) { init(n); }
 
     PCR(){};
 
@@ -38,6 +40,19 @@ class PCR : Solver {
     }
 
     void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
+        if (diag != nullptr) {
+            // set diag[i] = 1.0
+            for (int i = 0; i < this->n; i++) {
+                this->a[i] /= diag[i];
+                this->c[i] /= diag[i];
+                this->rhs[i] /= diag[i];
+            }
+        }
+
+        set_tridiagonal_system(a, c, rhs);
+    }
+
+    void set_tridiagonal_system(real *a, real *c, real *rhs) {
         this->a = a;
         this->c = c;
         this->rhs = rhs;
