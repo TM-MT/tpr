@@ -22,8 +22,7 @@
 #endif
 
 #ifdef BUILD_CUDA
-#include "ptpr.cuh"
-#include "tpr.cuh"
+#include "reference_cusparse.cuh"
 #endif
 
 namespace nstab {
@@ -120,6 +119,22 @@ double eval(T &solver, trisys::TRIDIAG_SYSTEM &sys, std::vector<real> &xtruth) {
     return norm(&solution[0], &xtruth[0], sys.n);
 }
 
+template <typename T>
+double cu_eval(T &solver, trisys::TRIDIAG_SYSTEM &sys,
+               std::vector<real> &xtruth) {
+    for (int i = 0; i < sys.n; i++) {
+        sys.a[i] /= sys.diag[i];
+        sys.c[i] /= sys.diag[i];
+        sys.rhs[i] = sys.diag[i];
+    }
+    std::vector<real> solution;
+    solution.resize(sys.n);
+
+    solver.solve(sys.a, sys.c, sys.rhs, &solution[0], sys.n);
+
+    return norm(&solution[0], &xtruth[0], sys.n);
+}
+
 fs::path filename(std::string &path) { return fs::path(path).filename(); }
 }  // namespace nstab
 
@@ -143,6 +158,16 @@ fs::path filename(std::string &path) { return fs::path(path).filename(); }
                #SOLVER, N, 0, norm);                                   \
     }
 
+// For cusparse, CUTPR, CUPTPR
+#define CU_EVAL_AND_PRINT(SOLVER, FILENAME, N)                         \
+    {                                                                  \
+        input.assign();                                                \
+        SOLVER solver(N);                                              \
+        double norm = nstab::cu_eval(solver, input.sys, xt);           \
+        printf("%s,%s,%d,%d,%le\n", nstab::filename(FILENAME).c_str(), \
+               #SOLVER, N, 0, norm);                                   \
+    }
+
 int main() {
     int n = 512;
 
@@ -158,6 +183,12 @@ int main() {
         }
 
         EVAL_AND_PRINT(PCR, fname, n);
+#ifdef INCLUDE_REFERENCE_LAPACK
         EVAL_AND_PRINT(REFERENCE_LAPACK, fname, n);
+#endif
+
+#ifdef BUILD_CUDA
+        CU_EVAL_AND_PRINT(REFERENCE_CUSPARSE, fname, n);
+#endif
     }
 }
