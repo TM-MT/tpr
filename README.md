@@ -1,4 +1,6 @@
-# Tree Partitioning Reduction
+# PCR-like Tree Partitioning Reduction
+
+A tridiagonal system solver for CPU and GPU.
 
 [![CMake](https://github.com/TM-MT/tpr/actions/workflows/cmake.yml/badge.svg)](https://github.com/TM-MT/tpr/actions/workflows/cmake.yml)
 
