@@ -101,8 +101,8 @@ void PTPR::init(int n, int s) {
  * @return     num of float operation
  */
 int PTPR::solve() {
-    int fp_st1 = m * (14 * s * fllog2(s));
-    int fp_st2 = 14 * m + (m - 1) * 14 + (14 * m * fllog2(m));
+    int fp_st1 = m * (14 * s * fllog2(s)) + 14 * m;
+    int fp_st2 = 9 * (m - 1) + (14 * m * fllog2(m));
     int fp_st3 = m * 4 * (s - 1);
 
     // STAGE 1
@@ -110,10 +110,9 @@ int PTPR::solve() {
     tpr_stage1();
     tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
 
-    tpr_inter();
-
     // STAGE 2
     tprperf::start(tprperf::Labels::st2);
+    tpr_inter();
     tpr_stage2();
     tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
 

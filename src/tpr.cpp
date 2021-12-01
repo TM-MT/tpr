@@ -93,8 +93,8 @@ void TPR::init(int n, int s) {
  * @return     num of float operation
  */
 int TPR::solve() {
-    int fp_st1 = 28 * n - 14;
-    int fp_st2 = 14 * m - 19 + 4 * m;
+    int fp_st1 = 28 * n - 14 * m;
+    int fp_st2 = 9 * (m - 1) + 17 * m;
     int fp_st3 = m * 4 * (s - 1);
 
     // STAGE 1
@@ -102,10 +102,9 @@ int TPR::solve() {
     tpr_stage1();
     tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
 
-    tpr_inter();
-
     // STAGE 2
     tprperf::start(tprperf::Labels::st2);
+    tpr_inter();
     tpr_stage2();
     tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
 
