@@ -11,8 +11,6 @@ using real = float;
 const float one = 1.0f;
 #endif
 
-
-
 // pure function
 #ifdef __GNUC__
 #define pure_function __attribute__((const))
