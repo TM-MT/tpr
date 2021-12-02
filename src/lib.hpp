@@ -3,7 +3,7 @@
 #include <cmath>
 #include <iostream>
 
-using real = float;
+using real = double;
 
 // pure function
 #ifdef __GNUC__
