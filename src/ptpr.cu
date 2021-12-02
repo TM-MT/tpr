@@ -709,3 +709,14 @@ void PTPR_CU::pcr_cu(float *a, float *c, float *rhs, float *x, int n) {
     CU_CHECK(cudaFree(d_r));
     return;
 }
+
+#ifdef _REAL_IS_DOUBLE_
+void PTPR_CU::ptpr_cu(double *a, double *c, double *rhs, double *x, int n,
+                      int s) {
+#pragma message " NOT IMPLEMENT."
+}
+
+void PTPR_CU::pcr_cu(double *a, double *c, double *rhs, double *x, int n) {
+#pragma message " NOT IMPLEMENT."
+}
+#endif

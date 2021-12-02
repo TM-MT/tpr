@@ -41,6 +41,7 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCU_ARCH="60" -Dwith_ACC=no -DRandom_BuildTe
 #### CMake Options
  - `-D CMAKE_BUILD_TYPE={Release|Debug}`: Build type
  - `-D with_PAPI={path/to/papi|OFF}` : Specify path to PAPI installed directory. The default is `OFF`
+ - `-D REAL_TYPE={float|double}`: Specify real type of floating point. The default is `float`.
  - `-D TPR_PERF={no|yes}`: Enable Performance monitoring for each stage in TPR. This option may affect the performance.
  - `-D with_LAPACK={no|yes}`: Enable REFERENCE LAPACK `sgtsv` function. Require [Reference LAPACK](http://netlib.org/lapack/) and LAPACKE, and can be found by `FindLAPACK` module provided by cmake.
  - `-D ENABLE_TEST={no|yes}`: Enable building test. The default is `no`

@@ -1,4 +1,6 @@
 #pragma once
+#include "lib.hpp"
+
 #ifdef __NVCC__
 #include <cublasLt.h>
 #include <cublas_v2.h>
@@ -6,25 +8,30 @@
 #include <cusparse.h>
 
 class REFERENCE_CUSPARSE {
-    float *diag;
+    real* diag;
     cusparseHandle_t cusparseH = NULL;
     cublasHandle_t cublasH = NULL;
     cudaStream_t stream = NULL;
     // device memory
-    float *dl, *d, *du, *db;
-    void *pBuffer;
+    real *dl, *d, *du, *db;
+    void* pBuffer;
     int size_of_mem;
 
    public:
     REFERENCE_CUSPARSE(int n);
     ~REFERENCE_CUSPARSE();
-    void solve(float *a, float *c, float *rhs, float *x, int n);
+    void calc_buffer_size(cusparseHandle_t handle, int m, int n, const real* dl,
+                          const real* d, const real* du, const real* B, int ldb,
+                          size_t* bufferSizeInBytes);
+    void gtsv(cusparseHandle_t handle, int m, int n, const real* dl,
+              const real* d, const real* du, real* B, int ldb, void* pBuffer);
+    void solve(real* a, real* c, real* rhs, real* x, int n);
 };
 #else
 class REFERENCE_CUSPARSE {
    public:
     REFERENCE_CUSPARSE(int n);
     ~REFERENCE_CUSPARSE();
-    void solve(float *a, float *c, float *rhs, float *x, int n);
+    void solve(real *a, real *c, real *rhs, real *x, int n);
 };
 #endif

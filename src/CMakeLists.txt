@@ -10,6 +10,14 @@ if(BUILD_CUDA)
         PROPERTY COMPILE_DEFINITIONS BUILD_CUDA)
 endif()
 
+if(REAL_TYPE STREQUAL "double")
+    message("Using double precision")
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
+endif()
+
 set(PROJECT_INC_DIR
     "${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/PMlib/include")
 set_property(

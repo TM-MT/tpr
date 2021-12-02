@@ -63,18 +63,24 @@ std::vector<std::string> get_input_files() {
 }
 
 std::vector<real> read_xtrue(int n) {
+    std::vector<double> tmp;
     std::vector<real> ret;
+    tmp.resize(n);
     ret.resize(n);
     auto path = std::string(INPUTS_DIR "/xt.txt");
     FILE *fp = fopen(path.c_str(), "r");
 
     if (fp != nullptr) {
         for (int i = 0; i < n; i++) {
-            assert(fscanf(fp, "%f", &ret[i]) == 1);
+            assert(fscanf(fp, "%lf", &tmp[i]) == 1);
         }
     } else {
         std::cerr << "Failed to read " << path << "\n";
         exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < n; i++) {
+        ret[i] = static_cast<real>(tmp[i]);
     }
 
     fclose(fp);

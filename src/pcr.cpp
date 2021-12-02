@@ -30,7 +30,7 @@ int PCR::solve() {
             for (int k = 0; k < s; k++) {
                 int kr = k + s;
 
-                real e = 1.0f / (1.0f - c[k] * a[kr]);
+                real e = one / (one - c[k] * a[kr]);
 
                 a1[k] = e * a[k];
                 c1[k] = -e * c[k] * c[kr];
@@ -49,7 +49,7 @@ int PCR::solve() {
                 real ap = a[k];
                 real cp = c[k];
 
-                real e = 1.0f / (1.0f - ap * c[kl] - cp * a[kr]);
+                real e = one / (one - ap * c[kl] - cp * a[kr]);
 
                 a1[k] = -e * ap * a[kl];
                 c1[k] = -e * cp * c[kr];
@@ -67,7 +67,7 @@ int PCR::solve() {
                 real ap = a[k];
                 real cp = c[k];
 
-                real e = 1.0f / (1.0f - ap * c[kl]);
+                real e = one / (one - ap * c[kl]);
 
                 a1[k] = -e * ap * a[kl];
                 c1[k] = e * cp;

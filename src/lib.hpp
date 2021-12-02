@@ -3,7 +3,13 @@
 #include <cmath>
 #include <iostream>
 
+#ifdef _REAL_IS_DOUBLE_
+using real = double;
+const double one = 1.0;
+#else
 using real = float;
+const float one = 1.0f;
+#endif
 
 // pure function
 #ifdef __GNUC__

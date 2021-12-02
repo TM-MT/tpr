@@ -719,3 +719,14 @@ void TPR_CU::cr_cu(float *a, float *c, float *rhs, float *x, int n) {
     CU_CHECK(cudaFree(d_x));
     return;
 }
+
+#ifdef _REAL_IS_DOUBLE_
+void TPR_CU::tpr_cu(double *a, double *c, double *rhs, double *x, int n,
+                    int s) {
+#pragma message " NOT IMPLEMENT."
+}
+
+void TPR_CU::cr_cu(double *a, double *c, double *rhs, double *x, int n) {
+#pragma message " NOT IMPLEMENT."
+}
+#endif
