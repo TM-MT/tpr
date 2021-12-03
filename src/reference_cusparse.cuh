@@ -8,7 +8,6 @@
 #include <cusparse.h>
 
 class REFERENCE_CUSPARSE {
-    real* diag;
     cusparseHandle_t cusparseH = NULL;
     cublasHandle_t cublasH = NULL;
     cudaStream_t stream = NULL;
@@ -25,6 +24,7 @@ class REFERENCE_CUSPARSE {
                           size_t* bufferSizeInBytes);
     void gtsv(cusparseHandle_t handle, int m, int n, const real* dl,
               const real* d, const real* du, real* B, int ldb, void* pBuffer);
+    void solve(real* a, real* diag, real* c, real* rhs, real* x, int n);
     void solve(real* a, real* c, real* rhs, real* x, int n);
 };
 #else
@@ -32,6 +32,7 @@ class REFERENCE_CUSPARSE {
    public:
     REFERENCE_CUSPARSE(int n);
     ~REFERENCE_CUSPARSE();
-    void solve(real *a, real *c, real *rhs, real *x, int n);
+    void solve(real* a, real* diag, real* c, real* rhs, real* x, int n);
+    void solve(real* a, real* c, real* rhs, real* x, int n);
 };
 #endif
