@@ -128,15 +128,10 @@ double eval(T &solver, trisys::TRIDIAG_SYSTEM &sys, std::vector<real> &xtruth) {
 template <typename T>
 double cu_eval(T &solver, trisys::TRIDIAG_SYSTEM &sys,
                std::vector<real> &xtruth) {
-    for (int i = 0; i < sys.n; i++) {
-        sys.a[i] /= sys.diag[i];
-        sys.c[i] /= sys.diag[i];
-        sys.rhs[i] = sys.diag[i];
-    }
     std::vector<real> solution;
     solution.resize(sys.n);
 
-    solver.solve(sys.a, sys.c, sys.rhs, &solution[0], sys.n);
+    solver.solve(sys.a, sys.diag, sys.c, sys.rhs, &solution[0], sys.n);
 
     return norm(&solution[0], &xtruth[0], sys.n);
 }
@@ -164,11 +159,11 @@ fs::path filename(std::string &path) { return fs::path(path).filename(); }
                #SOLVER, N, 0, norm);                                   \
     }
 
-// For cusparse, CUTPR, CUPTPR
+// For cusparse
 #define CU_EVAL_AND_PRINT(SOLVER, FILENAME, N)                         \
     {                                                                  \
         input.assign();                                                \
-        SOLVER solver(N);                                              \
+        SOLVER solver(input.sys.n);                                    \
         double norm = nstab::cu_eval(solver, input.sys, xt);           \
         printf("%s,%s,%d,%d,%le\n", nstab::filename(FILENAME).c_str(), \
                #SOLVER, N, 0, norm);                                   \

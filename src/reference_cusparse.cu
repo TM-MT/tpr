@@ -60,11 +60,6 @@
  * @param[in]  n     The order of A
  */
 REFERENCE_CUSPARSE::REFERENCE_CUSPARSE(int n) {
-    diag = (real*)malloc(n * sizeof(real));
-    for (int i = 0; i < n; i++) {
-        diag[i] = 1.0;
-    }
-
     size_of_mem = n * sizeof(real);
 
     /* step 1: create cusparse/cublas handle, bind a stream */
@@ -94,8 +89,6 @@ REFERENCE_CUSPARSE::~REFERENCE_CUSPARSE() {
     if (stream) cudaStreamDestroy(stream);
 
     cudaDeviceReset();
-
-    free(diag);
 }
 
 /**
@@ -163,13 +156,15 @@ void REFERENCE_CUSPARSE::gtsv(cusparseHandle_t handle, int m, int n,
  * @note       Only works in a block.
  *
  * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param      diag  diag[0:n] The diagonal elements of A.
  * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
  *                   0.0
  * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
  * @param[out] x     x[0:n] for the solution
  * @param[in]  n     The order of A. `n` should be power of 2
  */
-void REFERENCE_CUSPARSE::solve(real* a, real* c, real* rhs, real* x, int n) {
+void REFERENCE_CUSPARSE::solve(real* a, real* diag, real* c, real* rhs, real* x,
+                               int n) {
     /* step 3: prepare data in device */
     CU_CHECK(cudaMemcpy(dl, a, size_of_mem, cudaMemcpyHostToDevice));
     CU_CHECK(cudaMemcpy(d, diag, size_of_mem, cudaMemcpyHostToDevice));
@@ -207,4 +202,15 @@ void REFERENCE_CUSPARSE::solve(real* a, real* c, real* rhs, real* x, int n) {
     CU_CHECK(cudaFree(pBuffer));
 
     return;
+}
+
+void REFERENCE_CUSPARSE::solve(real* a, real* c, real* rhs, real* x, int n) {
+    real* diag = new real[n];
+    for (int i = 0; i < n; i++) {
+        diag[i] = 1.0;
+    }
+    solve(a, diag, c, rhs, x, n);
+
+    printf("NUKO\n");
+    delete[] diag;
 }
