@@ -9,6 +9,10 @@
 #include "lib.hpp"
 #include "pcr.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+using namespace PCRSingleThread;
+#endif
+
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
  *
@@ -37,18 +41,18 @@ struct EquationInfo {
 };
 }  // namespace PTPR_Helpers
 
-class PTPR : Solver {
+class PTPR : public Solver {
     real *a, *c, *rhs, *x;
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
-    real *inter_a, *inter_c, *inter_rhs;
+    real *bkup_a, *bkup_c, *bkup_rhs;
     PCR st2solver;
     int n, s, m;
 
    public:
     PTPR(real *a, real *diag, real *c, real *rhs, int n, int s) {
         init(n, s);
-        set_tridiagonal_system(a, c, rhs);
+        set_tridiagonal_system(a, diag, c, rhs);
     };
 
     PTPR(int n, int s) { init(n, s); };
@@ -62,20 +66,9 @@ class PTPR : Solver {
         SAFE_DELETE(this->st2_a);
         SAFE_DELETE(this->st2_c);
         SAFE_DELETE(this->st2_rhs);
-        SAFE_DELETE(this->inter_a);
-        SAFE_DELETE(this->inter_c);
-        SAFE_DELETE(this->inter_rhs);
-#ifdef _OPENACC
-#pragma acc exit data delete (aa[:n], cc[:n], rr[:n])
-#pragma acc exit data delete (this->x [-1:n + 1])
-#pragma acc exit data delete ( \
-    this->st2_a[:n / s], this->st2_c[:n / s], this->st2_rhs[:n / s])
-#pragma acc exit data delete (                                                 \
-    this->inter_a[:2 * n / s], this->inter_c[:2 * n / s], this->inter_rhs[:2 * \
-                                                                           n / \
-                                                                           s])
-#pragma acc exit data delete (this->n, this->s, this)
-#endif
+        SAFE_DELETE(this->bkup_a);
+        SAFE_DELETE(this->bkup_c);
+        SAFE_DELETE(this->bkup_rhs);
     }
 
     PTPR(const PTPR &ptpr) {
@@ -84,6 +77,17 @@ class PTPR : Solver {
         init(ptpr.n, ptpr.s);
     };
 
+    void set_tridiagonal_system(real *input_a, real *input_diag, real *input_c,
+                                real *input_rhs) {
+        // set diag[i] = 1.0
+        for (int i = 0; i < this->n; i++) {
+            input_a[i] /= input_diag[i];
+            input_c[i] /= input_diag[i];
+            input_rhs[i] /= input_diag[i];
+        }
+
+        set_tridiagonal_system(input_a, input_c, input_rhs);
+    };
     void set_tridiagonal_system(real *a, real *c, real *rhs);
 
     void clear();
@@ -100,6 +104,7 @@ class PTPR : Solver {
     PTPR_Helpers::EquationInfo update_lower_no_check(int kl, int k);
 
     void tpr_stage1();
+    void tpr_inter();
     void tpr_stage2();
     void tpr_stage3();
 };

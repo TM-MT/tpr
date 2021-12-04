@@ -51,4 +51,8 @@ std::array<dim3, 2> n2dim(int n, int s, int dev);
 namespace PTPR_CU {
 void ptpr_cu(float *a, float *c, float *rhs, float *x, int n, int s);
 void pcr_cu(float *a, float *c, float *rhs, float *x, int n);
+#ifdef _REAL_IS_DOUBLE_
+void ptpr_cu(double *a, double *c, double *rhs, double *x, int n, int s);
+void pcr_cu(double *a, double *c, double *rhs, double *x, int n);
+#endif
 }  // namespace PTPR_CU

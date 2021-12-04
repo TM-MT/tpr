@@ -4,6 +4,10 @@
 
 #include "lib.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+namespace PCRSingleThread {
+#endif
+
 /**
  * @brief solve
  * @return num of float operation
@@ -11,38 +15,31 @@
 int PCR::solve() {
     int pn = fllog2(this->n);
 
-#pragma acc data present(                                           \
-    this->a[:n], this->c[:n], this->rhs[:n], this->a1[:n], this->c1 \
-    [:n], this->rhs1                                                \
-    [:n], this, this->n)
     for (int p = 0; p < pn - 1; p++) {
         int s = 1 << p;
 
-#pragma acc kernels copyin(s)
-#ifdef _OPENMP
+#ifndef PCR_SINGLE_THREAD
 #pragma omp parallel shared(a1, c1, rhs1)
 #endif
         {
-#ifdef _OPENACC
-#pragma acc loop independent
-#endif
-#ifdef _OPENMP
+#ifdef PCR_SINGLE_THREAD
+#pragma omp simd
+#else
 #pragma omp for schedule(static)
 #endif
             for (int k = 0; k < s; k++) {
                 int kr = k + s;
 
-                real e = 1.0 / (1.0 - c[k] * a[kr]);
+                real e = one / (one - c[k] * a[kr]);
 
                 a1[k] = e * a[k];
                 c1[k] = -e * c[k] * c[kr];
                 rhs1[k] = e * (rhs[k] - c[k] * rhs[kr]);
             }
 
-#ifdef _OPENACC
-#pragma acc loop independent
-#endif
-#ifdef _OPENMP
+#ifdef PCR_SINGLE_THREAD
+#pragma omp simd
+#else
 #pragma omp for schedule(static)
 #endif
             for (int k = s; k < n - s; k++) {
@@ -52,17 +49,16 @@ int PCR::solve() {
                 real ap = a[k];
                 real cp = c[k];
 
-                real e = 1.0 / (1.0 - ap * c[kl] - cp * a[kr]);
+                real e = one / (one - ap * c[kl] - cp * a[kr]);
 
                 a1[k] = -e * ap * a[kl];
                 c1[k] = -e * cp * c[kr];
                 rhs1[k] = e * (rhs[k] - ap * rhs[kl] - cp * rhs[kr]);
             }
 
-#ifdef _OPENACC
-#pragma acc loop independent
-#endif
-#ifdef _OPENMP
+#ifdef PCR_SINGLE_THREAD
+#pragma omp simd
+#else
 #pragma omp for schedule(static)
 #endif
             for (int k = n - s; k < n; k++) {
@@ -71,14 +67,16 @@ int PCR::solve() {
                 real ap = a[k];
                 real cp = c[k];
 
-                real e = 1.0 / (1.0 - ap * c[kl]);
+                real e = one / (one - ap * c[kl]);
 
                 a1[k] = -e * ap * a[kl];
                 c1[k] = e * cp;
                 rhs1[k] = e * (rhs[k] - ap * rhs[kl]);
             }
 
-#pragma acc loop
+#ifndef PCR_SINGLE_THREAD
+#pragma omp for schedule(static)
+#endif
             for (int k = 0; k < n; k++) {
                 a[k] = a1[k];
                 c[k] = c1[k];
@@ -93,13 +91,15 @@ int PCR::solve() {
 /**
  * @brief get the answer
  *
- * @note [OpenACC] assert `*x` exists at the device
  * @return num of float operation
  */
 int PCR::get_ans(real *x) {
-#pragma acc kernels loop present(x[:n], this, this->rhs[:n])
     for (int i = 0; i < n; i++) {
         x[i] = this->rhs[i];
     }
     return 0;
 };
+
+#ifdef PCR_SINGLE_THREAD
+}  // namespace PCRSingleThread
+#endif

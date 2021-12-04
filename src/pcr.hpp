@@ -1,6 +1,10 @@
 #pragma once
 #include "lib.hpp"
 
+#ifdef PCR_SINGLE_THREAD
+namespace PCRSingleThread {
+#endif
+
 class PCR : Solver {
     real *a, *c, *rhs;
     real *a1, *c1, *rhs1;
@@ -9,8 +13,10 @@ class PCR : Solver {
    public:
     PCR(real *a, real *diag, real *c, real *rhs, int n) {
         init(n);
-        set_tridiagonal_system(a, diag, c, rhs);
+        set_tridiagonal_system(a, c, rhs);
     };
+
+    PCR(int n) { init(n); }
 
     PCR(){};
 
@@ -18,10 +24,6 @@ class PCR : Solver {
         delete[] this->a1;
         delete[] this->c1;
         delete[] this->rhs1;
-
-#pragma acc exit data detach(this->a, this->c, this->rhs)
-#pragma acc exit data delete (a1[:n], c1[:n], rhs1[:n])
-#pragma acc exit data delete (this)
     }
 
     PCR(const PCR &pcr) {
@@ -35,21 +37,32 @@ class PCR : Solver {
         this->a1 = new real[n];
         this->c1 = new real[n];
         this->rhs1 = new real[n];
-
-#pragma acc enter data copyin(this)
-#pragma acc enter data create(a1[:n], c1[:n], rhs1[:n])
     }
 
     void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
+        if (diag != nullptr) {
+            // set diag[i] = 1.0
+            for (int i = 0; i < this->n; i++) {
+                a[i] /= diag[i];
+                c[i] /= diag[i];
+                rhs[i] /= diag[i];
+            }
+        }
+
+        set_tridiagonal_system(a, c, rhs);
+    }
+
+    void set_tridiagonal_system(real *a, real *c, real *rhs) {
         this->a = a;
         this->c = c;
         this->rhs = rhs;
-
-#pragma acc update device(this)
-#pragma acc enter data attach(this->a, this->c, this->rhs)
     }
 
     int solve();
 
     int get_ans(real *x);
 };
+
+#ifdef PCR_SINGLE_THREAD
+}
+#endif

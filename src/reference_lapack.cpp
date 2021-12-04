@@ -2,25 +2,45 @@
 
 #include <lapacke.h>
 
+#include <cmath>
+
 #include "lib.hpp"
 
 /**
  * @brief set Tridiagnoal System
- * @note [OpenACC] given arrays are exists on the device
  *
  * @param a [description]
  * @param diag [description]
  * @param c [description]
  * @param rhs [description]
  */
+void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *diag, real *c,
+                                              real *rhs) {
+    this->dl = a;
+    this->d = diag;
+    this->du = c;
+    this->b = rhs;
+}
+
+/**
+ * @brief set Tridiagnoal System
+ * @note call this may overwrite `this->d`
+ *
+ * @param a [description]
+ * @param c [description]
+ * @param rhs [description]
+ */
 void REFERENCE_LAPACK::set_tridiagonal_system(real *a, real *c, real *rhs) {
     this->dl = a;
+    this->diag_allocated = true;
+    delete[] this->d;
+    this->d = new real[this->n];
     this->du = c;
     this->b = rhs;
 
     // d[0:n] = ones(0:n)
     for (int i = 0; i < this->n; i++) {
-        this->d[i] = 1.0;
+        this->d[i] = 1.0f;
     }
 }
 
@@ -35,6 +55,9 @@ int REFERENCE_LAPACK::solve() {
     // > 0: if INFO = i, U(i,i) is exactly zero, and the solution
     //    has not been computed.  The factorization has not been
     //    completed unless i = N.
+    //
+    // when INFO < 0 -> show message and exit
+    // when INFO > 0 -> show message ONLY
     if (this->info != 0) {  // if not successful
         char error_message[256];
         if (this->info < 0) {
@@ -50,7 +73,11 @@ int REFERENCE_LAPACK::solve() {
             stderr,
             "[Reference Lapack][Error] (error code: %d) `%s` at %s line %d\n",
             info, error_message, __FILE__, __LINE__);
-        exit(EXIT_FAILURE);
+
+        // when `info < 0`, this is fatal error
+        if (this->info < 0) {
+            exit(EXIT_FAILURE);
+        }
     }
 
     return static_cast<int>(info);
@@ -59,14 +86,22 @@ int REFERENCE_LAPACK::solve() {
 /**
  * @brief get the answer
  *
- * @note [OpenACC] assert `*x` exists at the device
  * @param x x[0:n]
  */
 int REFERENCE_LAPACK::get_ans(real *x) {
-    assert(this->info == 0);  // successful exit
-    for (int i = 0; i < n; i++) {
-        x[i] = this->b[i];
+    if (this->info == 0) {  // On successful exit
+        for (int i = 0; i < n; i++) {
+            x[i] = this->b[i];
+        }
+    } else if (this->info > 0) {  // the solution has not been computed
+        for (int i = 0; i < n; i++) {
+            x[i] = NAN;
+        }
+    } else {
+        assert(false);
     }
+
+    this->info = -1;
     return 0;
 }
 

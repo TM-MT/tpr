@@ -9,6 +9,10 @@
 #include "cr.hpp"
 #include "lib.hpp"
 
+#ifdef CR_SINGLE_THREAD
+using namespace CRSingleThread;
+#endif
+
 /**
  * @brief      x = (real *)malloc(sizeof(real) * n)
  *
@@ -41,7 +45,6 @@ class TPR : Solver {
     real *a, *c, *rhs, *x;
     real *aa, *cc, *rr;
     real *st2_a, *st2_c, *st2_rhs;
-    real *inter_a, *inter_c, *inter_rhs;
     real *bkup_a, *bkup_c, *bkup_rhs;
     CR st2solver;
     int n, s, m;
@@ -63,30 +66,26 @@ class TPR : Solver {
         SAFE_DELETE(this->st2_a);
         SAFE_DELETE(this->st2_c);
         SAFE_DELETE(this->st2_rhs);
-        SAFE_DELETE(this->inter_a);
-        SAFE_DELETE(this->inter_c);
-        SAFE_DELETE(this->inter_rhs);
         SAFE_DELETE(this->bkup_a);
         SAFE_DELETE(this->bkup_c);
         SAFE_DELETE(this->bkup_rhs);
-#ifdef _OPENACC
-#pragma acc exit data delete (aa[:n], cc[:n], rr[:n])
-#pragma acc exit data delete (this->x[:n])
-#pragma acc exit data delete (bkup_a[:n], bkup_c[:n], bkup_rhs[:n])
-#pragma acc exit data delete ( \
-    this->st2_a[:n / s], this->st2_c[:n / s], this->st2_rhs[:n / s])
-#pragma acc exit data delete (                                                 \
-    this->inter_a[:2 * n / s], this->inter_c[:2 * n / s], this->inter_rhs[:2 * \
-                                                                           n / \
-                                                                           s])
-#pragma acc exit data delete (this)
-#endif
     }
 
     TPR(const TPR &tpr) {
         n = tpr.n;
         s = tpr.s;
         init(tpr.n, tpr.s);
+    };
+
+    void set_tridiagonal_system(real *a, real *diag, real *c, real *rhs) {
+        // set diag[i] = 1.0
+        for (int i = 0; i < this->n; i++) {
+            a[i] /= diag[i];
+            c[i] /= diag[i];
+            rhs[i] /= diag[i];
+        }
+
+        set_tridiagonal_system(a, c, rhs);
     };
 
     void set_tridiagonal_system(real *a, real *c, real *rhs);
@@ -107,6 +106,7 @@ class TPR : Solver {
     void st3_replace();
 
     void tpr_stage1();
+    void tpr_inter();
     void tpr_stage2();
     void tpr_stage3();
 };

@@ -165,9 +165,6 @@ int main(int argc, char *argv[]) {
             TPR t(input.sys.n, s);
             for (int i = 0; i < iter_times; i++) {
                 input.assign();
-#pragma acc data copy(                                                  \
-    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
-    [:n], input.sys.n)
                 {
                     t.set_tridiagonal_system(input.sys.a, input.sys.c,
                                              input.sys.rhs);
@@ -185,9 +182,6 @@ int main(int argc, char *argv[]) {
             PTPR t(input.sys.n, s);
             for (int i = 0; i < iter_times; i++) {
                 input.assign();
-#pragma acc data copy(                                                  \
-    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
-    [:n], input.sys.n)
                 {
                     t.set_tridiagonal_system(input.sys.a, input.sys.c,
                                              input.sys.rhs);
@@ -203,10 +197,6 @@ int main(int argc, char *argv[]) {
             pmcpp::pm.setProperties(pcr_label);
             for (int i = 0; i < iter_times; i++) {
                 input.assign();
-
-#pragma acc data copy(                                                  \
-    input.sys.a[:n], input.sys.diag[:n], input.sys.c[:n], input.sys.rhs \
-    [:n], input.sys.n)
                 {
                     PCR p(input.sys.a, input.sys.diag, input.sys.c,
                           input.sys.rhs, input.sys.n);

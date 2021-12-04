@@ -3,18 +3,19 @@ if(TPR_PROJECT AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(backward-cpp)
 endif()
 
-if(REAL_TYPE STREQUAL "double")
-    set_property(
-        DIRECTORY ${PROJECT_SOURCE_DIR}/src
-        APPEND
-        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
-endif()
-
 if(BUILD_CUDA)
     set_property(
         DIRECTORY ${PROJECT_SOURCE_DIR}/src
         APPEND
         PROPERTY COMPILE_DEFINITIONS BUILD_CUDA)
+endif()
+
+if(REAL_TYPE STREQUAL "double")
+    message("Using double precision")
+    set_property(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
 endif()
 
 set(PROJECT_INC_DIR
@@ -56,14 +57,22 @@ if(TPR_PERF)
 endif()
 
 # TPR
-add_library(tpr tpr.cpp)
+add_library(tpr tpr.cpp cr.cpp)
 target_include_directories(tpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(tpr PUBLIC libcr tpr_perf)
+target_link_libraries(tpr PRIVATE tpr_perf)
+set_property(
+    TARGET tpr
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS CR_SINGLE_THREAD="yes")
 
 # PTPR
-add_library(ptpr ptpr.cpp)
+add_library(ptpr ptpr.cpp pcr.cpp)
 target_include_directories(ptpr PUBLIC ${PROJECT_INC_DIR})
-target_link_libraries(ptpr PUBLIC libpcr tpr_perf)
+target_link_libraries(ptpr PRIVATE tpr_perf)
+set_property(
+    TARGET ptpr
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS PCR_SINGLE_THREAD="yes")
 
 if(${OPT_PAPI})
     target_link_libraries(ptpr PUBLIC papi_ext "${PAPI_STATIC_LIB}")
@@ -81,7 +90,7 @@ if(BUILD_CUDA)
     add_library(ref_cusp STATIC reference_cusparse.cu reference_cusparse.cuh)
     set_target_properties(ref_cusp PROPERTIES POSITION_INDEPENDENT_CODE ON
                                               CUDA_SEPARABLE_COMPILATION ON)
-    target_link_libraries(ref_cusp PRIVATE cusparse cublas cudart)
+    target_link_libraries(ref_cusp PUBLIC cusparse cublas cudart)
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
         set_property(
             TARGET tpr_cu
@@ -114,6 +123,11 @@ endif()
 
 # build sample main and benchmark program
 if(TPR_PROJECT)
+    set(INPUTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/inputs")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/system.hpp.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/system.hpp USE_SOURCE_PERMISSIONS @ONLY)
+
     # Tridiagonal system
     add_library(trisys system.cpp system.hpp lib.hpp)
     target_link_libraries(trisys PRIVATE effolkronium_random)
@@ -141,6 +155,27 @@ if(TPR_PROJECT)
         if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
             set_property(
                 TARGET tpr_main
+                APPEND
+                PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
+        endif()
+    endif()
+
+    # Numerical Stability Test Program
+    add_executable(nstab numerical_stability.cpp)
+    target_link_libraries(nstab PUBLIC trisys libcr libpcr tpr ptpr)
+    if(with_LAPACK)
+        target_link_libraries(nstab PUBLIC ref_lapack)
+    endif()
+    target_include_directories(nstab PUBLIC ${PROJECT_INC_DIR})
+    set_property(TARGET nstab PROPERTY COMPILE_DEFINITIONS TPR_PERF="off")
+
+    if(BUILD_CUDA)
+        target_link_libraries(nstab PUBLIC ref_cusp cusparse cublas cudart)
+        target_include_directories(nstab PRIVATE ${CUDA_INCLUDE_DIRS})
+
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+            set_property(
+                TARGET nstab
                 APPEND
                 PROPERTY CUDA_ARCHITECTURES ${CU_ARCH})
         endif()
