@@ -211,6 +211,5 @@ void REFERENCE_CUSPARSE::solve(real* a, real* c, real* rhs, real* x, int n) {
     }
     solve(a, diag, c, rhs, x, n);
 
-    printf("NUKO\n");
     delete[] diag;
 }
