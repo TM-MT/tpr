@@ -15,7 +15,7 @@ namespace PCRSingleThread {
 int PCR::solve() {
     int pn = fllog2(this->n);
 
-    for (int p = 0; p < pn - 1; p++) {
+    for (int p = 0; p < pn; p++) {
         int s = 1 << p;
 
 #ifndef PCR_SINGLE_THREAD
