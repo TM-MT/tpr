@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <float.h>
 
 #include <array>
 
@@ -194,7 +193,7 @@ void PTPR::tpr_stage1() {
         {
             int ed = st + s - 1;
             real s1;
-            if (fabs(this->c[ed]) < DBL_EPSILON) {
+            if (fabs(this->c[ed]) < machine_epsilon) {
                 s1 = -1.0;
             } else {
                 s1 = -this->c[st] / this->c[ed];
