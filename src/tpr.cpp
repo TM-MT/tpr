@@ -214,20 +214,17 @@ void TPR::tpr_stage1() {
 
         // Update by E_{st} and E_{ed}
         {
-            // EquationInfo eqi = update_uppper_no_check(st, ed);
-            int k = st, kr = st + s - 1;
-            real ak = a[k];
-            real akr = a[kr];
-            real ck = c[k];
-            real ckr = c[kr];
-            real rhsk = rhs[k];
-            real rhskr = rhs[kr];
+            int ed = st + s - 1;
+            real s1;
+            if (fabs(this->c[ed]) < machine_epsilon) {
+                s1 = -1.0;
+            } else {
+                s1 = -this->c[st] / this->c[ed];
+            }
 
-            real inv_diag_k = one / (one - akr * ck);
-
-            this->a[k] = inv_diag_k * ak;
-            this->c[k] = -inv_diag_k * ckr * ck;
-            this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+            this->a[st] += s1 * this->a[ed];
+            this->c[st] = s1;
+            this->rhs[st] += s1 * this->rhs[ed];
         }
     }
 }
