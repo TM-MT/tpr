@@ -4,14 +4,16 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+
+#include "lib.hpp"
 #define EPS 1e-3
 
 class TPR_ANS {
    public:
     int n;
     int s;
-    float *x;
-    std::vector<float> data;
+    real *x;
+    std::vector<real> data;
 
     TPR_ANS(int n) {
         this->n = n;
@@ -51,7 +53,7 @@ class TPR_ANS {
     }
 
    private:
-    bool fequal(float a, float b) {
+    bool fequal(real a, real b) {
         return fabs(a - b) <= EPS * fmax(1, fmax(fabs(a), fabs(b)));
     }
 };

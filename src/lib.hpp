@@ -1,9 +1,19 @@
 #pragma once
+#include <float.h>
+
 #include <cassert>
 #include <cmath>
 #include <iostream>
 
+#ifdef _REAL_IS_DOUBLE_
+using real = double;
+const double one = 1.0;
+const double machine_epsilon = DBL_EPSILON;
+#else
 using real = float;
+const float one = 1.0f;
+const float machine_epsilon = FLT_EPSILON;
+#endif
 
 // pure function
 #ifdef __GNUC__

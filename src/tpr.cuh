@@ -50,4 +50,8 @@ std::array<dim3, 2> n2dim(int n, int s, int dev);
 namespace TPR_CU {
 void tpr_cu(float *a, float *c, float *rhs, float *x, int n, int s);
 void cr_cu(float *a, float *c, float *rhs, float *x, int n);
+#ifdef _REAL_IS_DOUBLE_
+void tpr_cu(double *a, double *c, double *rhs, double *x, int n, int s);
+void cr_cu(double *a, double *c, double *rhs, double *x, int n);
+#endif
 }  // namespace TPR_CU

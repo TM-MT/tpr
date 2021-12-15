@@ -93,8 +93,8 @@ void TPR::init(int n, int s) {
  * @return     num of float operation
  */
 int TPR::solve() {
-    int fp_st1 = 28 * n - 14;
-    int fp_st2 = 14 * m - 19 + 4 * m;
+    int fp_st1 = 28 * n - 14 * m;
+    int fp_st2 = 9 * (m - 1) + 17 * m;
     int fp_st3 = m * 4 * (s - 1);
 
     // STAGE 1
@@ -102,10 +102,9 @@ int TPR::solve() {
     tpr_stage1();
     tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
 
-    tpr_inter();
-
     // STAGE 2
     tprperf::start(tprperf::Labels::st2);
+    tpr_inter();
     tpr_stage2();
     tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
 
@@ -143,7 +142,7 @@ void TPR::tpr_stage1() {
             {
                 int k = st;
                 int kr = st + u;
-                real inv_diag_k = 1.0f / (1.0f - a[kr] * c[k]);
+                real inv_diag_k = one / (one - a[kr] * c[k]);
 
                 aa[k] = inv_diag_k * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -158,7 +157,7 @@ void TPR::tpr_stage1() {
                 int kl = i - u;
                 int k = i;
                 int kr = i + u;
-                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = one / (one - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -174,7 +173,7 @@ void TPR::tpr_stage1() {
                 int kl = i - u;
                 int k = i;
                 int kr = i + u;
-                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = one / (one - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -185,7 +184,7 @@ void TPR::tpr_stage1() {
             {
                 int kl = ed - u;
                 int k = ed;
-                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k]);
+                real inv_diag_k = one / (one - c[kl] * a[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = inv_diag_k * c[k];
@@ -215,20 +214,17 @@ void TPR::tpr_stage1() {
 
         // Update by E_{st} and E_{ed}
         {
-            // EquationInfo eqi = update_uppper_no_check(st, ed);
-            int k = st, kr = st + s - 1;
-            real ak = a[k];
-            real akr = a[kr];
-            real ck = c[k];
-            real ckr = c[kr];
-            real rhsk = rhs[k];
-            real rhskr = rhs[kr];
+            int ed = st + s - 1;
+            real s1;
+            if (fabs(this->c[ed]) < machine_epsilon) {
+                s1 = -1.0;
+            } else {
+                s1 = -this->c[st] / this->c[ed];
+            }
 
-            real inv_diag_k = 1.0f / (1.0f - akr * ck);
-
-            this->a[k] = inv_diag_k * ak;
-            this->c[k] = -inv_diag_k * ckr * ck;
-            this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+            this->a[st] += s1 * this->a[ed];
+            this->c[st] = s1;
+            this->rhs[st] += s1 * this->rhs[ed];
         }
     }
 }
@@ -248,7 +244,7 @@ void TPR::tpr_inter() {
         real rhsk = this->rhs[k];
         real rhskr = this->rhs[kr];
 
-        real inv_diag_k = 1.0f / (1.0f - akr * ck);
+        real inv_diag_k = one / (one - akr * ck);
 
         int dst = i / this->s;
         this->st2_a[dst] = inv_diag_k * ak;
@@ -324,7 +320,7 @@ EquationInfo TPR::update_no_check(int kl, int k, int kr) {
     real rhsk = rhs[k];
     real rhskr = rhs[kr];
 
-    real inv_diag_k = 1.0f / (1.0f - ckl * ak - akr * ck);
+    real inv_diag_k = one / (one - ckl * ak - akr * ck);
 
     EquationInfo eqi;
     eqi.idx = k;
@@ -345,7 +341,7 @@ EquationInfo TPR::update_uppper_no_check(int k, int kr) {
     real rhsk = rhs[k];
     real rhskr = rhs[kr];
 
-    real inv_diag_k = 1.0f / (1.0f - akr * ck);
+    real inv_diag_k = one / (one - akr * ck);
 
     EquationInfo eqi;
     eqi.idx = k;
@@ -366,7 +362,7 @@ EquationInfo TPR::update_lower_no_check(int kl, int k) {
     real rhskl = rhs[kl];
     real rhsk = rhs[k];
 
-    real inv_diag_k = 1.0f / (1.0f - ckl * ak);
+    real inv_diag_k = one / (one - ckl * ak);
 
     EquationInfo eqi;
     eqi.idx = k;

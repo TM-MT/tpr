@@ -60,12 +60,7 @@
  * @param[in]  n     The order of A
  */
 REFERENCE_CUSPARSE::REFERENCE_CUSPARSE(int n) {
-    diag = (float *)malloc(n * sizeof(float));
-    for (int i = 0; i < n; i++) {
-        diag[i] = 1.0;
-    }
-
-    size_of_mem = n * sizeof(float);
+    size_of_mem = n * sizeof(real);
 
     /* step 1: create cusparse/cublas handle, bind a stream */
     CU_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamDefault));
@@ -77,10 +72,10 @@ REFERENCE_CUSPARSE::REFERENCE_CUSPARSE(int n) {
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
 
     /* step 2: allocate device memory */
-    CU_CHECK(cudaMalloc((void **)&dl, size_of_mem));
-    CU_CHECK(cudaMalloc((void **)&d, size_of_mem));
-    CU_CHECK(cudaMalloc((void **)&du, size_of_mem));
-    CU_CHECK(cudaMalloc((void **)&db, size_of_mem));
+    CU_CHECK(cudaMalloc((void**)&dl, size_of_mem));
+    CU_CHECK(cudaMalloc((void**)&d, size_of_mem));
+    CU_CHECK(cudaMalloc((void**)&du, size_of_mem));
+    CU_CHECK(cudaMalloc((void**)&db, size_of_mem));
 }
 
 REFERENCE_CUSPARSE::~REFERENCE_CUSPARSE() {
@@ -94,8 +89,62 @@ REFERENCE_CUSPARSE::~REFERENCE_CUSPARSE() {
     if (stream) cudaStreamDestroy(stream);
 
     cudaDeviceReset();
+}
 
-    free(diag);
+/**
+ * @brief
+ * https://docs.nvidia.com/cuda/cusparse/index.html#gtsv2_nopivot_bufferSize
+ *
+ * @param[in]  handle             The handle
+ * @param[in]  m                  { parameter_description }
+ * @param[in]  n                  { parameter_description }
+ * @param[in]  dl                 { parameter_description }
+ * @param[in]  d                  { parameter_description }
+ * @param[in]  du                 { parameter_description }
+ * @param[in]  B                  { parameter_description }
+ * @param[in]  ldb                The ldb
+ * @param      bufferSizeInBytes  The buffer size in bytes
+ */
+void REFERENCE_CUSPARSE::calc_buffer_size(cusparseHandle_t handle, int m, int n,
+                                          const real* dl, const real* d,
+                                          const real* du, const real* B,
+                                          int ldb, size_t* bufferSizeInBytes) {
+#ifdef _REAL_IS_DOUBLE_
+#define BUF_CALC_FUNC cusparseDgtsv2_nopivot_bufferSizeExt
+#else
+#define BUF_CALC_FUNC cusparseSgtsv2_nopivot_bufferSizeExt
+#endif
+    CUSP_CHECK(
+        BUF_CALC_FUNC(handle, m, n, dl, d, du, B, ldb, bufferSizeInBytes));
+#undef BUF_CALC_FUNC
+}
+
+/**
+ * @brief      https://docs.nvidia.com/cuda/cusparse/index.html#gtsv2_nopivot
+ *
+ * @param[in]  handle   The handle
+ * @param[in]  m        { parameter_description }
+ * @param[in]  n        { parameter_description }
+ * @param[in]  dl       { parameter_description }
+ * @param[in]  d        { parameter_description }
+ * @param[in]  du       { parameter_description }
+ * @param      B        { parameter_description }
+ * @param[in]  ldb      The ldb
+ * @param      pBuffer  The buffer
+ */
+void REFERENCE_CUSPARSE::gtsv(cusparseHandle_t handle, int m, int n,
+                              const real* dl, const real* d, const real* du,
+                              real* B, int ldb, void* pBuffer) {
+#ifdef _REAL_IS_DOUBLE_
+#define GTSV cusparseDgtsv2_nopivot
+#else
+#define GTSV cusparseSgtsv2_nopivot
+#endif
+
+    // execute
+    CUSP_CHECK(GTSV(handle, m, n, dl, d, du, B, ldb, pBuffer));
+
+#undef GTSV
 }
 
 /**
@@ -107,13 +156,14 @@ REFERENCE_CUSPARSE::~REFERENCE_CUSPARSE() {
  * @note       Only works in a block.
  *
  * @param[in]  a     a[0:n] The subdiagonal elements of A. Assert a[0] == 0.0
+ * @param      diag  diag[0:n] The diagonal elements of A.
  * @param[in]  c     c[0:n] The superdiagonal elements of A. Assert c[n-1] ==
  *                   0.0
  * @param[in]  rhs   rhs[0:n] The right-hand-side of the equation.
  * @param[out] x     x[0:n] for the solution
  * @param[in]  n     The order of A. `n` should be power of 2
  */
-void REFERENCE_CUSPARSE::solve(float *a, float *c, float *rhs, float *x,
+void REFERENCE_CUSPARSE::solve(real* a, real* diag, real* c, real* rhs, real* x,
                                int n) {
     /* step 3: prepare data in device */
     CU_CHECK(cudaMemcpy(dl, a, size_of_mem, cudaMemcpyHostToDevice));
@@ -125,10 +175,9 @@ void REFERENCE_CUSPARSE::solve(float *a, float *c, float *rhs, float *x,
 
     // calculate the size of the buffer used in gtsv2_nopivot
     size_t pbuffsize;
-    CUSP_CHECK(cusparseSgtsv2_nopivot_bufferSizeExt(cusparseH, n, 1, dl, d, du,
-                                                    db, n, &pbuffsize));
+    calc_buffer_size(cusparseH, n, 1, dl, d, du, db, n, &pbuffsize);
 
-    CU_CHECK(cudaMalloc((void **)&pBuffer, pbuffsize));
+    CU_CHECK(cudaMalloc((void**)&pBuffer, pbuffsize));
 
     cudaDeviceSynchronize();
 
@@ -138,9 +187,8 @@ void REFERENCE_CUSPARSE::solve(float *a, float *c, float *rhs, float *x,
         pmcpp::DeviceTimer timer;
         timer.start();
 #endif
-        // execute
-        CUSP_CHECK(
-            cusparseSgtsv2_nopivot(cusparseH, n, 1, dl, d, du, db, n, pBuffer));
+
+        gtsv(cusparseH, n, 1, dl, d, du, db, n, pBuffer);
 
 #ifdef TPR_PERF
         timer.stop_and_elapsed(elapsed);  // cudaDeviceSynchronize called
@@ -154,4 +202,14 @@ void REFERENCE_CUSPARSE::solve(float *a, float *c, float *rhs, float *x,
     CU_CHECK(cudaFree(pBuffer));
 
     return;
+}
+
+void REFERENCE_CUSPARSE::solve(real* a, real* c, real* rhs, real* x, int n) {
+    real* diag = new real[n];
+    for (int i = 0; i < n; i++) {
+        diag[i] = 1.0;
+    }
+    solve(a, diag, c, rhs, x, n);
+
+    delete[] diag;
 }

@@ -101,8 +101,8 @@ void PTPR::init(int n, int s) {
  * @return     num of float operation
  */
 int PTPR::solve() {
-    int fp_st1 = m * (14 * s * fllog2(s));
-    int fp_st2 = 14 * m + (m - 1) * 14 + (14 * m * fllog2(m));
+    int fp_st1 = m * (14 * s * fllog2(s)) + 14 * m;
+    int fp_st2 = 9 * (m - 1) + (14 * m * fllog2(m));
     int fp_st3 = m * 4 * (s - 1);
 
     // STAGE 1
@@ -110,10 +110,9 @@ int PTPR::solve() {
     tpr_stage1();
     tprperf::stop(tprperf::Labels::st1, static_cast<double>(fp_st1));
 
-    tpr_inter();
-
     // STAGE 2
     tprperf::start(tprperf::Labels::st2);
+    tpr_inter();
     tpr_stage2();
     tprperf::stop(tprperf::Labels::st2, static_cast<double>(fp_st2));
 
@@ -145,7 +144,7 @@ void PTPR::tpr_stage1() {
                 int k = i;
                 int kr = i + u;
 
-                real inv_diag_k = 1.0f / (1.0f - a[kr] * c[k]);
+                real inv_diag_k = one / (one - a[kr] * c[k]);
 
                 aa[k] = inv_diag_k * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -161,7 +160,7 @@ void PTPR::tpr_stage1() {
                 int kl = i - u;
                 int k = i;
                 int kr = i + u;
-                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k] - a[kr] * c[k]);
+                real inv_diag_k = one / (one - c[kl] * a[k] - a[kr] * c[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = -inv_diag_k * c[kr] * c[k];
@@ -175,7 +174,7 @@ void PTPR::tpr_stage1() {
                 // form update_lower_no_check(i - u, i);
                 int kl = i - u;
                 int k = i;
-                real inv_diag_k = 1.0f / (1.0f - c[kl] * a[k]);
+                real inv_diag_k = one / (one - c[kl] * a[k]);
 
                 aa[k] = -inv_diag_k * a[kl] * a[k];
                 cc[k] = inv_diag_k * c[k];
@@ -192,26 +191,23 @@ void PTPR::tpr_stage1() {
 
         // Update by E_{st} and E_{ed}, make bkup for stage 3 use.
         {
-            // EquationInfo eqi = update_uppper_no_check(st, ed);
-            int k = st, kr = st + s - 1;
-            real ak = a[k];
-            real akr = a[kr];
-            real ck = c[k];
-            real ckr = c[kr];
-            real rhsk = rhs[k];
-            real rhskr = rhs[kr];
-
-            real inv_diag_k = 1.0f / (1.0f - akr * ck);
+            int ed = st + s - 1;
+            real s1;
+            if (fabs(this->c[ed]) < machine_epsilon) {
+                s1 = -1.0;
+            } else {
+                s1 = -this->c[st] / this->c[ed];
+            }
 
             // make bkup for stage 3 use
             int dst = st / this->s;
-            this->bkup_a[dst] = this->a[k];
-            this->bkup_c[dst] = this->c[k];
-            this->bkup_rhs[dst] = this->rhs[k];
+            this->bkup_a[dst] = this->a[st];
+            this->bkup_c[dst] = this->c[st];
+            this->bkup_rhs[dst] = this->rhs[st];
 
-            this->a[k] = inv_diag_k * ak;
-            this->c[k] = -inv_diag_k * ckr * ck;
-            this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+            this->a[st] += s1 * this->a[ed];
+            this->c[st] = s1;
+            this->rhs[st] += s1 * this->rhs[ed];
         }
     }
 }
@@ -231,7 +227,7 @@ void PTPR::tpr_inter() {
         real rhsk = this->rhs[k];
         real rhskr = this->rhs[kr];
 
-        real inv_diag_k = 1.0f / (1.0f - akr * ck);
+        real inv_diag_k = one / (one - akr * ck);
 
         int dst = i / this->s;
         this->st2_a[dst] = inv_diag_k * ak;
@@ -249,7 +245,7 @@ void PTPR::tpr_inter() {
  */
 void PTPR::tpr_stage2() {
     // assert tpr_inter() have been called and st2_* have valid input.
-    this->st2solver.set_tridiagonal_system(this->st2_a, nullptr, this->st2_c,
+    this->st2solver.set_tridiagonal_system(this->st2_a, this->st2_c,
                                            this->st2_rhs);
     this->st2solver.solve();
 
@@ -277,7 +273,7 @@ void PTPR::tpr_stage3() {
         int ed = st + s - 1;
         // x[-1] should be 0.0
 
-        real key = 1.0f / c[ed] * (rhs[ed] - a[ed] * x[st - 1] - x[ed]);
+        real key = one / c[ed] * (rhs[ed] - a[ed] * x[st - 1] - x[ed]);
         if (c[ed] == 0.0f) {
             key = 0.0f;
         }
@@ -303,7 +299,7 @@ EquationInfo PTPR::update_no_check(int kl, int k, int kr) {
     real rhsk = rhs[k];
     real rhskr = rhs[kr];
 
-    real inv_diag_k = 1.0f / (1.0f - ckl * ak - akr * ck);
+    real inv_diag_k = one / (one - ckl * ak - akr * ck);
 
     EquationInfo eqi;
     eqi.idx = k;
@@ -324,7 +320,7 @@ EquationInfo PTPR::update_uppper_no_check(int k, int kr) {
     real rhsk = rhs[k];
     real rhskr = rhs[kr];
 
-    real inv_diag_k = 1.0f / (1.0f - akr * ck);
+    real inv_diag_k = one / (one - akr * ck);
 
     EquationInfo eqi;
     eqi.idx = k;
@@ -345,7 +341,7 @@ EquationInfo PTPR::update_lower_no_check(int kl, int k) {
     real rhskl = rhs[kl];
     real rhsk = rhs[k];
 
-    real inv_diag_k = 1.0f / (1.0f - ckl * ak);
+    real inv_diag_k = one / (one - ckl * ak);
 
     EquationInfo eqi;
     eqi.idx = k;

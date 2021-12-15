@@ -1,4 +1,6 @@
-# Tree Partitioning Reduction
+# PCR-like Tree Partitioning Reduction
+
+A tridiagonal system solver for CPU and GPU.
 
 [![CMake](https://github.com/TM-MT/tpr/actions/workflows/cmake.yml/badge.svg)](https://github.com/TM-MT/tpr/actions/workflows/cmake.yml)
 
@@ -26,6 +28,9 @@ $ ./src/tpr_main
 # run benchmark program
 # ./src/tpr_pm N S iter_time Solver
 $ ./src/tpr_pm 2048 512 1000 PTPR
+# Evaluate the solution by L2-Norm defined by `||x - x_t||_2 / ||x_t||_2` where x_t denotes the truth
+# print the result to stdout in csv format,`InputMatrix,Solver,N,S,L2-Norm`
+$ ./src/nstab
 
 # Use cuda (cmake < 3.18)
 $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_FLAGS="-gencode arch=compute_75,code=sm_75"  -Dwith_ACC=no -DRandom_BuildTests=no -DBUILD_CUDA=yes ..
@@ -36,6 +41,7 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCU_ARCH="60" -Dwith_ACC=no -DRandom_BuildTe
 #### CMake Options
  - `-D CMAKE_BUILD_TYPE={Release|Debug}`: Build type
  - `-D with_PAPI={path/to/papi|OFF}` : Specify path to PAPI installed directory. The default is `OFF`
+ - `-D REAL_TYPE={float|double}`: Specify real type of floating point. The default is `float`.
  - `-D TPR_PERF={no|yes}`: Enable Performance monitoring for each stage in TPR. This option may affect the performance.
  - `-D with_LAPACK={no|yes}`: Enable REFERENCE LAPACK `sgtsv` function. Require [Reference LAPACK](http://netlib.org/lapack/) and LAPACKE, and can be found by `FindLAPACK` module provided by cmake.
  - `-D ENABLE_TEST={no|yes}`: Enable building test. The default is `no`

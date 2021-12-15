@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include "lib.hpp"
 #include "main.hpp"
 #include "tpr.cuh"
 
@@ -246,16 +247,17 @@ __device__ void TPR_CU::tpr_inter(cg::thread_block &tb, Equation &eq,
     assert(__isShared((void *)eq.rhs));
 
     if ((idx < params.n) && (idx == params.st)) {
-        int k = idx - params.st, kr = params.s - 1;
-        float ak = eq.a[k], akr = eq.a[kr];
-        float ck = eq.c[k], ckr = eq.c[kr];
-        float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
+        int st = idx - params.st, ed = params.s - 1;
+        float s1;
+        if (fabs(eq.c[ed]) < machine_epsilon) {
+            s1 = -1.0;
+        } else {
+            s1 = -eq.c[st] / eq.c[ed];
+        }
 
-        float inv_diag_k = 1.0f / (1.0f - akr * ck);
-
-        eq.a[k] = inv_diag_k * ak;
-        eq.c[k] = -inv_diag_k * ckr * ck;
-        eq.rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+        eq.a[st] += s1 * eq.a[ed];
+        eq.c[st] = s1;
+        eq.rhs[st] += s1 * eq.rhs[ed];
     }
 }
 
@@ -719,3 +721,14 @@ void TPR_CU::cr_cu(float *a, float *c, float *rhs, float *x, int n) {
     CU_CHECK(cudaFree(d_x));
     return;
 }
+
+#ifdef _REAL_IS_DOUBLE_
+void TPR_CU::tpr_cu(double *a, double *c, double *rhs, double *x, int n,
+                    int s) {
+#pragma message " NOT IMPLEMENT."
+}
+
+void TPR_CU::cr_cu(double *a, double *c, double *rhs, double *x, int n) {
+#pragma message " NOT IMPLEMENT."
+}
+#endif

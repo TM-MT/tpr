@@ -1,6 +1,14 @@
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 set(GTEST_INC "${PROJECT_SOURCE_DIR}/googletest/googletest/include")
 
+if(REAL_TYPE STREQUAL "double")
+    message("Using double precision")
+    set_property(
+        DIRECTORY ${PROJECT_CURRENT_DIR}
+        APPEND
+        PROPERTY COMPILE_DEFINITIONS _REAL_IS_DOUBLE_)
+endif()
+
 add_executable(examples examples.cpp)
 target_include_directories(examples PUBLIC ${SRC_DIR}
                                            ${PROJECT_SOURCE_DIR}/PMlib/include)

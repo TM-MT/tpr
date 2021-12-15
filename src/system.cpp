@@ -1,6 +1,9 @@
 #include "system.hpp"
 
+#include <assert.h>
 #include <stdlib.h>
+
+#include <cstdio>
 
 #include "effolkronium/random.hpp"
 
@@ -8,6 +11,11 @@
 using Random = effolkronium::random_static;
 
 using namespace trisys;
+
+/**
+ * @brief      Read double and check
+ */
+#define READFP(dst) assert(fscanf(fp, "%lf,", &dst) == 1)
 
 TRIDIAG_SYSTEM::TRIDIAG_SYSTEM(int n) {
     this->a = (real *)malloc(n * sizeof(real));
@@ -41,6 +49,70 @@ TRIDIAG_SYSTEM::~TRIDIAG_SYSTEM() {
     this->diag = nullptr;
     this->c = nullptr;
     this->rhs = nullptr;
+}
+
+int ExampleFromInput::assign() {
+    std::cerr << "Reading from " << this->path << "\n";
+    FILE *fp = fopen(this->path.c_str(), "r");
+    int n = this->sys.n;
+    bool failure = false;
+    double dummy;
+    double *tmp_a = new double[n];
+    double *tmp_diag = new double[n];
+    double *tmp_c = new double[n];
+    double *tmp_rhs = new double[n];
+
+    // Read the file with double precision
+    if (fp != nullptr) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < i - 1; j++) {
+                READFP(dummy);
+            }
+
+            if (i > 0) {
+                READFP(tmp_a[i]);
+            } else {
+                tmp_a[i] = 0.0;
+            }
+
+            READFP(tmp_diag[i]);
+            if (i < n - 1) {
+                READFP(tmp_c[i]);
+            } else {
+                tmp_c[i] = 0.0;
+            }
+
+            for (int j = i + 2; j < n; j++) {
+                READFP(dummy);
+            }
+            assert(fscanf(fp, "%lf", &tmp_rhs[i]) == 1);
+        }
+    } else {
+        std::cerr << "FAILED at opening " << this->path << "\n";
+        failure = true;
+    }
+
+    // copy
+    if (!failure) {
+        for (int i = 0; i < n; i++) {
+            this->sys.a[i] = static_cast<real>(tmp_a[i]);
+            this->sys.diag[i] = static_cast<real>(tmp_diag[i]);
+            this->sys.c[i] = static_cast<real>(tmp_c[i]);
+            this->sys.rhs[i] = static_cast<real>(tmp_rhs[i]);
+        }
+    }
+
+    delete[] tmp_a;
+    delete[] tmp_diag;
+    delete[] tmp_c;
+    delete[] tmp_rhs;
+
+    fclose(fp);
+
+    if (failure) {
+        exit(EXIT_FAILURE);
+    }
+    return 0;
 }
 
 int ExampleFixedInput::assign() {
