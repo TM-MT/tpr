@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include "lib.hpp"
 #include "main.hpp"
 #include "ptpr.cuh"
 
@@ -232,10 +233,9 @@ __device__ void PTPR_CU::tpr_st1_ker(cg::thread_block &tb, Equation eq,
 __device__ void PTPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
                                    float3 &bkup, TPR_Params const &params) {
     int idx = tb.group_index().x * tb.group_dim().x + tb.thread_index().x;
-    float tmp_aa, tmp_cc, tmp_rr;
 
     if ((idx < params.n) && (idx == params.st)) {
-        int k = idx - params.st;  // == 0,
+        int st = idx - params.st;  // == 0,
         /**
         FIXME: writing 0 cause compile error
         nvcc: V11.4.48, cuda: 11.4
@@ -245,25 +245,21 @@ __device__ void PTPR_CU::tpr_inter(cg::thread_block &tb, Equation eq,
         Error: Broken function found, compilation aborted!
         ```
         **/
-        int kr = params.s - 1;
-        float ak = eq.a[k], akr = eq.a[kr];
-        float ck = eq.c[k], ckr = eq.c[kr];
-        float rhsk = eq.rhs[k], rhskr = eq.rhs[kr];
+        int ed = params.s - 1;
+        float s1;
+        if (fabs(eq.c[ed]) < machine_epsilon) {
+            s1 = -1.0;
+        } else {
+            s1 = -eq.c[st] / eq.c[ed];
+        }
 
-        float inv_diag_k = 1.0f / (1.0f - akr * ck);
+        bkup.x = eq.a[st];
+        bkup.y = eq.c[st];
+        bkup.z = eq.rhs[st];
 
-        tmp_aa = inv_diag_k * ak;
-        tmp_cc = -inv_diag_k * ckr * ck;
-        tmp_rr = inv_diag_k * (rhsk - rhskr * ck);
-
-        // idx == st
-        bkup.x = eq.a[k];
-        bkup.y = eq.c[k];
-        bkup.z = eq.rhs[k];
-
-        eq.a[k] = tmp_aa;
-        eq.c[k] = tmp_cc;
-        eq.rhs[k] = tmp_rr;
+        eq.a[st] += s1 * eq.a[ed];
+        eq.c[st] = s1;
+        eq.rhs[st] += s1 * eq.rhs[ed];
     }
 }
 

@@ -191,26 +191,23 @@ void PTPR::tpr_stage1() {
 
         // Update by E_{st} and E_{ed}, make bkup for stage 3 use.
         {
-            // EquationInfo eqi = update_uppper_no_check(st, ed);
-            int k = st, kr = st + s - 1;
-            real ak = a[k];
-            real akr = a[kr];
-            real ck = c[k];
-            real ckr = c[kr];
-            real rhsk = rhs[k];
-            real rhskr = rhs[kr];
-
-            real inv_diag_k = one / (one - akr * ck);
+            int ed = st + s - 1;
+            real s1;
+            if (fabs(this->c[ed]) < machine_epsilon) {
+                s1 = -1.0;
+            } else {
+                s1 = -this->c[st] / this->c[ed];
+            }
 
             // make bkup for stage 3 use
             int dst = st / this->s;
-            this->bkup_a[dst] = this->a[k];
-            this->bkup_c[dst] = this->c[k];
-            this->bkup_rhs[dst] = this->rhs[k];
+            this->bkup_a[dst] = this->a[st];
+            this->bkup_c[dst] = this->c[st];
+            this->bkup_rhs[dst] = this->rhs[st];
 
-            this->a[k] = inv_diag_k * ak;
-            this->c[k] = -inv_diag_k * ckr * ck;
-            this->rhs[k] = inv_diag_k * (rhsk - rhskr * ck);
+            this->a[st] += s1 * this->a[ed];
+            this->c[st] = s1;
+            this->rhs[st] += s1 * this->rhs[ed];
         }
     }
 }
