@@ -19,7 +19,7 @@ int PCR::solve() {
         int s = 1 << p;
 
 #ifndef PCR_SINGLE_THREAD
-#pragma omp parallel shared(a1, c1, rhs1)
+#pragma omp parallel
 #endif
         {
 #ifdef PCR_SINGLE_THREAD
