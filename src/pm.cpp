@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <initializer_list>
-#include <optional>
 #include <string>
 
 #include "PerfMonitor.h"
@@ -51,9 +50,6 @@ struct Options {
     int iter;
     // Solver
     Solver solver;
-    // Path for the result, <path, has_value?>
-    // std::optional available from c++17
-    std::optional<std::string> output_path;
 };
 
 /**
@@ -129,9 +125,6 @@ Options parse(int argc, char *argv[]) {
     ret.s = atoi(argv[2]);
     ret.iter = atoi(argv[3]);
     ret.solver = pmcpp::str2Solver(std::string(argv[4]));
-    if (argc == 6) {
-        ret.output_path = argv[5];
-    }
 
     return ret;
 }
@@ -140,7 +133,6 @@ Options parse(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
     int n, s, iter_times;
     pmcpp::Solver solver;
-    std::optional<std::string> output_path;
     // Parse Command Line Args
     {
         pmcpp::Options in = pmcpp::parse(argc, argv);
@@ -148,7 +140,6 @@ int main(int argc, char *argv[]) {
         s = in.s;
         iter_times = in.iter;
         solver = in.solver;
-        output_path = in.output_path;
     }
     trisys::ExampleRandomRHSInput input(n);
 
@@ -246,13 +237,6 @@ int main(int argc, char *argv[]) {
             }
         } break;
 #endif
-    }
-
-    // output the result
-    // assert `input.sys.diag` has the valid result
-    if (output_path.has_value()) {
-        auto path = output_path.value();
-        file_print_array(path, input.sys.diag, input.sys.n);
     }
 
     // CPU programs are measured by pmlib
